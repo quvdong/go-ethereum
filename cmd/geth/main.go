@@ -145,6 +145,7 @@ func init() {
 		utils.GpoPercentileFlag,
 		utils.ExtraDataFlag,
 		configFileFlag,
+		utils.PBFTTimeoutFlag,
 	}
 	app.Flags = append(app.Flags, debug.Flags...)
 
