@@ -463,6 +463,13 @@ var (
 		Usage: "Suggested gas price is the given percentile of a set of recent transaction gas prices",
 		Value: eth.DefaultConfig.GPO.Percentile,
 	}
+
+	// PBFT settings
+	PBFTTimeoutFlag = cli.IntFlag{
+		Name:  "pbft_timeout",
+		Usage: "The timeout for each PBFT round in millisecond",
+		Value: 2000,
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -932,6 +939,9 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	if ctx.GlobalIsSet(VMEnableDebugFlag.Name) {
 		// TODO(fjl): force-enable this in --dev mode
 		cfg.EnablePreimageRecording = ctx.GlobalBool(VMEnableDebugFlag.Name)
+	}
+	if ctx.GlobalIsSet(PBFTTimeoutFlag.Name) {
+		cfg.PBFTTimeout = ctx.GlobalInt(PBFTTimeoutFlag.Name)
 	}
 
 	// Override any default configs for hard coded networks.

@@ -200,6 +200,12 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.WhisperEnabledFlag,
 		},
 	},
+	{
+		Name: "PBFT",
+		Flags: []cli.Flag{
+			utils.PBFTTimeoutFlag,
+		},
+	},
 }
 
 // byCategory sorts an array of flagGroup by Name in the order

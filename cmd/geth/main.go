@@ -110,6 +110,7 @@ var (
 		utils.GpoPercentileFlag,
 		utils.ExtraDataFlag,
 		configFileFlag,
+		utils.PBFTTimeoutFlag,
 	}
 
 	rpcFlags = []cli.Flag{
