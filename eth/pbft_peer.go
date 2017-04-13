@@ -20,8 +20,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 )
 
-// SendNodeDataRLP sends a batch of arbitrary internal data, corresponding to the
-// hashes requested.
+// SendNodeVote sends a vote for peers
 func (p *peer) SendNodeVote(data []byte) error {
 	return p2p.Send(p.rw, NodeVote, data)
 }

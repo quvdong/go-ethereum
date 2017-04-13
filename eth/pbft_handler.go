@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -43,36 +42,17 @@ type PBFTProtocolManager struct {
 	*ProtocolManager
 }
 
-// NewPBFTProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
-// with the ethereum network.
-func NewPBFTProtocolManager(config *params.ChainConfig, fastSync bool, networkId int, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*PBFTProtocolManager, error) {
-	// Create the protocol manager with the base fields
-	manager := &ProtocolManager{
-		networkId:   networkId,
-		eventMux:    mux,
-		txpool:      txpool,
-		blockchain:  blockchain,
-		chaindb:     chaindb,
-		chainconfig: config,
-		maxPeers:    maxPeers,
-		peers:       newPeerSet(),
-		newPeerCh:   make(chan *peer),
-		noMorePeers: make(chan struct{}),
-		txsyncCh:    make(chan *txsync),
-		quitSync:    make(chan struct{}),
+// NewPBFTProtocolManager returns a new PBFT sub protocol manager. The PBFT sub protocol manages peers capable
+// with the PBFT network.
+func NewPBFTProtocolManager(config *params.ChainConfig, fastSync bool, networkId int, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
+	manager, err := NewProtocolManager(config, fastSync, networkId, maxPeers, mux, txpool, engine, blockchain, chaindb)
+	if err != nil {
+		return nil, err
 	}
-	pbftManager := &PBFTProtocolManager{manager}
 
-	// Figure out whether to allow fast sync or not
-	if fastSync && blockchain.CurrentBlock().NumberU64() > 0 {
-		log.Warn("Blockchain not empty, fast sync disabled")
-		fastSync = false
-	}
-	if fastSync {
-		pbftManager.fastSync = uint32(1)
-	}
-	// Initiate a sub-protocol for every implemented version we can handle
-	pbftManager.SubProtocols = make([]p2p.Protocol, 0, len(PBFTProtocolVersions))
+	// TODO: The pbftManager should return to caller
+	pbftManager := PBFTProtocolManager{ProtocolManager: manager}
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(PBFTProtocolVersions))
 	for i, version := range PBFTProtocolVersions {
 		// Skip protocol version if incompatible with the mode of operation
 		if fastSync && version < pbft101 {
@@ -80,54 +60,34 @@ func NewPBFTProtocolManager(config *params.ChainConfig, fastSync bool, networkId
 		}
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
-		pbftManager.SubProtocols = append(pbftManager.SubProtocols, p2p.Protocol{
+		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
 			Name:    PBFTProtocolName,
 			Version: version,
 			Length:  PBFTProtocolLengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
-				peer := pbftManager.newPeer(int(version), p, rw)
+				peer := manager.newPeer(int(version), p, rw)
 				select {
-				case pbftManager.newPeerCh <- peer:
-					pbftManager.wg.Add(1)
-					defer pbftManager.wg.Done()
+				case manager.newPeerCh <- peer:
+					manager.wg.Add(1)
+					defer manager.wg.Done()
 					return pbftManager.handle(peer)
-				case <-pbftManager.quitSync:
+				case <-manager.quitSync:
 					return p2p.DiscQuitting
 				}
 			},
 			NodeInfo: func() interface{} {
-				return pbftManager.NodeInfo()
+				return manager.NodeInfo()
 			},
 			PeerInfo: func(id discover.NodeID) interface{} {
-				if p := pbftManager.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
+				if p := manager.peers.Peer(fmt.Sprintf("%x", id[:8])); p != nil {
 					return p.Info()
 				}
 				return nil
 			},
 		})
 	}
-	if len(pbftManager.SubProtocols) == 0 {
-		return nil, errIncompatibleConfig
-	}
-	// Construct the different synchronisation mechanisms
-	pbftManager.downloader = downloader.New(downloader.FullSync, chaindb, pbftManager.eventMux, blockchain.HasHeader, blockchain.HasBlockAndState, blockchain.GetHeaderByHash,
-		blockchain.GetBlockByHash, blockchain.CurrentHeader, blockchain.CurrentBlock, blockchain.CurrentFastBlock, blockchain.FastSyncCommitHead,
-		blockchain.GetTdByHash, blockchain.InsertHeaderChain, pbftManager.blockchain.InsertChain, blockchain.InsertReceiptChain, blockchain.Rollback,
-		pbftManager.removePeer)
 
-	validator := func(header *types.Header) error {
-		return engine.VerifyHeader(blockchain, header, true)
-	}
-	heighter := func() uint64 {
-		return blockchain.CurrentBlock().NumberU64()
-	}
-	inserter := func(blocks types.Blocks) (int, error) {
-		atomic.StoreUint32(&pbftManager.acceptTxs, 1) // Mark initial sync done on any fetcher import
-		return pbftManager.blockchain.InsertChain(blocks)
-	}
-	pbftManager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, pbftManager.BroadcastBlock, heighter, inserter, pbftManager.removePeer)
-
-	return pbftManager, nil
+	return manager, nil
 }
 
 // handle is the callback invoked to manage the life cycle of an eth peer. When
@@ -563,8 +523,7 @@ func (pm *PBFTProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
-// BroadcastBlock will either propagate a block to a subset of it's peers, or
-// will only announce it's availability (depending what's requested).
+// BroadcastBlock will broadcasts a vote for peers.
 func (pm *ProtocolManager) BroadcastVote() {
 	peers := pm.peers.peers
 

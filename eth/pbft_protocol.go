@@ -30,7 +30,7 @@ var PBFTProtocolVersions = []uint{pbft101}
 // Number of implemented message corresponding to different protocol versions.
 var PBFTProtocolLengths = []uint64{19}
 
-// eth protocol message codes
+// pbft protocol message codes
 const (
 	// Protocol messages belonging to pbft/101
 	GetNodeVote = 0x11
