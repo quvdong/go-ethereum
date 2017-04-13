@@ -187,6 +187,12 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.WhisperEnabledFlag,
 		},
 	},
+	{
+		Name: "PBFT",
+		Flags: []cli.Flag{
+			utils.PBFTTimeoutFlag,
+		},
+	},
 }
 
 func init() {
