@@ -834,6 +834,15 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		}); err != nil {
 			Fatalf("Failed to register the Ethereum full node service: %v", err)
 		}
+		pbft := true
+		if pbft {
+			if err := stack.Register(func(ctx *node.ServiceContext) (node.Service, error) {
+				fullNode, err := eth.NewPBFT(ctx, ethConf)
+				return fullNode, err
+			}); err != nil {
+				Fatalf("Failed to register the Ethereum full node service: %v", err)
+			}
+		}
 	}
 }
 
