@@ -184,6 +184,12 @@ var AppHelpFlagGroups = []flagGroup{
 			utils.SolcPathFlag,
 		},
 	},
+	{
+		Name: "PBFT",
+		Flags: []cli.Flag{
+			utils.PBFTTimeoutFlag,
+		},
+	},
 }
 
 func init() {
