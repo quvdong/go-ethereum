@@ -90,6 +90,8 @@ type Config struct {
 	GpoPercentile int
 
 	EnablePreimageRecording bool
+
+	PBFTTimeout int //The timeout for each PBFT round in millisecond
 }
 
 type LesServer interface {

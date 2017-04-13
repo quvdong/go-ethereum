@@ -419,6 +419,13 @@ var (
 		Usage: "Suggested gas price is the given percentile of a set of recent transaction gas prices",
 		Value: 50,
 	}
+
+	// PBFT settings
+	PBFTTimeoutFlag = cli.IntFlag{
+		Name:  "pbft_timeout",
+		Usage: "The timeout for each PBFT round in millisecond",
+		Value: 2000,
+	}
 )
 
 // MakeDataDir retrieves the currently requested data directory, terminating
@@ -788,6 +795,7 @@ func RegisterEthService(ctx *cli.Context, stack *node.Node, extra []byte) {
 		EthashDatasetsInMem:     ctx.GlobalInt(EthashDatasetsInMemoryFlag.Name),
 		EthashDatasetsOnDisk:    ctx.GlobalInt(EthashDatasetsOnDiskFlag.Name),
 		EnablePreimageRecording: ctx.GlobalBool(VMEnableDebugFlag.Name),
+		PBFTTimeout:             ctx.GlobalInt(PBFTTimeoutFlag.Name),
 	}
 
 	// Override any default configs in dev mode or the test net
