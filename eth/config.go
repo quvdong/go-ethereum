@@ -109,6 +109,9 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
+	//The timeout for each PBFT round in millisecond
+	PBFTTimeout int
+
 	// Miscellaneous options
 	DocRoot   string `toml:"-"`
 	PowFake   bool   `toml:"-"`
