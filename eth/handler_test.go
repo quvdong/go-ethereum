@@ -480,6 +480,11 @@ func testDAOChallenge(t *testing.T, localForked, remoteForked bool, timeout bool
 	if err != nil {
 		t.Fatalf("failed to start test protocol manager: %v", err)
 	}
+	pm, ok := p.(*protocolManager)
+	if !ok {
+		panic("cast protocolManager failed")
+	}
+
 	pm.Start()
 	defer pm.Stop()
 
