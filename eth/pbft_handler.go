@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/eth/downloader"
@@ -150,14 +151,16 @@ func newPBFTProtocolManager(config *params.ChainConfig, mode downloader.SyncMode
 
 func (pm *pbftProtocolManager) Start() {
 	// receive the PBFT event
-	pm.eventSub = pm.eventMux.Subscribe(PBFTEvent{})
+	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{})
 	go pm.eventLoop()
 
 	pm.protocolManager.Start()
+	pm.engine.Start(pm.protocolManager.blockchain)
 }
 
 func (pm *pbftProtocolManager) Stop() {
 	log.Info("Stopping Ethereum protocol")
+	pm.engine.Stop()
 
 	pm.eventSub.Unsubscribe() // quits eventLoop
 	pm.protocolManager.Stop()
@@ -601,14 +604,14 @@ func (pm *pbftProtocolManager) eventLoop() {
 	// automatically stops if unsubscribe
 	for obj := range pm.eventSub.Chan() {
 		switch ev := obj.Data.(type) {
-		case PBFTEvent:
+		case pbft.ConsensusDataEvent:
 			pm.sendEvent(ev)
 		}
 	}
 }
 
 // event loop for PBFT events
-func (pm *pbftProtocolManager) sendEvent(event PBFTEvent) {
+func (pm *pbftProtocolManager) sendEvent(event pbft.ConsensusDataEvent) {
 	p := pm.peers.Peer(event.PeerPublicKey)
 	if p == nil {
 		log.Warn("Failed to send event to peer", "id", event.PeerPublicKey)
