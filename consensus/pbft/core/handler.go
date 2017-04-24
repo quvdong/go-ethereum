@@ -95,6 +95,11 @@ func (c *core) handle(msg *pbft.Message, src pbft.Validator) error {
 		}
 		return testBacklog(c.handleCommit(m, src))
 	case pbft.MsgCheckpoint:
+		m, ok := msg.Msg.(*pbft.Checkpoint)
+		if !ok {
+			return fmt.Errorf("failed to decode Commit")
+		}
+		return c.handleCheckpoint(m, src)
 	case pbft.MsgViewChange:
 	case pbft.MsgNewView:
 	default:
