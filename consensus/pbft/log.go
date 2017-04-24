@@ -23,18 +23,20 @@ import (
 
 func NewLog(preprepare *Preprepare) *Log {
 	return &Log{
-		ViewNumber: preprepare.View.ViewNumber,
-		Sequence:   preprepare.View.Sequence,
-		Preprepare: preprepare,
-		Prepares:   NewMessageSet(preprepare.View, reflect.TypeOf(&Subject{})),
-		Commits:    NewMessageSet(preprepare.View, reflect.TypeOf(&Subject{})),
+		ViewNumber:  preprepare.View.ViewNumber,
+		Sequence:    preprepare.View.Sequence,
+		Preprepare:  preprepare,
+		Prepares:    NewMessageSet(preprepare.View, reflect.TypeOf(&Subject{})),
+		Commits:     NewMessageSet(preprepare.View, reflect.TypeOf(&Subject{})),
+		Checkpoints: NewMessageSet(preprepare.View, reflect.TypeOf(&Checkpoint{})),
 	}
 }
 
 type Log struct {
-	ViewNumber *big.Int
-	Sequence   *big.Int
-	Preprepare *Preprepare
-	Prepares   MessageSet
-	Commits    MessageSet
+	ViewNumber  *big.Int
+	Sequence    *big.Int
+	Preprepare  *Preprepare
+	Prepares    MessageSet
+	Commits     MessageSet
+	Checkpoints MessageSet
 }
