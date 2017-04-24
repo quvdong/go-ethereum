@@ -127,4 +127,5 @@ type Checkpoint struct {
 func init() {
 	gob.Register(&Preprepare{})
 	gob.Register(&Subject{})
+	gob.Register(&Checkpoint{})
 }
