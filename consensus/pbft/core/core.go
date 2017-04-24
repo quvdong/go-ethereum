@@ -48,15 +48,14 @@ func New(backend pbft.Backend) Engine {
 	n := int64(backend.Validators().Size())
 	f := int64(math.Ceil(float64(n)/3) - 1)
 	return &core{
-		address:        backend.Address(),
-		N:              n,
-		F:              f,
-		state:          StateAcceptRequest,
-		logger:         log.New("address", backend.Address().Hex()),
-		backend:        backend,
-		checkpointMsgs: make(map[uint64]*pbft.Checkpoint),
-		sequence:       new(big.Int),
-		viewNumber:     new(big.Int),
+		address:    backend.Address(),
+		N:          n,
+		F:          f,
+		state:      StateAcceptRequest,
+		logger:     log.New("address", backend.Address().Hex()),
+		backend:    backend,
+		sequence:   new(big.Int),
+		viewNumber: new(big.Int),
 		events: backend.EventMux().Subscribe(
 			pbft.RequestEvent{},
 			pbft.ConnectionEvent{},
@@ -86,8 +85,6 @@ type core struct {
 	completed  bool
 
 	subject *pbft.Subject
-
-	checkpointMsgs map[uint64]*pbft.Checkpoint
 
 	backlogs   map[pbft.Validator]*prque.Prque
 	backlogsMu *sync.Mutex
