@@ -22,21 +22,18 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
-func (c *core) sendCheckpoint(seq *big.Int) {
+func (c *core) sendCheckpoint(cp *pbft.Checkpoint) {
 	logger := c.logger.New("state", c.state)
 	logger.Debug("sendCheckpoint")
-	c.broadcast(pbft.MsgCheckpoint, &pbft.Checkpoint{
-		// TODO: we only implement Sequence right now
-		Sequence: seq,
-	})
+	c.broadcast(pbft.MsgCheckpoint, cp)
 }
 
-func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src *pbft.Validator) error {
+func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	if cp == nil {
 		return pbft.ErrInvalidMessage
 	}
 
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 	var log *pbft.Log
 
 	logger.Debug("handleCheckpoint")
