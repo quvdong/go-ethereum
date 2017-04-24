@@ -26,6 +26,12 @@ func (c *core) Start() error {
 		for event := range c.events.Chan() {
 			// A real event arrived, process interesting content
 			switch ev := event.Data.(type) {
+			case pbft.CheckpointEvent:
+				// TODO: we only implement sequence and digest now
+				c.sendCheckpoint(&pbft.Checkpoint{
+					Sequence: ev.BlockNumber,
+					Digest:   ev.BlockHash.Bytes(),
+				})
 			case pbft.ConnectionEvent:
 
 			case pbft.RequestEvent:

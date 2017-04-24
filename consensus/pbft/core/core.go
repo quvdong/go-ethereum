@@ -60,6 +60,7 @@ func New(backend pbft.Backend) Engine {
 			pbft.RequestEvent{},
 			pbft.ConnectionEvent{},
 			pbft.MessageEvent{},
+			pbft.CheckpointEvent{},
 			backlogEvent{},
 		),
 		backlogs:        make(map[pbft.Validator]*prque.Prque),
