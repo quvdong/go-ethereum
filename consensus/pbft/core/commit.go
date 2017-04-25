@@ -32,7 +32,7 @@ func (c *core) handleCommit(commit *pbft.Subject, src *pbft.Validator) error {
 	logger := c.logger.New("from", src.ID(), "state", c.state)
 	logger.Debug("handleCommit")
 
-	if c.isFutureMessage(commit.View) {
+	if c.isFutureMessage(pbft.MsgCommit, commit.View) {
 		return errFutureMessage
 	}
 

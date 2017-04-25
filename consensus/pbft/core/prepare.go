@@ -32,7 +32,7 @@ func (c *core) handlePrepare(prepare *pbft.Subject, src *pbft.Validator) error {
 	logger := c.logger.New("from", src.ID(), "state", c.state)
 	logger.Debug("handlePrepare")
 
-	if c.isFutureMessage(prepare.View) {
+	if c.isFutureMessage(pbft.MsgPrepare, prepare.View) {
 		return errFutureMessage
 	}
 
@@ -44,9 +44,8 @@ func (c *core) handlePrepare(prepare *pbft.Subject, src *pbft.Validator) error {
 
 	// If 2f+1
 	if int64(c.current.Prepares.Size()) > 2*c.F && c.state == StatePreprepared {
-		c.state = StatePrepared
+		c.setState(StatePrepared)
 		c.sendCommit()
-		c.processBacklog()
 	}
 
 	return nil

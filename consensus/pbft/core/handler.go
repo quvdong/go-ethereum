@@ -77,7 +77,7 @@ func (c *core) handle(msg *pbft.Message, src *pbft.Validator) error {
 		if !ok {
 			return fmt.Errorf("failed to decode Preprepare")
 		}
-		return c.handlePreprepare(m, src)
+		return testBacklog(c.handlePreprepare(m, src))
 	case pbft.MsgPrepare:
 		m, ok := msg.Msg.(*pbft.Subject)
 		if !ok {

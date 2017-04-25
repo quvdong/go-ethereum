@@ -42,6 +42,10 @@ func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src *pbft.Validator
 	logger := log.New("from", src.ID(), "state", c.state)
 	logger.Debug("handlePreprepare")
 
+	if c.isFutureMessage(pbft.MsgPreprepare, preprepare.View) {
+		return errFutureMessage
+	}
+
 	if src.ID() != c.primaryID().Uint64() {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return pbft.ErrNotFromProposer
@@ -60,9 +64,8 @@ func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src *pbft.Validator
 
 	if c.state == StateAcceptRequest {
 		c.acceptPreprepare(preprepare)
-		c.state = StatePreprepared
+		c.setState(StatePreprepared)
 		c.sendPrepare()
-		c.processBacklog()
 	}
 
 	return nil
@@ -78,4 +81,5 @@ func (c *core) acceptPreprepare(preprepare *pbft.Preprepare) {
 	c.subject = subject
 	c.current = pbft.NewLog(preprepare)
 	c.checkpointMsgs = make(map[uint64]*pbft.Checkpoint)
+	c.completed = false
 }
