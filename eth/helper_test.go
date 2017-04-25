@@ -84,7 +84,7 @@ func newTestProtocolManager(mode downloader.SyncMode, blocks int, generator func
 // channels for different events. In case of an error, the constructor force-
 // fails the test.
 func newTestProtocolManagerMust(t *testing.T, mode downloader.SyncMode, blocks int, generator func(int, *core.BlockGen), newtx chan<- []*types.Transaction) *protocolManager {
-	pm, err := newTestProtocolManager(fastSync, blocks, generator, newtx)
+	pm, err := newTestProtocolManager(mode, blocks, generator, newtx)
 	if err != nil {
 		t.Fatalf("Failed to create protocol manager: %v", err)
 	}
