@@ -34,28 +34,28 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	}
 
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
-	var log *pbft.Log
+	var snapshot *snapshot
 
 	logger.Debug("handleCheckpoint")
 
-	c.consensusLogsMu.Lock()
-	defer c.consensusLogsMu.Unlock()
+	c.snapshotsMu.Lock()
+	defer c.snapshotsMu.Unlock()
 
 	if cp.Sequence.Cmp(c.current.Sequence) == 0 { // current
-		log = c.current
+		snapshot = c.current
 	} else if cp.Sequence.Cmp(c.current.Sequence) < 0 { // old checkpoint
-		logIndex := c.searchLog(cp.Sequence, 0, len(c.consensusLogs)-1)
-		if logIndex >= 0 {
-			log = c.consensusLogs[logIndex]
+		snapshotIndex := c.searchSnapshot(cp.Sequence, 0, len(c.snapshots)-1)
+		if snapshotIndex >= 0 {
+			snapshot = c.snapshots[snapshotIndex]
 		} else {
-			logger.Error("Failed to find log entry", "seq", cp.Sequence, "current", c.current.Sequence)
+			logger.Error("Failed to find snapshot entry", "seq", cp.Sequence, "current", c.current.Sequence)
 			return pbft.ErrInvalidMessage
 		}
 	} else { // future checkpoint
 		return pbft.ErrInvalidMessage
 	}
 
-	if _, err := log.Checkpoints.Add(cp, src); err != nil {
+	if _, err := snapshot.Checkpoints.Add(cp, src); err != nil {
 		logger.Error("Failed to add checkpoint", "error", err)
 		return err
 	}
@@ -63,16 +63,16 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	return nil
 }
 
-func (c *core) searchLog(seq *big.Int, low, high int) (mid int) {
-	if low < 0 || high >= len(c.consensusLogs) {
+func (c *core) searchSnapshot(seq *big.Int, low, high int) (mid int) {
+	if low < 0 || high >= len(c.snapshots) {
 		return -1
 	}
 
 	for low <= high {
 		mid = (low + high) / 2
-		if c.consensusLogs[mid].Sequence.Cmp(seq) > 0 {
+		if c.snapshots[mid].Sequence.Cmp(seq) > 0 {
 			high = mid - 1
-		} else if c.consensusLogs[mid].Sequence.Cmp(seq) < 0 {
+		} else if c.snapshots[mid].Sequence.Cmp(seq) < 0 {
 			low = mid + 1
 		} else {
 			return mid
@@ -83,15 +83,15 @@ func (c *core) searchLog(seq *big.Int, low, high int) (mid int) {
 }
 
 func (c *core) buildStableCheckpoint() {
-	var stableCheckpoint *pbft.Log
+	var stableCheckpoint *snapshot
 	stableCheckpointIndex := -1
 	logger := c.logger.New("seq", c.sequence)
 
-	c.consensusLogsMu.Lock()
-	for i := len(c.consensusLogs) - 1; i >= 0; i-- {
-		log := c.consensusLogs[i]
-		if log.Checkpoints.Size() > int(c.F*2) {
-			stableCheckpoint = log
+	c.snapshotsMu.Lock()
+	for i := len(c.snapshots) - 1; i >= 0; i-- {
+		snapshot := c.snapshots[i]
+		if snapshot.Checkpoints.Size() > int(c.F*2) {
+			stableCheckpoint = snapshot
 			stableCheckpointIndex = i
 			break
 		}
@@ -99,12 +99,12 @@ func (c *core) buildStableCheckpoint() {
 
 	// We found a stable checkpoint
 	if stableCheckpointIndex != -1 {
-		// Remove old logs
-		c.consensusLogs = c.consensusLogs[stableCheckpointIndex+1:]
+		// Remove old snapshots
+		c.snapshots = c.snapshots[stableCheckpointIndex+1:]
 	}
 
 	// Release the lock as soon as possible
-	c.consensusLogsMu.Unlock()
+	c.snapshotsMu.Unlock()
 
 	// TODO: store stable checkpoint to disk
 	logger.Debug("Stable checkpoint", "checkpoint", stableCheckpoint)

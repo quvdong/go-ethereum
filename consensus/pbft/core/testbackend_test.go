@@ -221,7 +221,7 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 		backend.address = vset.GetByIndex(i).Address()
 
 		core := New(backend).(*core)
-		core.current = pbft.NewLog(&pbft.Preprepare{
+		core.current = newSnapshot(&pbft.Preprepare{
 			View:     &pbft.View{},
 			Proposal: &pbft.Proposal{},
 		})

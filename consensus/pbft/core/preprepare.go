@@ -79,6 +79,6 @@ func (c *core) acceptPreprepare(preprepare *pbft.Preprepare) {
 	}
 
 	c.subject = subject
-	c.current = pbft.NewLog(preprepare)
+	c.current = newSnapshot(preprepare)
 	c.completed = false
 }
