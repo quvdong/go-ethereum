@@ -106,6 +106,6 @@ func (c *core) buildStableCheckpoint() {
 	// Release the lock as soon as possible
 	c.consensusLogsMu.Unlock()
 
-	// Store stable checkpoint to disk
+	// TODO: store stable checkpoint to disk
 	logger.Debug("Stable checkpoint", "checkpoint", stableCheckpoint)
 }
