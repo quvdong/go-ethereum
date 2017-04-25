@@ -29,13 +29,14 @@ import (
 )
 
 const (
-	StateAcceptRequest int = iota
+	StateAcceptRequest State = iota
 	StatePreprepared
 	StatePrepared
 	StateCommitted
 	StateCheckpointReady
 )
 
+type State uint64
 type Engine interface {
 	Start()
 	Stop()
@@ -56,6 +57,7 @@ func New(backend pbft.Backend) Engine {
 			pbft.RequestEvent{},
 			pbft.ConnectionEvent{},
 			pbft.MessageEvent{},
+			backlogEvent{},
 		),
 		backlogs:        make(map[*pbft.Validator]*prque.Prque),
 		backlogsMu:      new(sync.Mutex),
@@ -69,7 +71,7 @@ type core struct {
 	id     uint64
 	N      int64
 	F      int64
-	state  int
+	state  State
 	logger log.Logger
 
 	backend pbft.Backend
@@ -77,6 +79,7 @@ type core struct {
 
 	sequence   *big.Int
 	viewNumber *big.Int
+	completed  bool
 
 	subject *pbft.Subject
 
@@ -113,6 +116,13 @@ func (c *core) nextSequence() *pbft.View {
 	}
 }
 
+func (c *core) nextViewNumber() *pbft.View {
+	return &pbft.View{
+		ViewNumber: new(big.Int).Add(c.viewNumber, common.Big1),
+		Sequence:   c.sequence,
+	}
+}
+
 func (c *core) primaryIDView() *big.Int {
 	return new(big.Int).Mod(c.viewNumber, big.NewInt(c.N))
 }
@@ -141,11 +151,10 @@ func (c *core) makeProposal(seq *big.Int, request *pbft.Request) *pbft.Proposal 
 }
 
 func (c *core) commit() {
-	c.state = StateCommitted
+	c.setState(StateCommitted)
 	logger := c.logger.New("state", c.state)
 	logger.Debug("Ready to commit", "view", c.current.Preprepare.View)
 	c.backend.Commit(c.current.Preprepare.Proposal)
-	c.processBacklog()
 
 	c.consensusLogsMu.Lock()
 	c.consensusLogs = append(c.consensusLogs, c.current)
@@ -153,5 +162,13 @@ func (c *core) commit() {
 
 	c.viewNumber = c.current.ViewNumber
 	c.sequence = c.current.Sequence
-	c.state = StateAcceptRequest
+	c.completed = true
+	c.setState(StateAcceptRequest)
+}
+
+func (c *core) setState(state State) {
+	if c.state != state {
+		c.state = state
+		c.processBacklog()
+	}
 }
