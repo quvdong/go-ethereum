@@ -99,13 +99,13 @@ type core struct {
 func (c *core) broadcast(code uint64, msg interface{}) {
 	m, err := pbft.Encode(code, msg)
 	if err != nil {
-		log.Error("failed to encode message", "msg", msg, "error", err)
+		log.Error("Failed to encode message", "msg", msg, "error", err)
 		return
 	}
 
 	payload, err := m.ToPayload()
 	if err != nil {
-		log.Error("failed to marshal message", "msg", msg, "error", err)
+		log.Error("Failed to marshal message", "msg", msg, "error", err)
 		return
 	}
 
@@ -126,17 +126,14 @@ func (c *core) nextViewNumber() *pbft.View {
 	}
 }
 
-func (c *core) ID() uint64 {
-	return c.backend.ID()
-}
-
 func (c *core) isPrimary() bool {
 	return c.backend.IsProposer()
 }
 
 func (c *core) makeProposal(seq *big.Int, request *pbft.Request) *pbft.Proposal {
 	header := &pbft.ProposalHeader{
-		Sequence:   seq,
+		Sequence: seq,
+		// FIXME: use actual parent hash
 		ParentHash: c.backend.Hash(request.Payload),
 		DataHash:   c.backend.Hash(request.Payload),
 	}
