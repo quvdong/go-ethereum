@@ -24,7 +24,6 @@ func (c *core) handleRequest(request *pbft.Request, p *pbft.Validator) error {
 
 	if c.state == StateAcceptRequest {
 		c.sendPreprepare(request)
-		c.processBacklog()
 	}
 	return nil
 }
