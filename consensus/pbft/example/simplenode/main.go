@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -76,6 +77,7 @@ func main() {
 	block := genesisBlock
 
 	blocks := make(map[common.Hash]*types.Block)
+	blocksMu := new(sync.Mutex)
 	blocks[block.Hash()] = block
 
 	for _, backend := range backends {
@@ -85,7 +87,9 @@ func main() {
 			for event := range subscription.Chan() {
 				switch ev := event.Data.(type) {
 				case simulation.CommitEvent:
+					blocksMu.Lock()
 					b := blocks[common.BytesToHash(ev.Payload)]
+					blocksMu.Unlock()
 					log.Info("Block committed", "number", b.NumberU64(), "hash", b.Hash().String(), "id", be.ID())
 				}
 			}
@@ -95,7 +99,9 @@ func main() {
 	for {
 		backends[0].NewRequest(block.Hash().Bytes())
 		block = makeBlock(block, block.Number())
+		blocksMu.Lock()
 		blocks[block.Hash()] = block
+		blocksMu.Unlock()
 		time.Sleep(1 * time.Second)
 	}
 }
