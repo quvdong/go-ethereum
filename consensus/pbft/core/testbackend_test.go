@@ -162,6 +162,23 @@ func newTestSystem(n uint64) *testSystem {
 	}
 }
 
+func newTestSystemWithBackend(n uint64) *testSystem {
+	testLogger.SetHandler(elog.StdoutHandler)
+
+	sys := newTestSystem(n)
+
+	for i := uint64(0); i < n; i++ {
+		backend := sys.NewBackend(i)
+
+		core := New(backend).(*core)
+		core.current = pbft.NewLog(&pbft.Preprepare{&pbft.View{}, &pbft.Proposal{}})
+
+		backend.engine = core
+	}
+
+	return sys
+}
+
 // run is triggered backend, core, and queue system.
 func (t *testSystem) run() {
 	// start a queue system
