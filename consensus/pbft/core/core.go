@@ -64,9 +64,9 @@ func New(backend pbft.Backend) Engine {
 			backlogEvent{},
 			buildCheckpointEvent{},
 		),
-		backlogs:        make(map[pbft.Validator]*prque.Prque),
-		backlogsMu:      new(sync.Mutex),
-		consensusLogsMu: new(sync.RWMutex),
+		backlogs:    make(map[pbft.Validator]*prque.Prque),
+		backlogsMu:  new(sync.Mutex),
+		snapshotsMu: new(sync.RWMutex),
 	}
 }
 
@@ -91,21 +91,23 @@ type core struct {
 	backlogs   map[pbft.Validator]*prque.Prque
 	backlogsMu *sync.Mutex
 
-	current         *pbft.Log
-	consensusLogs   []*pbft.Log
-	consensusLogsMu *sync.RWMutex
+	current     *snapshot
+	snapshots   []*snapshot
+	snapshotsMu *sync.RWMutex
 }
 
 func (c *core) broadcast(code uint64, msg interface{}) {
+	logger := c.logger.New("state", c.state)
+
 	m, err := pbft.Encode(code, msg)
 	if err != nil {
-		log.Error("Failed to encode message", "msg", msg, "error", err)
+		logger.Error("Failed to encode message", "msg", msg, "error", err)
 		return
 	}
 
 	payload, err := m.ToPayload()
 	if err != nil {
-		log.Error("Failed to marshal message", "msg", msg, "error", err)
+		logger.Error("Failed to marshal message", "msg", msg, "error", err)
 		return
 	}
 
@@ -150,9 +152,9 @@ func (c *core) commit() {
 	logger.Debug("Ready to commit", "view", c.current.Preprepare.View)
 	c.backend.Commit(c.current.Preprepare.Proposal)
 
-	c.consensusLogsMu.Lock()
-	c.consensusLogs = append(c.consensusLogs, c.current)
-	c.consensusLogsMu.Unlock()
+	c.snapshotsMu.Lock()
+	c.snapshots = append(c.snapshots, c.current)
+	c.snapshotsMu.Unlock()
 
 	c.viewNumber = c.current.ViewNumber
 	c.sequence = c.current.Sequence
