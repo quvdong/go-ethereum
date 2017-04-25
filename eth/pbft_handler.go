@@ -151,9 +151,8 @@ func newPBFTProtocolManager(config *params.ChainConfig, mode downloader.SyncMode
 
 func (pm *pbftProtocolManager) Start() {
 	// receive the PBFT event
-	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{})
+	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{}, pbft.ConsensusCommitBlockEvent{})
 	go pm.eventLoop()
-
 	pm.protocolManager.Start()
 	pm.engine.Start(pm.protocolManager.blockchain)
 }
@@ -161,9 +160,8 @@ func (pm *pbftProtocolManager) Start() {
 func (pm *pbftProtocolManager) Stop() {
 	log.Info("Stopping Ethereum protocol")
 	pm.engine.Stop()
-
-	pm.eventSub.Unsubscribe() // quits eventLoop
 	pm.protocolManager.Stop()
+	pm.eventSub.Unsubscribe() // quits eventLoop
 }
 
 // handle is the callback invoked to manage the life cycle of an eth peer. When
@@ -611,6 +609,8 @@ func (pm *pbftProtocolManager) eventLoop() {
 		switch ev := obj.Data.(type) {
 		case pbft.ConsensusDataEvent:
 			pm.sendEvent(ev)
+		case pbft.ConsensusCommitBlockEvent:
+			pm.commitBlock(ev)
 		}
 	}
 }
@@ -623,6 +623,14 @@ func (pm *pbftProtocolManager) sendEvent(event pbft.ConsensusDataEvent) {
 		return
 	}
 	p2p.Send(p.rw, PBFTMsg, event.Data)
+}
+
+func (pm *pbftProtocolManager) commitBlock(event pbft.ConsensusCommitBlockEvent) {
+	// TODO: find a better way to handle validator insert block
+	// How to set Block.ReceivedAt & Block.ReceivedFrom, mark peer?
+	pm.blockchain.InsertChain(types.Blocks{event.Block})
+	pm.BroadcastBlock(event.Block, true)
+	pm.BroadcastBlock(event.Block, false)
 }
 
 func (pm *pbftProtocolManager) removePeer(id string) {
