@@ -146,16 +146,16 @@ func (self *testSystemBackend) Stop() {
 //
 
 type testSystem struct {
-	backends map[uint64]*testSystemBackend
+	backends []*testSystemBackend
 
 	queuedMessage chan pbft.MessageEvent
 	quit          chan struct{}
 }
 
-func newTestSystem() *testSystem {
+func newTestSystem(n uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
 	return &testSystem{
-		backends: make(map[uint64]*testSystemBackend),
+		backends: make([]*testSystemBackend, n),
 
 		queuedMessage: make(chan pbft.MessageEvent),
 		quit:          make(chan struct{}),
