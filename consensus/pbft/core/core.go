@@ -62,6 +62,7 @@ func New(backend pbft.Backend) Engine {
 			pbft.MessageEvent{},
 			pbft.CheckpointEvent{},
 			backlogEvent{},
+			buildCheckpointEvent{},
 		),
 		backlogs:        make(map[pbft.Validator]*prque.Prque),
 		backlogsMu:      new(sync.Mutex),
@@ -125,6 +126,10 @@ func (c *core) nextViewNumber() *pbft.View {
 	}
 }
 
+func (c *core) ID() uint64 {
+	return c.backend.ID()
+}
+
 func (c *core) isPrimary() bool {
 	return c.backend.IsProposer()
 }
@@ -156,6 +161,12 @@ func (c *core) commit() {
 	c.sequence = c.current.Sequence
 	c.completed = true
 	c.setState(StateAcceptRequest)
+
+	// We build stable checkpoint every 100 requests
+	// FIXME: this should be passed by configuration
+	if new(big.Int).Mod(c.sequence, big.NewInt(100)).Int64() == 0 {
+		go c.backend.EventMux().Post(buildCheckpointEvent{})
+	}
 }
 
 func (c *core) setState(state State) {
