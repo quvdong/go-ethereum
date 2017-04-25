@@ -144,6 +144,7 @@ func (self *testSystemBackend) Stop() {
 
 // ==============================================
 //
+// define the struct that need to be provided for integration tests.
 
 type testSystem struct {
 	backends []*testSystemBackend
@@ -224,6 +225,7 @@ func (t *testSystem) NewBackend(id uint64) *testSystemBackend {
 
 // ==============================================
 //
+// helper functions.
 
 func getPublicKeyAddress(privateKey *ecdsa.PrivateKey) common.Address {
 	return crypto.PubkeyToAddress(privateKey.PublicKey)
