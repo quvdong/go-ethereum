@@ -197,3 +197,7 @@ func (sb *Backend) NewRequest(payload []byte) {
 		Payload: payload,
 	})
 }
+
+func (sb *Backend) ViewChanged(needNewProposal bool) {
+	// not implemented
+}

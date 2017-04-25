@@ -18,6 +18,9 @@ package simple
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"math/big"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -25,7 +28,16 @@ import (
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+)
+
+var (
+	errNotProposer         = errors.New("not a proposer")
+	errViewChanged         = errors.New("view changed")
+	errOtherBlockCommitted = errors.New("other block is committed")
+
+	defaultDifficulty = big.NewInt(1)
 )
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
@@ -40,13 +52,20 @@ func (sb *simpleBackend) VerifyHeader(chain consensus.ChainReader, header *types
 // a results channel to retrieve the async verifications (the order is that of
 // the input slice).
 func (sb *simpleBackend) VerifyHeaders(chain consensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
+	abort := make(chan struct{})
 	results := make(chan error, len(headers))
 	go func() {
-		for i := range headers {
-			results <- sb.VerifyHeader(chain, headers[i], seals[i])
+		for i, header := range headers {
+			err := sb.VerifyHeader(chain, header, seals[i])
+
+			select {
+			case <-abort:
+				return
+			case results <- err:
+			}
 		}
 	}()
-	return make(chan struct{}), make(chan error, len(headers))
+	return abort, results
 }
 
 // VerifyUncles verifies that the given block's uncles conform to the consensus
@@ -64,7 +83,24 @@ func (sb *simpleBackend) VerifySeal(chain consensus.ChainReader, header *types.H
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Header) error {
+	if !sb.isProposer() {
+		return errNotProposer
+	}
+
+	// copy the parent extra data as the header extra data
+	height := uint64(header.Number.Int64())
+	parent := chain.GetHeader(header.ParentHash, height-1)
+	header.Extra = parent.Extra
+	// use the same difficulty for all blocks
+	header.Difficulty = defaultDifficulty
 	return nil
+}
+
+func (sb *simpleBackend) isProposer() bool {
+	if sb.valSet == nil {
+		return false
+	}
+	return reflect.DeepEqual(sb.valSet.GetProposer(), sb.valSet.GetByIndex(sb.id))
 }
 
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
@@ -74,13 +110,68 @@ func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Head
 // consensus rules that happen at finalization (e.g. block rewards).
 func (sb *simpleBackend) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return types.NewBlockWithHeader(header), nil
+	if !sb.isProposer() {
+		return nil, errNotProposer
+	}
+
+	// No block rewards in PBFT, so the state remains as is and uncles are dropped
+	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
+	header.UncleHash = types.CalcUncleHash(nil)
+
+	// Assemble and return the final block for sealing
+	return types.NewBlock(header, txs, nil, receipts), nil
+}
+
+func (sb *simpleBackend) closeChannels() {
+	if sb.viewChange != nil {
+		close(sb.viewChange)
+		sb.viewChange = nil
+	}
+
+	if sb.commit != nil {
+		close(sb.commit)
+		sb.commit = nil
+	}
+}
+
+func (sb *simpleBackend) newChannels() {
+	sb.viewChange = make(chan bool, 1)
+	sb.commit = make(chan common.Hash, 1)
 }
 
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
-	return block, nil
+	if !sb.isProposer() {
+		return nil, errNotProposer
+	}
+
+	sb.newChannels()
+	defer sb.closeChannels()
+
+	// step 1. feed block into PBFT engine
+	b, e := rlp.EncodeToBytes(block)
+	if e != nil {
+		return nil, e
+	}
+	go sb.EventMux().Post(pbft.RequestEvent{
+		Payload: b,
+	})
+
+	for {
+		select {
+		case needNewProposal := <-sb.viewChange:
+			if needNewProposal {
+				return nil, errViewChanged
+			}
+			// if we don't need to change block, we keep waiting events.
+		case hash := <-sb.commit:
+			if block.Hash() == hash {
+				return block, nil
+			}
+			return nil, errOtherBlockCommitted
+		}
+	}
 }
 
 // APIs returns the RPC APIs this consensus engine provides.

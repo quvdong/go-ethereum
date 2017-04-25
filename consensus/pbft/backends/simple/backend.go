@@ -24,6 +24,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	pbftCore "github.com/ethereum/go-ethereum/consensus/pbft/core"
+	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -37,7 +39,7 @@ const (
 	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
 )
 
-func New(n uint64, f uint64, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
+func New(timeout int, n uint64, f uint64, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
 	backend := &simpleBackend{
 		n:            n,
 		f:            f,
@@ -47,6 +49,7 @@ func New(n uint64, f uint64, eventMux *event.TypeMux, privateKey *ecdsa.PrivateK
 		privateKey:   privateKey,
 		logger:       log.New("backend", "simple"),
 		db:           newDBer(db),
+		timeout:      uint64(timeout),
 	}
 
 	backend.core = pbftCore.New(backend)
@@ -55,7 +58,6 @@ func New(n uint64, f uint64, eventMux *event.TypeMux, privateKey *ecdsa.PrivateK
 }
 
 // ----------------------------------------------------------------------------
-
 type simpleBackend struct {
 	id             uint64
 	n              uint64
@@ -70,6 +72,11 @@ type simpleBackend struct {
 	logger         log.Logger
 	quitSync       chan struct{}
 	db             pbft.Dber
+	timeout        uint64
+
+	// the channels for pbft engine notifications
+	viewChange chan bool
+	commit     chan common.Hash
 }
 
 func (sb *simpleBackend) ID() uint64 {
@@ -106,7 +113,33 @@ func (sb *simpleBackend) Commit(proposal *pbft.Proposal) {
 	log.Info("Committed", "id", sb.ID(), "proposal", proposal)
 	// step1: update validator set from extra data of block
 	// step2: insert chain
+	block := &types.Block{}
+	err := rlp.DecodeBytes(proposal.Payload, block)
+	if err != nil {
+		log.Warn("decode block error", "err", err)
+		return
+	}
+	// it's a proposer
+	if sb.commit != nil {
+		go func() {
+			sb.commit <- block.Hash()
+		}()
+	} else {
+		go sb.eventMux.Post(pbft.ConsensusCommitBlockEvent{Block: block})
+	}
+}
 
+func (sb *simpleBackend) ViewChanged(needNewProposal bool) {
+	// step1: update proposer
+	// step2: notify proposer and validator
+	if sb.viewChange != nil {
+		go func() {
+			sb.viewChange <- needNewProposal
+		}()
+	}
+	if sb.isProposer() {
+		go sb.eventMux.Post(core.ChainHeadEvent{})
+	}
 }
 
 func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {

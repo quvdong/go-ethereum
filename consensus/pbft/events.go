@@ -16,11 +16,18 @@
 
 package pbft
 
+import "github.com/ethereum/go-ethereum/core/types"
+
 type ConsensusDataEvent struct {
 	// peer id for send p2p message
 	PeerID string
 	// consensus message data
 	Data []byte
+}
+
+type ConsensusCommitBlockEvent struct {
+	// block
+	Block *types.Block
 }
 
 type RequestEvent struct {
