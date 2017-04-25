@@ -42,6 +42,8 @@ func (c *core) Start() error {
 				c.handleMsg(ev.Payload, c.backend.Validators().GetByAddress(ev.Address))
 			case backlogEvent:
 				c.handle(ev.msg, ev.src)
+			case buildCheckpointEvent:
+				go c.buildStableCheckpoint()
 			}
 		}
 	}()

@@ -81,3 +81,31 @@ func (c *core) searchLog(seq *big.Int, low, high int) (mid int) {
 
 	return -1
 }
+
+func (c *core) buildStableCheckpoint() {
+	var stableCheckpoint *pbft.Log
+	stableCheckpointIndex := -1
+	logger := c.logger.New("seq", c.sequence)
+
+	c.consensusLogsMu.Lock()
+	for i := len(c.consensusLogs) - 1; i >= 0; i-- {
+		log := c.consensusLogs[i]
+		if log.Checkpoints.Size() > int(c.F*2) {
+			stableCheckpoint = log
+			stableCheckpointIndex = i
+			break
+		}
+	}
+
+	// We found a stable checkpoint
+	if stableCheckpointIndex != -1 {
+		// Remove old logs
+		c.consensusLogs = c.consensusLogs[stableCheckpointIndex+1:]
+	}
+
+	// Release the lock as soon as possible
+	c.consensusLogsMu.Unlock()
+
+	// Store stable checkpoint to disk
+	logger.Debug("Stable checkpoint", "checkpoint", stableCheckpoint)
+}
