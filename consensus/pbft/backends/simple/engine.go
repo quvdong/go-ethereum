@@ -192,7 +192,8 @@ func (sb *simpleBackend) APIs(chain consensus.ChainReader) []rpc.API {
 	}}
 }
 
-func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) {
+// AddPeer implements consensus.PBFT.AddPeer
+func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
 	peer := newPeer(peerID, publicKey)
 	// check is validator
 	if val := sb.valSet.GetByAddress(peer.Address()); val != nil {
@@ -203,35 +204,43 @@ func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) {
 			ID: val.ID(),
 		})
 	}
+	return nil
 }
 
-func (sb *simpleBackend) RemovePeer(peerID string) {
+// RemovePeer implements consensus.PBFT.RemovePeer
+func (sb *simpleBackend) RemovePeer(peerID string) error {
 	sb.peerSet.Remove(peerID)
+	return nil
 }
 
-func (sb *simpleBackend) HandleMsg(peerID string, data []byte) {
+// HandleMsg implements consensus.PBFT.HandleMsg
+func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 	peer := sb.peerSet.Get(peerID)
 	if peer == nil {
-		return
+		return nil
 	}
 
 	msgEvent, err := Decode(data)
 	if err != nil {
-		return
+		return err
 	}
 
 	if val := sb.valSet.GetByAddress(peer.Address()); val != nil {
 		go sb.pbftEventMux.Post(*msgEvent)
 	}
+
+	return nil
 }
 
-func (sb *simpleBackend) Start(chain consensus.ChainReader) {
+// Start implements consensus.PBFT.Start
+func (sb *simpleBackend) Start(chain consensus.ChainReader) error {
 	sb.initValidatorSet(chain)
-	sb.core.Start()
+	return sb.core.Start()
 }
 
-func (sb *simpleBackend) Stop() {
-	sb.core.Stop()
+// Stop implements consensus.PBFT.Stop
+func (sb *simpleBackend) Stop() error {
+	return sb.core.Stop()
 }
 
 func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) {
