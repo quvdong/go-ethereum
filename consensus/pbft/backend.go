@@ -33,16 +33,16 @@ type Backend interface {
 	EventMux() *event.TypeMux
 
 	// Send is to send pbft message to peers
-	Send([]byte)
+	Send([]byte) error
 
 	// UpdateState is to update the current pbft state to backend
-	UpdateState(*State)
+	UpdateState(*State) error
 
 	// Commit is to deliver a final result to write into blockchain
-	Commit(*Proposal)
+	Commit(*Proposal) error
 
 	// ViewChanged is called when view change occurred
-	ViewChanged(needNewProposal bool)
+	ViewChanged(needNewProposal bool) error
 
 	// Verify is to verify the proposal request
 	Verify(*Proposal) (bool, error)
@@ -53,7 +53,7 @@ type Backend interface {
 	// CheckSignature is to verify the signature is signed from given peer
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
-	// XXX: Hash, Encode, Decode and SetHandler are workaround functions for developing
+	// FIXME: Hash, Encode, Decode and SetHandler are workaround functions for developing
 	Hash(b interface{}) common.Hash
 	Encode(b interface{}) ([]byte, error)
 	Decode([]byte, interface{}) error

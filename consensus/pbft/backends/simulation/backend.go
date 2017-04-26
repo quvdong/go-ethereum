@@ -106,7 +106,7 @@ func (sb *Backend) Validators() *pbft.ValidatorSet {
 	return sb.valSet
 }
 
-func (sb *Backend) Send(payload []byte) {
+func (sb *Backend) Send(payload []byte) error {
 	go func() {
 		for _, p := range peers {
 			if p.ID() != sb.me.ID() {
@@ -119,12 +119,14 @@ func (sb *Backend) Send(payload []byte) {
 			}
 		}
 	}()
+	return nil
 }
 
-func (sb *Backend) Commit(proposal *pbft.Proposal) {
+func (sb *Backend) Commit(proposal *pbft.Proposal) error {
 	go sb.mux.Post(CommitEvent{
 		Payload: proposal.Payload,
 	})
+	return nil
 }
 
 func (sb *Backend) Hash(x interface{}) (h common.Hash) {
@@ -161,8 +163,9 @@ func (sb *Backend) CheckSignature(data []byte, addr common.Address, sig []byte) 
 	return nil
 }
 
-func (sb *Backend) UpdateState(*pbft.State) {
+func (sb *Backend) UpdateState(*pbft.State) error {
 	// not implemented
+	return nil
 }
 
 func (sb *Backend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) {
@@ -198,6 +201,7 @@ func (sb *Backend) NewRequest(payload []byte) {
 	})
 }
 
-func (sb *Backend) ViewChanged(needNewProposal bool) {
+func (sb *Backend) ViewChanged(needNewProposal bool) error {
 	// not implemented
+	return nil
 }
