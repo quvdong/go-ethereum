@@ -98,14 +98,17 @@ type Backend struct {
 	logger log.Logger
 }
 
+// ID implements pbft.Backend.ID
 func (sb *Backend) ID() uint64 {
 	return sb.id
 }
 
+// Validators implements pbft.Backend.Validators
 func (sb *Backend) Validators() *pbft.ValidatorSet {
 	return sb.valSet
 }
 
+// Send implements pbft.Backend.Send
 func (sb *Backend) Send(payload []byte) error {
 	go func() {
 		for _, p := range peers {
@@ -122,6 +125,7 @@ func (sb *Backend) Send(payload []byte) error {
 	return nil
 }
 
+// Commit implements pbft.Backend.Commit
 func (sb *Backend) Commit(proposal *pbft.Proposal) error {
 	go sb.mux.Post(CommitEvent{
 		Payload: proposal.Payload,
@@ -129,6 +133,7 @@ func (sb *Backend) Commit(proposal *pbft.Proposal) error {
 	return nil
 }
 
+// Hash implements pbft.Backend.Hash
 func (sb *Backend) Hash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
@@ -136,72 +141,90 @@ func (sb *Backend) Hash(x interface{}) (h common.Hash) {
 	return h
 }
 
+// Encode implements pbft.Backend.Encode
 func (sb *Backend) Encode(v interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(v)
 }
 
+// Decode implements pbft.Backend.Decode
 func (sb *Backend) Decode(b []byte, v interface{}) error {
 	return rlp.DecodeBytes(b, v)
 }
 
+// EventMux implements pbft.Backend.EventMux
 func (sb *Backend) EventMux() *event.TypeMux {
 	return sb.mux
 }
 
+// Verify implements pbft.Backend.Verify
 func (sb *Backend) Verify(proposal *pbft.Proposal) (bool, error) {
 	// not implemented
 	return true, nil
 }
 
+// Sign implements pbft.Backend.Sign
 func (sb *Backend) Sign(data []byte) ([]byte, error) {
 	// not implemented
 	return data, nil
 }
 
+// CheckSignature implements pbft.Backend.CheckSignature
 func (sb *Backend) CheckSignature(data []byte, addr common.Address, sig []byte) error {
 	// not implemented
 	return nil
 }
 
+// UpdateState implements pbft.Backend.UpdateState
 func (sb *Backend) UpdateState(*pbft.State) error {
 	// not implemented
 	return nil
 }
 
-func (sb *Backend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) {
+// ViewChanged implements pbft.Backend.ViewChanged
+func (sb *Backend) ViewChanged(needNewProposal bool) error {
+	// not implemented
+	return nil
+}
+
+// AddPeer implements consensus.PBFT.AddPeer
+func (sb *Backend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
 	numID, err := strconv.ParseInt(peerID, 10, 64)
 	if err != nil {
 		sb.logger.Error("Invalid peer ID", "id", peerID)
-		return
+		return pbft.ErrInvalidPeerId
 	}
 	if sb.ID() == uint64(numID) {
 		sb.logger.Error("Don't add myself", sb.ID(), numID)
-		return
+		return pbft.ErrInvalidPeerId
 	}
 
 	sb.peers[numID] = peers[numID]
+	return nil
 }
 
-func (sb *Backend) RemovePeer(peerID string) {
+// RemovePeer implements consensus.PBFT.RemovePeer
+func (sb *Backend) RemovePeer(peerID string) error {
+	return nil
 }
 
-func (sb *Backend) HandleMsg(peerID string, data []byte) {
+// HandleMsg implements consensus.PBFT.HandleMsg
+func (sb *Backend) HandleMsg(peerID string, data []byte) error {
 	// TODO: forward pbft message to pbft engine
+	return nil
 }
 
-func (sb *Backend) Start(chain consensus.ChainReader) {
+// Start implements consensus.PBFT.Start
+func (sb *Backend) Start(chain consensus.ChainReader) error {
+	return nil
 }
 
-func (sb *Backend) Stop() {
+// Stop implements consensus.PBFT.Stop
+func (sb *Backend) Stop() error {
+	return nil
 }
 
 func (sb *Backend) NewRequest(payload []byte) {
 	go sb.mux.Post(pbft.RequestEvent{
 		Payload: payload,
 	})
-}
-
-func (sb *Backend) ViewChanged(needNewProposal bool) error {
-	// not implemented
-	return nil
 }
