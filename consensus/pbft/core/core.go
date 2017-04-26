@@ -37,7 +37,12 @@ const (
 	StateCheckpointReady
 )
 
+const (
+	keyStableCheckpoint = "StableCheckpoint"
+)
+
 type State uint64
+
 type Engine interface {
 	Start() error
 	Stop() error
