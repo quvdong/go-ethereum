@@ -38,6 +38,7 @@ type testSystemBackend struct {
 	events *event.TypeMux
 
 	commitMsgs []*pbft.Proposal
+	sentMsgs   [][]byte // store the message when Send is called by core
 
 	address common.Address
 }
@@ -61,6 +62,7 @@ func (self *testSystemBackend) EventMux() *event.TypeMux {
 
 func (self *testSystemBackend) Send(message []byte) error {
 	testLogger.Info("enqueuing a message...", "address", self.Address())
+	self.sentMsgs = append(self.sentMsgs, message)
 	self.sys.queuedMessage <- pbft.MessageEvent{
 		Address: self.Address(),
 		Payload: message,
