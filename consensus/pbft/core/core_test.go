@@ -36,7 +36,7 @@ func TestNewRequest(t *testing.T) {
 		backend.engine.Start() // start PBFT core
 	}
 
-	sys.run()
+	sys.listen()
 	defer sys.stop()
 
 	request1 := []byte("request 1")
