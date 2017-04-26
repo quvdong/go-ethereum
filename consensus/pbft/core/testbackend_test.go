@@ -60,21 +60,29 @@ func (self *testSystemBackend) EventMux() *event.TypeMux {
 	return self.events
 }
 
-func (self *testSystemBackend) Send(message []byte) {
+func (self *testSystemBackend) Send(message []byte) error {
 	testLogger.Info("enqueuing a message...", "id", self.ID())
 	self.sys.queuedMessage <- pbft.MessageEvent{
 		ID:      self.ID(),
 		Payload: message,
 	}
+	return nil
 }
 
-func (self *testSystemBackend) UpdateState(state *pbft.State) {
+func (self *testSystemBackend) UpdateState(state *pbft.State) error {
 	testLogger.Warn("nothing to happen")
+	return nil
 }
 
-func (self *testSystemBackend) Commit(proposal *pbft.Proposal) {
+func (self *testSystemBackend) ViewChanged(needNewProposal bool) error {
+	testLogger.Warn("nothing to happen")
+	return nil
+}
+
+func (self *testSystemBackend) Commit(proposal *pbft.Proposal) error {
 	testLogger.Info("commit message", "id", self.ID())
 	self.commitMsgs = append(self.commitMsgs, proposal)
+	return nil
 }
 
 func (self *testSystemBackend) Verify(proposal *pbft.Proposal) (bool, error) {
@@ -111,22 +119,25 @@ func (self *testSystemBackend) NewRequest(request []byte) {
 //
 // define the functions that need to be provided for PBFT protocol manager.
 
-func (self *testSystemBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) {
+func (self *testSystemBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
 	testLogger.Info(fmt.Sprintf("add peer: %s", peerID), "id", self.ID())
+	return nil
 }
 
 // Remove a peer
-func (self *testSystemBackend) RemovePeer(peerPublicKey string) {
+func (self *testSystemBackend) RemovePeer(peerPublicKey string) error {
 	testLogger.Warn("nothing to happen")
+	return nil
 }
 
 // Handle a message from peer
-func (self *testSystemBackend) HandleMsg(peerPublicKey string, data []byte) {
+func (self *testSystemBackend) HandleMsg(peerPublicKey string, data []byte) error {
 	testLogger.Warn("nothing to happen")
+	return nil
 }
 
 // Start is initialized peers
-func (self *testSystemBackend) Start(chain consensus.ChainReader) {
+func (self *testSystemBackend) Start(chain consensus.ChainReader) error {
 	peers := make([]*pbft.Validator, len(self.sys.backends))
 	for i, backend := range self.sys.backends {
 		peers[i] = pbft.NewValidator(
@@ -135,11 +146,13 @@ func (self *testSystemBackend) Start(chain consensus.ChainReader) {
 		)
 	}
 	self.peers = pbft.NewValidatorSet(peers)
+	return nil
 }
 
 // Stop the engine
-func (self *testSystemBackend) Stop() {
+func (self *testSystemBackend) Stop() error {
 	testLogger.Warn("nothing to happen")
+	return nil
 }
 
 // ==============================================
