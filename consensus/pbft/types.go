@@ -84,7 +84,7 @@ type ProposalHeader struct {
 }
 
 type Proposal struct {
-	Header     []byte
+	Header     *ProposalHeader
 	Payload    []byte
 	Signatures [][]byte
 }
