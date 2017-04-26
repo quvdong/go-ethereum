@@ -106,6 +106,9 @@ func (c *core) buildStableCheckpoint() {
 	// Release the lock as soon as possible
 	c.snapshotsMu.Unlock()
 
-	// TODO: store stable checkpoint to disk
 	logger.Debug("Stable checkpoint", "checkpoint", stableCheckpoint)
+
+	if err := c.backend.Save(keyStableCheckpoint, stableCheckpoint); err != nil {
+		logger.Crit("Failed to save stable checkpoint", "error", err)
+	}
 }
