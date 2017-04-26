@@ -22,7 +22,8 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
-func (c *core) Start() {
+// Start implements core.Engine.Start
+func (c *core) Start() error {
 	go func() {
 		for event := range c.events.Chan() {
 			// A real event arrived, process interesting content
@@ -40,10 +41,13 @@ func (c *core) Start() {
 			}
 		}
 	}()
+	return nil
 }
 
-func (c *core) Stop() {
+// Stop implements core.Engine.Stop
+func (c *core) Stop() error {
 	c.events.Unsubscribe()
+	return nil
 }
 
 func (c *core) handleMsg(payload []byte, src *pbft.Validator) error {

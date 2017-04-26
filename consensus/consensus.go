@@ -107,17 +107,17 @@ type PBFT interface {
 	Engine
 
 	// Add a peer
-	AddPeer(peerID string, publicKey *ecdsa.PublicKey)
+	AddPeer(peerID string, publicKey *ecdsa.PublicKey) error
 
 	// Remove a peer
-	RemovePeer(peerID string)
+	RemovePeer(peerID string) error
 
 	// Handle a message from peer
-	HandleMsg(peerID string, data []byte)
+	HandleMsg(peerID string, data []byte) error
 
 	// Start the engine
-	Start(chain ChainReader)
+	Start(chain ChainReader) error
 
 	// Stop the engine
-	Stop()
+	Stop() error
 }

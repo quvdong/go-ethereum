@@ -38,8 +38,8 @@ const (
 
 type State uint64
 type Engine interface {
-	Start()
-	Stop()
+	Start() error
+	Stop() error
 }
 
 func New(backend pbft.Backend) Engine {

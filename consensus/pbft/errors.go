@@ -26,4 +26,5 @@ var (
 	ErrInvalidMessage    = errors.New("invalid message")
 	ErrSubjectNotMatched = errors.New("subjects are not matched")
 	ErrInvalidSignature  = errors.New("Invalid signature")
+	ErrInvalidPeerId     = errors.New("Invalid peer ID")
 )

@@ -79,14 +79,17 @@ type simpleBackend struct {
 	commit     chan common.Hash
 }
 
+// ID implements pbft.Backend.ID
 func (sb *simpleBackend) ID() uint64 {
 	return sb.id
 }
 
+// Validators implements pbft.Backend.Validators
 func (sb *simpleBackend) Validators() *pbft.ValidatorSet {
 	return sb.valSet
 }
 
+// Send implements pbft.Backend.Send
 func (sb *simpleBackend) Send(data []byte) error {
 	pbftMsg := pbft.MessageEvent{
 		ID:      sb.ID(),
@@ -110,6 +113,7 @@ func (sb *simpleBackend) Send(data []byte) error {
 	return nil
 }
 
+// Commit implements pbft.Backend.Commit
 func (sb *simpleBackend) Commit(proposal *pbft.Proposal) error {
 	log.Info("Committed", "id", sb.ID(), "proposal", proposal)
 	// step1: update validator set from extra data of block
@@ -131,6 +135,7 @@ func (sb *simpleBackend) Commit(proposal *pbft.Proposal) error {
 	return nil
 }
 
+// ViewChanged implements pbft.Backend.ViewChanged
 func (sb *simpleBackend) ViewChanged(needNewProposal bool) error {
 	// step1: update proposer
 	// step2: notify proposer and validator
@@ -145,6 +150,7 @@ func (sb *simpleBackend) ViewChanged(needNewProposal bool) error {
 	return nil
 }
 
+// Hash implements pbft.Backend.Hash
 func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, x)
@@ -152,29 +158,35 @@ func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {
 	return h
 }
 
+// Encode implements pbft.Backend.Encode
 func (sb *simpleBackend) Encode(v interface{}) ([]byte, error) {
 	return rlp.EncodeToBytes(v)
 }
 
+// Decode implements pbft.Backend.Decode
 func (sb *simpleBackend) Decode(b []byte, v interface{}) error {
 	return rlp.DecodeBytes(b, v)
 }
 
+// EventMux implements pbft.Backend.EventMux
 func (sb *simpleBackend) EventMux() *event.TypeMux {
 	// not implemented
 	return sb.pbftEventMux
 }
 
+// Verify implements pbft.Backend.Verify
 func (sb *simpleBackend) Verify(proposal *pbft.Proposal) (bool, error) {
 	// not implemented
 	return true, nil
 }
 
+// Sign implements pbft.Backend.Sign
 func (sb *simpleBackend) Sign(data []byte) ([]byte, error) {
 	hashData := crypto.Keccak256([]byte(data))
 	return crypto.Sign(hashData, sb.privateKey)
 }
 
+// CheckSignature implements pbft.Backend.CheckSignature
 func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	//1. Keccak data
 	hashData := crypto.Keccak256([]byte(data))
@@ -192,6 +204,7 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 	return nil
 }
 
+// UpdateState implements pbft.Backend.UpdateState
 func (sb *simpleBackend) UpdateState(state *pbft.State) error {
 	sb.consensusState = state
 	return nil
