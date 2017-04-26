@@ -42,48 +42,48 @@ func TestCore_verifyPrepare(t *testing.T) {
 			// normal case
 			expected: nil,
 			prepare: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
 			},
 			self: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
 			},
 		},
 		{
 			// old message
 			expected: pbft.ErrOldMessage,
 			prepare: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
 			},
 			self: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(1)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(1)},
+				Digest: []byte{1},
 			},
 		},
 		{
 			// malicious package(lack of sequence)
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(0), Sequence: nil},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: nil},
+				Digest: []byte{1},
 			},
 			self: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(1)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(1)},
+				Digest: []byte{1},
 			},
 		},
 		{
 			// wrong prepare message
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(0)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
 			},
 			self: &pbft.Subject{
-				&pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
-				[]byte{1},
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
 			},
 		},
 	}
