@@ -24,6 +24,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/p2p"
@@ -42,12 +43,14 @@ var peers []*peer = []*peer{
 }
 
 func NewBackend(id uint64) *Backend {
+	db, _ := ethdb.NewMemDatabase()
 	backend := &Backend{
 		id:     id,
 		me:     peers[id],
 		peers:  make([]*peer, len(peers)),
 		logger: log.New("backend", "simulated", "id", id),
 		mux:    new(event.TypeMux),
+		db:     db,
 	}
 	var vals []*pbft.Validator
 	for i, peer := range peers {
@@ -96,6 +99,7 @@ type Backend struct {
 	valSet *pbft.ValidatorSet
 	peers  []*peer
 	logger log.Logger
+	db     ethdb.Database
 }
 
 // ID implements pbft.Backend.ID
@@ -227,4 +231,24 @@ func (sb *Backend) NewRequest(payload []byte) {
 	go sb.mux.Post(pbft.RequestEvent{
 		Payload: payload,
 	})
+}
+
+func (sb *Backend) Save(key string, val interface{}) error {
+	blob, err := sb.Encode(val)
+	if err != nil {
+		return err
+	}
+	return sb.db.Put(toDatabaseKey(sb.Hash, key), blob)
+}
+
+func (sb *Backend) Restore(key string, val interface{}) error {
+	blob, err := sb.db.Get(toDatabaseKey(sb.Hash, key))
+	if err != nil {
+		return err
+	}
+	return sb.Decode(blob, val)
+}
+
+func toDatabaseKey(hashfn func(val interface{}) common.Hash, key string) []byte {
+	return hashfn("pbft-simulation-backend-" + key).Bytes()
 }
