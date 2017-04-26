@@ -87,14 +87,14 @@ func (sb *simpleBackend) Validators() *pbft.ValidatorSet {
 	return sb.valSet
 }
 
-func (sb *simpleBackend) Send(data []byte) {
+func (sb *simpleBackend) Send(data []byte) error {
 	pbftMsg := pbft.MessageEvent{
 		ID:      sb.ID(),
 		Payload: data,
 	}
 	pbftByte, err := Encode(&pbftMsg)
 	if err != nil {
-		return
+		return err
 	}
 
 	// send to self
@@ -107,9 +107,10 @@ func (sb *simpleBackend) Send(data []byte) {
 			Data:   pbftByte,
 		})
 	}
+	return nil
 }
 
-func (sb *simpleBackend) Commit(proposal *pbft.Proposal) {
+func (sb *simpleBackend) Commit(proposal *pbft.Proposal) error {
 	log.Info("Committed", "id", sb.ID(), "proposal", proposal)
 	// step1: update validator set from extra data of block
 	// step2: insert chain
@@ -117,7 +118,7 @@ func (sb *simpleBackend) Commit(proposal *pbft.Proposal) {
 	err := rlp.DecodeBytes(proposal.Payload, block)
 	if err != nil {
 		log.Warn("decode block error", "err", err)
-		return
+		return err
 	}
 	// it's a proposer
 	if sb.commit != nil {
@@ -127,9 +128,10 @@ func (sb *simpleBackend) Commit(proposal *pbft.Proposal) {
 	} else {
 		go sb.eventMux.Post(pbft.ConsensusCommitBlockEvent{Block: block})
 	}
+	return nil
 }
 
-func (sb *simpleBackend) ViewChanged(needNewProposal bool) {
+func (sb *simpleBackend) ViewChanged(needNewProposal bool) error {
 	// step1: update proposer
 	// step2: notify proposer and validator
 	if sb.viewChange != nil {
@@ -140,6 +142,7 @@ func (sb *simpleBackend) ViewChanged(needNewProposal bool) {
 	if sb.isProposer() {
 		go sb.eventMux.Post(core.ChainHeadEvent{})
 	}
+	return nil
 }
 
 func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {
@@ -189,6 +192,7 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 	return nil
 }
 
-func (sb *simpleBackend) UpdateState(state *pbft.State) {
+func (sb *simpleBackend) UpdateState(state *pbft.State) error {
 	sb.consensusState = state
+	return nil
 }
