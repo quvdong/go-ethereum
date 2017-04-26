@@ -252,3 +252,10 @@ func (sb *Backend) Restore(key string, val interface{}) error {
 func toDatabaseKey(hashfn func(val interface{}) common.Hash, key string) []byte {
 	return hashfn("pbft-simulation-backend-" + key).Bytes()
 }
+
+func (sb *Backend) IsProposer() bool {
+	if sb.valSet == nil {
+		return false
+	}
+	return sb.valSet.IsProposer(sb.id)
+}

@@ -214,7 +214,7 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 	}
 	// If PBFT is requested, set it up
 	if chainConfig.PBFT != nil {
-		return pbftBackend.New(config.PBFTTimeout, uint64(0), uint64(0), ctx.EventMux, ctx.NodeKey(), db)
+		return pbftBackend.New(config.PBFTTimeout, ctx.EventMux, ctx.NodeKey(), db)
 	}
 
 	// Otherwise assume proof-of-work

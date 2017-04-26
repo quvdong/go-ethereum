@@ -50,6 +50,9 @@ type Backend interface {
 	// Sign is to sign the data
 	Sign([]byte) ([]byte, error)
 
+	// Check wether I'm a proposer
+	IsProposer() bool
+
 	// CheckSignature is to verify the signature is signed from given peer
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
