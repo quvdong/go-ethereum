@@ -31,13 +31,8 @@ func TestNewRequest(t *testing.T) {
 
 	sys := NewTestSystemWithBackend(N)
 
-	for _, backend := range sys.backends {
-		backend.Start(nil)
-		backend.engine.Start() // start PBFT core
-	}
-
-	sys.listen()
-	defer sys.stop()
+	close := sys.Run(true, true)
+	defer close()
 
 	request1 := []byte("request 1")
 	sys.backends[0].NewRequest(request1)
