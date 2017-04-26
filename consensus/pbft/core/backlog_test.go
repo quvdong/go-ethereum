@@ -105,7 +105,11 @@ func TestStoreBacklog(t *testing.T) {
 	preprepare := &pbft.Preprepare{
 		View: v,
 		Proposal: &pbft.Proposal{
-			Header:     []byte("header"),
+			Header: &pbft.ProposalHeader{
+				Sequence:   big.NewInt(10),
+				ParentHash: common.HexToHash("0x1234567890"),
+				DataHash:   common.HexToHash("0x9876543210"),
+			},
 			Payload:    []byte("payload"),
 			Signatures: [][]byte{[]byte("sig1")},
 		},
@@ -191,7 +195,11 @@ func TestProcessBacklog(t *testing.T) {
 	preprepare := &pbft.Preprepare{
 		View: v,
 		Proposal: &pbft.Proposal{
-			Header:     []byte("header"),
+			Header: &pbft.ProposalHeader{
+				Sequence:   big.NewInt(10),
+				ParentHash: common.HexToHash("0x1234567890"),
+				DataHash:   common.HexToHash("0x9876543210"),
+			},
 			Payload:    []byte("payload"),
 			Signatures: [][]byte{[]byte("sig1")},
 		},

@@ -138,10 +138,8 @@ func (c *core) makeProposal(seq *big.Int, request *pbft.Request) *pbft.Proposal 
 		DataHash:   c.backend.Hash(request.Payload),
 	}
 
-	rawHeader, _ := c.backend.Encode(header)
-
 	return &pbft.Proposal{
-		Header:  rawHeader,
+		Header:  header,
 		Payload: request.Payload,
 	}
 }
