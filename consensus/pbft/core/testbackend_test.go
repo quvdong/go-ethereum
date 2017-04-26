@@ -227,9 +227,8 @@ func NewTestSystemWithBackend(n uint64) *testSystem {
 	return sys
 }
 
-// run is triggered backend, core, and queue system.
-func (t *testSystem) run() {
-	// start a queue system
+// listen will consume messages from queue and deliver a message to core
+func (t *testSystem) listen() {
 	go func() {
 		for {
 			select {
