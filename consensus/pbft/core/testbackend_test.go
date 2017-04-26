@@ -172,7 +172,10 @@ func newTestSystemWithBackend(n uint64) *testSystem {
 		backend := sys.NewBackend(i)
 
 		core := New(backend).(*core)
-		core.current = pbft.NewLog(&pbft.Preprepare{&pbft.View{}, &pbft.Proposal{}})
+		core.current = pbft.NewLog(&pbft.Preprepare{
+			View:     &pbft.View{},
+			Proposal: &pbft.Proposal{},
+		})
 
 		backend.engine = core
 	}
