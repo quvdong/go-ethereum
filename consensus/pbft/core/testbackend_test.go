@@ -191,6 +191,7 @@ func newTestSystem(n uint64) *testSystem {
 	}
 }
 
+// FIXME: int64 is needed for N and F
 func NewTestSystemWithBackend(n uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
 
@@ -229,27 +230,49 @@ func NewTestSystemWithBackend(n uint64) *testSystem {
 
 // listen will consume messages from queue and deliver a message to core
 func (t *testSystem) listen() {
-	go func() {
-		for {
-			select {
-			case <-t.quit:
-				return
-			case queuedMessage := <-t.queuedMessage:
-				testLogger.Info("consuming a queue message...", "msg from", queuedMessage.Address)
-				for _, backend := range t.backends {
-					go backend.EventMux().Post(queuedMessage)
-				}
+	for {
+		select {
+		case <-t.quit:
+			return
+		case queuedMessage := <-t.queuedMessage:
+			testLogger.Info("consuming a queue message...", "msg from", queuedMessage.Address.Hex())
+			for _, backend := range t.backends {
+				go backend.EventMux().Post(queuedMessage)
 			}
 		}
-	}()
+	}
 }
 
-func (t *testSystem) stop() {
+// Run will start system components based on given flag, and returns a closer
+// function that caller can control lifecycle
+//
+// Given a true for backend if you want to initialize backend validators.
+// Given a true for core if you want to initialize core engine.
+func (t *testSystem) Run(backend, core bool) func() {
+	for _, b := range t.backends {
+		if backend {
+			b.Start(nil)
+		}
+		if core {
+			b.engine.Start() // start PBFT core
+		}
+	}
+
+	go t.listen()
+	closer := func() { t.stop(backend, core) }
+	return closer
+}
+
+func (t *testSystem) stop(backend, core bool) {
 	close(t.quit)
 
-	for _, backend := range t.backends {
-		backend.engine.Stop()
-		backend.Stop()
+	for _, b := range t.backends {
+		if core {
+			b.engine.Stop()
+		}
+		if backend {
+			b.Stop()
+		}
 	}
 }
 
