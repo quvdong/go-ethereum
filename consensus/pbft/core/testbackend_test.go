@@ -192,7 +192,7 @@ func newTestSystem(n uint64) *testSystem {
 }
 
 // FIXME: int64 is needed for N and F
-func NewTestSystemWithBackend(n uint64) *testSystem {
+func NewTestSystemWithBackend(n, f uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
 
 	// generate validators
@@ -221,6 +221,8 @@ func NewTestSystemWithBackend(n uint64) *testSystem {
 			Proposal: &pbft.Proposal{},
 		})
 		core.logger = testLogger
+		core.N = int64(n)
+		core.F = int64(f)
 
 		backend.engine = core
 	}
