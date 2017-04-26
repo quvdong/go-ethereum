@@ -46,7 +46,7 @@ func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src *pbft.Validator
 		return errFutureMessage
 	}
 
-	if src.ID() != c.primaryID().Uint64() {
+	if !c.backend.Validators().IsProposer(src.ID()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return pbft.ErrNotFromProposer
 	}

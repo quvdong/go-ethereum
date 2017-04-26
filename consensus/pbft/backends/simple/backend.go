@@ -39,10 +39,8 @@ const (
 	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
 )
 
-func New(timeout int, n uint64, f uint64, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
+func New(timeout int, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
 	backend := &simpleBackend{
-		n:            n,
-		f:            f,
 		peerSet:      newPeerSet(),
 		eventMux:     eventMux,
 		pbftEventMux: new(event.TypeMux),
@@ -51,17 +49,12 @@ func New(timeout int, n uint64, f uint64, eventMux *event.TypeMux, privateKey *e
 		db:           db,
 		timeout:      uint64(timeout),
 	}
-
-	backend.core = pbftCore.New(backend)
-
 	return backend
 }
 
 // ----------------------------------------------------------------------------
 type simpleBackend struct {
 	id             uint64
-	n              uint64
-	f              uint64
 	peerSet        *peerSet
 	valSet         *pbft.ValidatorSet
 	eventMux       *event.TypeMux
@@ -144,7 +137,7 @@ func (sb *simpleBackend) ViewChanged(needNewProposal bool) error {
 			sb.viewChange <- needNewProposal
 		}()
 	}
-	if sb.isProposer() {
+	if sb.IsProposer() {
 		go sb.eventMux.Post(core.ChainHeadEvent{})
 	}
 	return nil
@@ -208,4 +201,11 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 func (sb *simpleBackend) UpdateState(state *pbft.State) error {
 	sb.consensusState = state
 	return nil
+}
+
+func (sb *simpleBackend) IsProposer() bool {
+	if sb.valSet == nil {
+		return false
+	}
+	return sb.valSet.IsProposer(sb.id)
 }
