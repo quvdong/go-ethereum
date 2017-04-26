@@ -147,16 +147,6 @@ func (sb *Backend) Hash(x interface{}) (h common.Hash) {
 	return h
 }
 
-// Encode implements pbft.Backend.Encode
-func (sb *Backend) Encode(v interface{}) ([]byte, error) {
-	return rlp.EncodeToBytes(v)
-}
-
-// Decode implements pbft.Backend.Decode
-func (sb *Backend) Decode(b []byte, v interface{}) error {
-	return rlp.DecodeBytes(b, v)
-}
-
 // EventMux implements pbft.Backend.EventMux
 func (sb *Backend) EventMux() *event.TypeMux {
 	return sb.mux
@@ -236,7 +226,7 @@ func (sb *Backend) NewRequest(payload []byte) {
 }
 
 func (sb *Backend) Save(key string, val interface{}) error {
-	blob, err := sb.Encode(val)
+	blob, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		return err
 	}
@@ -248,7 +238,7 @@ func (sb *Backend) Restore(key string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	return sb.Decode(blob, val)
+	return rlp.DecodeBytes(blob, val)
 }
 
 func toDatabaseKey(hashfn func(val interface{}) common.Hash, key string) []byte {

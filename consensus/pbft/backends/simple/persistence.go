@@ -16,14 +16,17 @@
 
 package simple
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rlp"
+)
 
 const (
 	dbKeyPrefix = "pbft-backend-"
 )
 
 func (sb *simpleBackend) Save(key string, val interface{}) error {
-	blob, err := sb.Encode(val)
+	blob, err := rlp.EncodeToBytes(val)
 	if err != nil {
 		return err
 	}
@@ -35,7 +38,7 @@ func (sb *simpleBackend) Restore(key string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	return sb.Decode(blob, val)
+	return rlp.DecodeBytes(blob, val)
 }
 
 func toDatabaseKey(hashfn func(val interface{}) common.Hash, key string) []byte {

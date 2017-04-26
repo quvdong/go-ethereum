@@ -58,8 +58,6 @@ type Backend interface {
 
 	// FIXME: Hash, Encode, Decode and SetHandler are workaround functions for developing
 	Hash(b interface{}) common.Hash
-	Encode(b interface{}) ([]byte, error)
-	Decode([]byte, interface{}) error
 
 	Persistence
 }

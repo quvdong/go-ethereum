@@ -152,16 +152,6 @@ func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {
 	return h
 }
 
-// Encode implements pbft.Backend.Encode
-func (sb *simpleBackend) Encode(v interface{}) ([]byte, error) {
-	return rlp.EncodeToBytes(v)
-}
-
-// Decode implements pbft.Backend.Decode
-func (sb *simpleBackend) Decode(b []byte, v interface{}) error {
-	return rlp.DecodeBytes(b, v)
-}
-
 // EventMux implements pbft.Backend.EventMux
 func (sb *simpleBackend) EventMux() *event.TypeMux {
 	// not implemented
