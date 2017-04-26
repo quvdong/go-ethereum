@@ -17,27 +17,54 @@
 package core
 
 import (
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
-func (c *core) isFutureMessage(view *pbft.View) bool {
-	if view == nil {
+// check whether it's a future message
+// if this round is completed,
+// - if the current state is StateAcceptRequest (waiting for a new MsgPreprepare message)
+//   and the message is MsgPreprepare, we will check whether the view is next sequence or
+//   view number. If so, it's not a future message because we can process it now and enter
+//   the next round.
+// - Otherwise, we ignore the msg code, because this round is completed. We only compute
+//   the message priority by its sequence and view number
+// if this round is not completed, we compute current state and the message priority.
+// It's a future message if the message priority is smaller than current priority
+func (c *core) isFutureMessage(msgCode uint64, view *pbft.View) bool {
+	if view == nil || view.Sequence == nil || view.ViewNumber == nil {
 		return false
 	}
 
 	if c.subject == nil {
+		// only in initial state
+		if msgCode == pbft.MsgPreprepare {
+			return false
+		}
 		return true
 	}
 
-	if view.Sequence.Cmp(c.subject.View.Sequence) > 0 ||
-		view.ViewNumber.Cmp(c.subject.View.ViewNumber) > 0 {
-		return true
+	var priority, newPriority float32
+	if c.completed {
+		// check the next round
+		newPriority = toPriority(msgCode, view)
+		if c.state == StateAcceptRequest && msgCode == pbft.MsgPreprepare {
+			// next sequence
+			if toPriority(msgCode, c.nextSequence()) == newPriority {
+				return false
+			}
+			// next view
+			if toPriority(msgCode, c.nextViewNumber()) == newPriority {
+				return false
+			}
+		}
+		// if completed, skip the message code because this round is completed
+		priority = toPriority(msgCode, c.subject.View)
+	} else {
+		priority = toPriority(uint64(c.state), c.subject.View)
+		newPriority = toPriority(msgCode, view)
 	}
-
-	return false
+	return priority > newPriority
 }
 
 func (c *core) storeBacklog(msg *pbft.Message, src *pbft.Validator) {
@@ -57,11 +84,19 @@ func (c *core) storeBacklog(msg *pbft.Message, src *pbft.Validator) {
 	if backlog == nil {
 		backlog = prque.New()
 	}
-
-	// Messages here always includes a pbft.Subject
-	sub := msg.Msg.(*pbft.Subject)
-
-	backlog.Push(msg, toPriority(sub.View.Sequence))
+	switch msg.Code {
+	case pbft.MsgPreprepare:
+		m, ok := msg.Msg.(*pbft.Preprepare)
+		if ok {
+			backlog.Push(msg, toPriority(msg.Code, m.View))
+		}
+		// for pbft.MsgPrepare and pbft.MsgCommit cases
+	default:
+		sub, ok := msg.Msg.(*pbft.Subject)
+		if ok {
+			backlog.Push(msg, toPriority(msg.Code, sub.View))
+		}
+	}
 	c.backlogs[src] = backlog
 }
 
@@ -83,10 +118,26 @@ func (c *core) processBacklog() {
 		for !(backlog.Empty() || isFuture) {
 			m, prio := backlog.Pop()
 			msg := m.(*pbft.Message)
-			sub := msg.Msg.(*pbft.Subject)
-
+			var view *pbft.View
+			switch msg.Code {
+			case pbft.MsgPreprepare:
+				m, ok := msg.Msg.(*pbft.Preprepare)
+				if ok {
+					view = m.View
+				}
+				// for pbft.MsgPrepare and pbft.MsgCommit cases
+			default:
+				sub, ok := msg.Msg.(*pbft.Subject)
+				if ok {
+					view = sub.View
+				}
+			}
+			if view == nil {
+				logger.Debug("Nil view", "msg", msg)
+				continue
+			}
 			// Push back if it's a future message
-			if c.isFutureMessage(sub.View) {
+			if c.isFutureMessage(msg.Code, view) {
 				logger.Debug("Stop processing backlog", "msg", msg)
 				backlog.Push(msg, prio)
 				isFuture = true
@@ -103,6 +154,7 @@ func (c *core) processBacklog() {
 	}
 }
 
-func toPriority(n *big.Int) float32 {
-	return -float32(n.Uint64())
+func toPriority(msgCode uint64, view *pbft.View) float32 {
+	// In our case, sequence and view number will never reset to zero
+	return -float32((view.Sequence.Uint64()+view.ViewNumber.Uint64())*10 + msgCode)
 }
