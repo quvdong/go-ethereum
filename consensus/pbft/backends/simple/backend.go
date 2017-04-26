@@ -48,7 +48,7 @@ func New(timeout int, n uint64, f uint64, eventMux *event.TypeMux, privateKey *e
 		pbftEventMux: new(event.TypeMux),
 		privateKey:   privateKey,
 		logger:       log.New("backend", "simple"),
-		db:           newDBer(db),
+		db:           db,
 		timeout:      uint64(timeout),
 	}
 
@@ -71,7 +71,7 @@ type simpleBackend struct {
 	core           pbftCore.Engine
 	logger         log.Logger
 	quitSync       chan struct{}
-	db             pbft.Dber
+	db             ethdb.Database
 	timeout        uint64
 
 	// the channels for pbft engine notifications
