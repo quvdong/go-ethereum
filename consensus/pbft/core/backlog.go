@@ -21,6 +21,16 @@ import (
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
+// check whether it's a future message
+// if this round is completed,
+// - if the current state is StateAcceptRequest (waiting for a new MsgPreprepare message)
+//   and the message is MsgPreprepare, we will check whether the view is next sequence or
+//   view number. If so, it's not a future message because we can process it now and enter
+//   the next round.
+// - Otherwise, we ignore the msg code, because this round is completed. We only compute
+//   the message priority by its sequence and view number
+// if this round is not completed, we compute current state and the message priority.
+// It's a future message if the message priority is smaller than current priority
 func (c *core) isFutureMessage(msgCode uint64, view *pbft.View) bool {
 	if view == nil || view.Sequence == nil || view.ViewNumber == nil {
 		return false
