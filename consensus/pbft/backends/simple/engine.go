@@ -20,11 +20,11 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
-	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	pbftCore "github.com/ethereum/go-ethereum/consensus/pbft/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -91,7 +91,7 @@ func (sb *simpleBackend) VerifySeal(chain consensus.ChainReader, header *types.H
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Header) error {
-	if !sb.isProposer() {
+	if !sb.IsProposer() {
 		return errNotProposer
 	}
 
@@ -104,13 +104,6 @@ func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Head
 	return nil
 }
 
-func (sb *simpleBackend) isProposer() bool {
-	if sb.valSet == nil {
-		return false
-	}
-	return reflect.DeepEqual(sb.valSet.GetProposer(), sb.valSet.GetByIndex(sb.id))
-}
-
 // Finalize runs any post-transaction state modifications (e.g. block rewards)
 // and assembles the final block.
 //
@@ -118,7 +111,7 @@ func (sb *simpleBackend) isProposer() bool {
 // consensus rules that happen at finalization (e.g. block rewards).
 func (sb *simpleBackend) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	if !sb.isProposer() {
+	if !sb.IsProposer() {
 		return nil, errNotProposer
 	}
 
@@ -150,7 +143,7 @@ func (sb *simpleBackend) newChannels() {
 // Seal generates a new block for the given input block with the local miner's
 // seal place on top.
 func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
-	if !sb.isProposer() {
+	if !sb.IsProposer() {
 		return nil, errNotProposer
 	}
 
@@ -235,6 +228,7 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 // Start implements consensus.PBFT.Start
 func (sb *simpleBackend) Start(chain consensus.ChainReader) error {
 	sb.initValidatorSet(chain)
+	sb.core = pbftCore.New(sb)
 	return sb.core.Start()
 }
 

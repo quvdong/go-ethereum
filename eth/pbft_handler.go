@@ -627,9 +627,12 @@ func (pm *pbftProtocolManager) sendEvent(event pbft.ConsensusDataEvent) {
 
 func (pm *pbftProtocolManager) commitBlock(event pbft.ConsensusCommitBlockEvent) {
 	// TODO: find a better way to handle validator insert block
-	// How to set Block.ReceivedAt & Block.ReceivedFrom, mark peer?
-	pm.blockchain.InsertChain(types.Blocks{event.Block})
-	pm.BroadcastBlock(event.Block, true)
+	block := event.Block
+	if _, err := pm.blockchain.InsertChain(types.Blocks{block}); err != nil {
+		log.Debug("Block insert failed", "number", block.Number(), "hash", block.Hash(), "err", err)
+		return
+	}
+	// Only announce the block, not broadcast it
 	pm.BroadcastBlock(event.Block, false)
 }
 

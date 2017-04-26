@@ -18,6 +18,7 @@ package pbft
 
 import (
 	"bytes"
+	"reflect"
 
 	"github.com/ethereum/go-ethereum/common"
 )
@@ -83,4 +84,8 @@ func (valSet *ValidatorSet) CalcProposer(seed uint64) {
 		pick := seed % uint64(valSet.Size())
 		valSet.proposer = valSet.validators[pick]
 	}
+}
+
+func (valSet *ValidatorSet) IsProposer(id uint64) bool {
+	return reflect.DeepEqual(valSet.GetProposer(), valSet.GetByIndex(id))
 }
