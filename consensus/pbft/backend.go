@@ -57,4 +57,13 @@ type Backend interface {
 	Hash(b interface{}) common.Hash
 	Encode(b interface{}) ([]byte, error)
 	Decode([]byte, interface{}) error
+
+	Persistence
+}
+
+type Persistence interface {
+	// Save an object into db
+	Save(key string, val interface{}) error
+	// Restore an object to val from db
+	Restore(key string, val interface{}) error
 }
