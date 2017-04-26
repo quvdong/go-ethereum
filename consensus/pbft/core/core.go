@@ -17,6 +17,7 @@
 package core
 
 import (
+	"math"
 	"math/big"
 	"sync"
 
@@ -43,12 +44,15 @@ type Engine interface {
 }
 
 func New(backend pbft.Backend) Engine {
+	// update n and f
+	n := int64(backend.Validators().Size())
+	f := int64(math.Ceil(float64(n)/3) - 1)
 	return &core{
 		id:             backend.ID(),
-		N:              4,
-		F:              1,
+		N:              n,
+		F:              f,
 		state:          StateAcceptRequest,
-		logger:         log.New("backend", "simulation", "id", backend.ID()),
+		logger:         log.New("id", backend.ID()),
 		backend:        backend,
 		checkpointMsgs: make(map[uint64]*pbft.Checkpoint),
 		sequence:       new(big.Int),
@@ -123,16 +127,8 @@ func (c *core) nextViewNumber() *pbft.View {
 	}
 }
 
-func (c *core) primaryIDView() *big.Int {
-	return new(big.Int).Mod(c.viewNumber, big.NewInt(c.N))
-}
-
-func (c *core) primaryID() *big.Int {
-	return c.primaryIDView()
-}
-
 func (c *core) isPrimary() bool {
-	return c.primaryID().Uint64() == c.ID()
+	return c.backend.IsProposer()
 }
 
 func (c *core) makeProposal(seq *big.Int, request *pbft.Request) *pbft.Proposal {
