@@ -18,12 +18,180 @@ package core
 
 import (
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 )
+
+func TestCore_handlePrepare(t *testing.T) {
+	N := uint64(4)
+	F := uint64(1)
+
+	expectedSubject := &pbft.Subject{
+		View: &pbft.View{
+			ViewNumber: big.NewInt(0),
+			Sequence:   big.NewInt(0)},
+		Digest: []byte{1},
+	}
+
+	testCases := []struct {
+		system *testSystem
+
+		expectedErr error
+	}{
+		{
+			// normal case
+			func() *testSystem {
+				sys := NewTestSystemWithBackend(N, F)
+
+				for i, backend := range sys.backends {
+					c := backend.engine.(*core)
+					c.subject = expectedSubject
+
+					if i == 0 {
+						// replica 0 is primary
+						c.state = StatePreprepared
+					}
+				}
+				return sys
+			}(),
+			nil,
+		},
+		{
+			// future message
+			func() *testSystem {
+				sys := NewTestSystemWithBackend(N, F)
+
+				for i, backend := range sys.backends {
+					c := backend.engine.(*core)
+
+					if i == 0 {
+						// replica 0 is primary
+						c.subject = expectedSubject
+						c.state = StatePreprepared
+					} else {
+						c.subject = &pbft.Subject{
+							View: &pbft.View{
+								ViewNumber: big.NewInt(2),
+								Sequence:   big.NewInt(3)},
+							Digest: []byte{1},
+						}
+					}
+				}
+				return sys
+			}(),
+			errFutureMessage,
+		},
+		{
+			// subject not match
+			func() *testSystem {
+				sys := NewTestSystemWithBackend(N, F)
+
+				for i, backend := range sys.backends {
+					c := backend.engine.(*core)
+
+					if i == 0 {
+						// replica 0 is primary
+						c.subject = expectedSubject
+						c.state = StatePreprepared
+					} else {
+						c.subject = &pbft.Subject{
+							View: &pbft.View{
+								ViewNumber: big.NewInt(0),
+								Sequence:   big.NewInt(0)},
+							Digest: []byte{2, 3, 4},
+						}
+					}
+				}
+				return sys
+			}(),
+			pbft.ErrSubjectNotMatched,
+		},
+		{
+			// less than 2F+1
+			func() *testSystem {
+				sys := NewTestSystemWithBackend(N, F)
+
+				// save less than 2*F+1 replica
+				sys.backends = sys.backends[2*int(F)+1:]
+
+				for i, backend := range sys.backends {
+					c := backend.engine.(*core)
+					c.subject = expectedSubject
+
+					if i == 0 {
+						// replica 0 is primary
+						c.state = StatePreprepared
+					}
+				}
+				return sys
+			}(),
+			nil,
+		},
+		// TODO: double send message
+	}
+
+OUTER:
+	for _, test := range testCases {
+		test.system.Run(true, false)
+
+		v0 := test.system.backends[0]
+		r0 := v0.engine.(*core)
+
+		for i, v := range test.system.backends {
+			if err := r0.handlePrepare(v.engine.(*core).subject, v.Validators().GetByIndex(uint64(i))); err != nil {
+				if err != test.expectedErr {
+					t.Error("unexpected error: ", err)
+				}
+				continue OUTER
+			}
+		}
+
+		// prepared is normal case
+		if r0.state != StatePrepared {
+			// There are not enough prepared messages in core
+			if r0.state != StatePreprepared {
+				t.Error("state should be preprepared")
+			}
+			if int64(r0.current.Prepares.Size()) > 2*r0.F {
+				t.Error("prepare messages size should less than ", 2*r0.F+1)
+			}
+
+			continue
+		}
+
+		// core should have 2F+1 prepare messages
+		if int64(r0.current.Prepares.Size()) <= 2*r0.F {
+			t.Error("prepare messages size should greater than 2F+1, size:", r0.current.Prepares.Size())
+		}
+
+		// a message will be delivered to backend if 2F+1
+		if int64(len(v0.sentMsgs)) != 1 {
+			t.Error("the Send() should be called once, got:", len(test.system.backends[0].sentMsgs))
+		}
+
+		// verify commit messages
+		var decodedMsg pbft.Message
+		err := pbft.Decode(v0.sentMsgs[0], &decodedMsg)
+		if err != nil {
+			t.Error("failed to parse")
+		}
+
+		if decodedMsg.Code != pbft.MsgCommit {
+			t.Error("message code is not the same")
+		}
+		m, ok := decodedMsg.Msg.(*pbft.Subject)
+		if !ok {
+			t.Error("failed to decode Prepare")
+		}
+		if !reflect.DeepEqual(m, expectedSubject) {
+			t.Error("subject should be the same")
+		}
+	}
+}
 
 // view number is not checked for now
 func TestVerifyPrepare(t *testing.T) {
