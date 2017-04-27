@@ -25,8 +25,8 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
-	"github.com/ethereum/go-ethereum/consensus/pbft/backends/simulation"
 	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
+	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
@@ -150,7 +150,9 @@ func TestStoreBacklog(t *testing.T) {
 }
 
 func TestProcessFutureBacklog(t *testing.T) {
-	backend := simulation.NewBackend(1)
+	backend := &testSystemBackend{
+		events: new(event.TypeMux),
+	}
 	c := &core{
 		logger:     log.New("backend", "test", "id", 0),
 		backlogs:   make(map[pbft.Validator]*prque.Prque),
@@ -230,7 +232,9 @@ func TestProcessBacklog(t *testing.T) {
 }
 
 func testProcessBacklog(t *testing.T, msg *pbft.Message) {
-	backend := simulation.NewBackend(1)
+	backend := &testSystemBackend{
+		events: new(event.TypeMux),
+	}
 	c := &core{
 		logger:     log.New("backend", "test", "id", 0),
 		backlogs:   make(map[pbft.Validator]*prque.Prque),
