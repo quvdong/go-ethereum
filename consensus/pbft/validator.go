@@ -19,33 +19,47 @@ package pbft
 import (
 	"bytes"
 	"reflect"
+	"sort"
+	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
 )
 
 type Validator struct {
-	id      uint64
 	address common.Address
 }
 
-func NewValidator(id uint64, addr common.Address) *Validator {
+type Validators []*Validator
+
+func (slice Validators) Len() int {
+	return len(slice)
+}
+
+func (slice Validators) Less(i, j int) bool {
+	return strings.Compare(slice[i].Address().Hex(), slice[j].Address().Hex()) < 0
+}
+
+func (slice Validators) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func NewValidator(addr common.Address) *Validator {
 	return &Validator{
-		id:      id,
 		address: addr,
 	}
 }
 
-func (val *Validator) ID() uint64              { return val.id }
 func (val *Validator) Address() common.Address { return val.address }
 
 //------------------------------------------------------------------------
 
 type ValidatorSet struct {
-	validators []*Validator
+	validators Validators
 	proposer   *Validator
 }
 
-func NewValidatorSet(vals []*Validator) *ValidatorSet {
+func NewValidatorSet(vals Validators) *ValidatorSet {
+	sort.Sort(vals)
 	vs := &ValidatorSet{
 		validators: vals,
 	}
@@ -86,6 +100,6 @@ func (valSet *ValidatorSet) CalcProposer(seed uint64) {
 	}
 }
 
-func (valSet *ValidatorSet) IsProposer(id uint64) bool {
-	return reflect.DeepEqual(valSet.GetProposer(), valSet.GetByIndex(id))
+func (valSet *ValidatorSet) IsProposer(address common.Address) bool {
+	return reflect.DeepEqual(valSet.GetProposer(), valSet.GetByAddress(address))
 }

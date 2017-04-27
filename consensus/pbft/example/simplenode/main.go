@@ -42,10 +42,12 @@ var (
 )
 
 func main() {
+	// 0. Setup Logger
 	glogger := log.NewGlogHandler(log.StreamHandler(os.Stderr, log.TerminalFormat(false)))
 	glogger.Verbosity(log.LvlDebug)
 	log.Root().SetHandler(glogger)
 
+	// 1. Setup validators and backends
 	var validators = make([]pbftCore.Engine, N)
 	var backends = make([]*simulation.Backend, N)
 
@@ -59,8 +61,10 @@ func main() {
 
 		validators[i] = validator
 		backends[i] = backend
+		log.Info("Backend:", "Index", i, "Address", backend.Address().Hex())
 	}
 
+	// 2. Add peers for each backend
 	for i := 0; i < N; i++ {
 		for j := 0; j < N; j++ {
 			if i != j {
@@ -80,6 +84,7 @@ func main() {
 	blocksMu := new(sync.Mutex)
 	blocks[block.Hash()] = block
 
+	// 3. Subscribe CommitEvent for each backend
 	for _, backend := range backends {
 		subscription := backend.EventMux().Subscribe(simulation.CommitEvent{})
 		be := backend
@@ -90,12 +95,13 @@ func main() {
 					blocksMu.Lock()
 					b := blocks[common.BytesToHash(ev.Payload)]
 					blocksMu.Unlock()
-					log.Info("Block committed", "number", b.NumberU64(), "hash", b.Hash().String(), "id", be.ID())
+					log.Info("Block committed", "number", b.NumberU64(), "hash", b.Hash().String(), "address", be.Address().Hex())
 				}
 			}
 		}()
 	}
 
+	// 4. Backend[0] (primary) requests a new block every minute
 	for {
 		backends[0].NewRequest(block.Hash().Bytes())
 		block = makeBlock(block, block.Number())
