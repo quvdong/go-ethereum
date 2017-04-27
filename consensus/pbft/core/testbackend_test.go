@@ -188,13 +188,32 @@ func newTestSystem(n uint64) *testSystem {
 	}
 }
 
-func newTestSystemWithBackend(n uint64) *testSystem {
+func NewTestSystemWithBackend(n uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
+
+	// generate validators
+	peers := make([]*pbft.Validator, int(n))
+	privateKeys := make([]*ecdsa.PrivateKey, int(n))
+	for i := uint64(0); i < n; i++ {
+		privateKey, err := crypto.GenerateKey()
+		if err != nil {
+			panic(err)
+		}
+		privateKeys[i] = privateKey
+
+		peers[i] = pbft.NewValidator(
+			uint64(i), // use the index as id
+			getPublicKeyAddress(privateKey),
+		)
+	}
+	vset := pbft.NewValidatorSet(peers)
 
 	sys := newTestSystem(n)
 
 	for i := uint64(0); i < n; i++ {
 		backend := sys.NewBackend(i)
+		backend.peers = vset
+		backend.privateKey = privateKeys[i]
 
 		core := New(backend).(*core)
 		core.current = pbft.NewLog(&pbft.Preprepare{
@@ -236,15 +255,10 @@ func (t *testSystem) stop() {
 }
 
 func (t *testSystem) NewBackend(id uint64) *testSystemBackend {
-	privateKey, err := crypto.GenerateKey()
-	if err != nil {
-		panic(err)
-	}
 	backend := &testSystemBackend{
-		id:         id,
-		sys:        t,
-		privateKey: privateKey,
-		events:     new(event.TypeMux),
+		id:     id,
+		sys:    t,
+		events: new(event.TypeMux),
 	}
 
 	t.backends[id] = backend
