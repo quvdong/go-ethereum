@@ -25,16 +25,7 @@ import (
 func TestNewRequest(t *testing.T) {
 	N := uint64(4)
 
-	sys := newTestSystem(N)
-
-	for i := uint64(0); i < N; i++ {
-		backend := sys.NewBackend(uint64(i))
-
-		c := New(backend).(*core)
-		c.N = int64(N)
-
-		backend.engine = c
-	}
+	sys := NewTestSystemWithBackend(N)
 
 	for _, backend := range sys.backends {
 		backend.Start(nil)
