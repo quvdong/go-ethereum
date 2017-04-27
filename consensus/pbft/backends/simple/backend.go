@@ -45,6 +45,7 @@ func New(timeout int, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db 
 		eventMux:     eventMux,
 		pbftEventMux: new(event.TypeMux),
 		privateKey:   privateKey,
+		address:      crypto.PubkeyToAddress(privateKey.PublicKey),
 		logger:       log.New("backend", "simple"),
 		db:           db,
 		timeout:      uint64(timeout),
@@ -54,12 +55,12 @@ func New(timeout int, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db 
 
 // ----------------------------------------------------------------------------
 type simpleBackend struct {
-	id             uint64
 	peerSet        *peerSet
 	valSet         *pbft.ValidatorSet
 	eventMux       *event.TypeMux
 	pbftEventMux   *event.TypeMux
 	privateKey     *ecdsa.PrivateKey
+	address        common.Address
 	consensusState *pbft.State
 	core           pbftCore.Engine
 	logger         log.Logger
@@ -72,9 +73,9 @@ type simpleBackend struct {
 	commit     chan common.Hash
 }
 
-// ID implements pbft.Backend.ID
-func (sb *simpleBackend) ID() uint64 {
-	return sb.id
+// Address implements pbft.Backend.Address
+func (sb *simpleBackend) Address() common.Address {
+	return sb.address
 }
 
 // Validators implements pbft.Backend.Validators
@@ -85,7 +86,7 @@ func (sb *simpleBackend) Validators() *pbft.ValidatorSet {
 // Send implements pbft.Backend.Send
 func (sb *simpleBackend) Send(data []byte) error {
 	pbftMsg := pbft.MessageEvent{
-		ID:      sb.ID(),
+		Address: sb.Address(),
 		Payload: data,
 	}
 	pbftByte, err := Encode(&pbftMsg)
@@ -108,7 +109,7 @@ func (sb *simpleBackend) Send(data []byte) error {
 
 // Commit implements pbft.Backend.Commit
 func (sb *simpleBackend) Commit(proposal *pbft.Proposal) error {
-	log.Info("Committed", "id", sb.ID(), "proposal", proposal)
+	log.Info("Committed", "address", sb.Address().Hex(), "proposal", proposal)
 	// step1: update validator set from extra data of block
 	// step2: insert chain
 	block := &types.Block{}
@@ -207,5 +208,5 @@ func (sb *simpleBackend) IsProposer() bool {
 	if sb.valSet == nil {
 		return false
 	}
-	return sb.valSet.IsProposer(sb.id)
+	return sb.valSet.IsProposer(sb.address)
 }
