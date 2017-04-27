@@ -19,12 +19,13 @@ package simple
 import (
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
 func TestEventMessageEncodeAndDecode(t *testing.T) {
 	pbftMsg := pbft.MessageEvent{
-		ID:      uint64(123),
+		Address: common.HexToAddress("0x70524d664ffe731100208a0154e556f9bb679ae6"),
 		Payload: []byte("hello world"),
 	}
 
@@ -40,8 +41,8 @@ func TestEventMessageEncodeAndDecode(t *testing.T) {
 		t.Errorf("shouldn't gor error, got:%v, expected: nil", err)
 	}
 
-	if gotMsg.ID != pbftMsg.ID {
-		t.Errorf("got wrong id from message event, got:%v, expected:%v", gotMsg.ID, pbftMsg.ID)
+	if gotMsg.Address != pbftMsg.Address {
+		t.Errorf("got wrong address from message event, got:%v, expected:%v", gotMsg.Address.Hex(), pbftMsg.Address.Hex())
 	}
 
 	if string(gotMsg.Payload) != string(pbftMsg.Payload) {

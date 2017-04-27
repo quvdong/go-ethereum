@@ -23,8 +23,8 @@ import (
 
 // Backend provides callbacks for PBFT consensus core
 type Backend interface {
-	// ID returns self id
-	ID() uint64
+	// Address returns self address
+	Address() common.Address
 
 	// Validators returns validator set
 	Validators() *ValidatorSet

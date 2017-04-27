@@ -68,9 +68,9 @@ func (c *core) isFutureMessage(msgCode uint64, view *pbft.View) bool {
 }
 
 func (c *core) storeBacklog(msg *pbft.Message, src *pbft.Validator) {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
-	if src.ID() == c.ID() {
+	if src.Address() == c.Address() {
 		logger.Warn("Backlog from self")
 		return
 	}
@@ -109,7 +109,7 @@ func (c *core) processBacklog() {
 			continue
 		}
 
-		logger := c.logger.New("from", src.ID(), "state", c.state)
+		logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 		isFuture := false
 
 		// We stop processing if

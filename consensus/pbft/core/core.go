@@ -48,11 +48,11 @@ func New(backend pbft.Backend) Engine {
 	n := int64(backend.Validators().Size())
 	f := int64(math.Ceil(float64(n)/3) - 1)
 	return &core{
-		id:             backend.ID(),
+		address:        backend.Address(),
 		N:              n,
 		F:              f,
 		state:          StateAcceptRequest,
-		logger:         log.New("id", backend.ID()),
+		logger:         log.New("address", backend.Address().Hex()),
 		backend:        backend,
 		checkpointMsgs: make(map[uint64]*pbft.Checkpoint),
 		sequence:       new(big.Int),
@@ -72,11 +72,11 @@ func New(backend pbft.Backend) Engine {
 // ----------------------------------------------------------------------------
 
 type core struct {
-	id     uint64
-	N      int64
-	F      int64
-	state  State
-	logger log.Logger
+	address common.Address
+	N       int64
+	F       int64
+	state   State
+	logger  log.Logger
 
 	backend pbft.Backend
 	events  *event.TypeMuxSubscription
@@ -167,4 +167,8 @@ func (c *core) setState(state State) {
 		c.state = state
 		c.processBacklog()
 	}
+}
+
+func (c *core) Address() common.Address {
+	return c.address
 }

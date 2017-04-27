@@ -29,7 +29,7 @@ func (c *core) sendPrepare() {
 }
 
 func (c *core) handlePrepare(prepare *pbft.Subject, src *pbft.Validator) error {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 	logger.Debug("handlePrepare")
 
 	if c.isFutureMessage(pbft.MsgPrepare, prepare.View) {
@@ -52,7 +52,7 @@ func (c *core) handlePrepare(prepare *pbft.Subject, src *pbft.Validator) error {
 }
 
 func (c *core) verifyPrepare(prepare *pbft.Subject, src *pbft.Validator) error {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
 	if prepare.View.Sequence != nil &&
 		c.subject != nil &&
@@ -70,7 +70,7 @@ func (c *core) verifyPrepare(prepare *pbft.Subject, src *pbft.Validator) error {
 }
 
 func (c *core) acceptPrepare(prepare *pbft.Subject, src *pbft.Validator) {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
 	if _, err := c.current.Prepares.Add(prepare, src); err != nil {
 		logger.Error("Failed to log prepare message", "msg", prepare, "error", err)

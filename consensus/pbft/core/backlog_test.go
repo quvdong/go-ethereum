@@ -100,7 +100,7 @@ func TestStoreBacklog(t *testing.T) {
 		ViewNumber: big.NewInt(10),
 		Sequence:   big.NewInt(10),
 	}
-	p := pbft.NewValidator(uint64(1), common.StringToAddress("12345667890"))
+	p := pbft.NewValidator(common.StringToAddress("12345667890"))
 	// push preprepare msg
 	preprepare := &pbft.Preprepare{
 		View: v,
@@ -159,7 +159,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 		ViewNumber: big.NewInt(10),
 		Sequence:   big.NewInt(10),
 	}
-	p := pbft.NewValidator(uint64(1), common.StringToAddress("12345667890"))
+	p := pbft.NewValidator(common.StringToAddress("12345667890"))
 	// push a future msg
 	subject := &pbft.Subject{
 		View:   v,
@@ -239,7 +239,7 @@ func testProcessBacklog(t *testing.T, msg *pbft.Message) {
 			},
 		},
 	}
-	p := pbft.NewValidator(uint64(1), common.StringToAddress("12345667890"))
+	p := pbft.NewValidator(common.StringToAddress("12345667890"))
 	c.storeBacklog(msg, p)
 	c.processBacklog()
 

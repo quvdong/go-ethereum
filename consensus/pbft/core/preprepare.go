@@ -39,14 +39,14 @@ func (c *core) sendPreprepare(request *pbft.Request) {
 }
 
 func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src *pbft.Validator) error {
-	logger := log.New("from", src.ID(), "state", c.state)
+	logger := log.New("from", src.Address().Hex(), "state", c.state)
 	logger.Debug("handlePreprepare")
 
 	if c.isFutureMessage(pbft.MsgPreprepare, preprepare.View) {
 		return errFutureMessage
 	}
 
-	if !c.backend.Validators().IsProposer(src.ID()) {
+	if !c.backend.Validators().IsProposer(src.Address()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
 		return pbft.ErrNotFromProposer
 	}

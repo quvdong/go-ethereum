@@ -29,7 +29,7 @@ func (c *core) sendCommit() {
 }
 
 func (c *core) handleCommit(commit *pbft.Subject, src *pbft.Validator) error {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 	logger.Debug("handleCommit")
 
 	if c.isFutureMessage(pbft.MsgCommit, commit.View) {
@@ -50,7 +50,7 @@ func (c *core) handleCommit(commit *pbft.Subject, src *pbft.Validator) error {
 }
 
 func (c *core) verifyCommit(commit *pbft.Subject, src *pbft.Validator) error {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
 	if !reflect.DeepEqual(commit, c.subject) {
 		logger.Warn("Subject not match", "expected", c.subject, "got", commit)
@@ -61,7 +61,7 @@ func (c *core) verifyCommit(commit *pbft.Subject, src *pbft.Validator) error {
 }
 
 func (c *core) acceptCommit(commit *pbft.Subject, src *pbft.Validator) {
-	logger := c.logger.New("from", src.ID(), "state", c.state)
+	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
 	if _, err := c.current.Commits.Add(commit, src); err != nil {
 		logger.Error("Failed to log commit message", "msg", commit, "error", err)
