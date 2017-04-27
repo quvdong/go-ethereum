@@ -97,6 +97,11 @@ func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) er
 	return nil
 }
 
+func (self *testSystemBackend) IsProposer() bool {
+	testLogger.Info("use replica 0 as proposer")
+	return self.ID() == uint64(0)
+}
+
 func (self *testSystemBackend) Hash(b interface{}) common.Hash {
 	return common.StringToHash("Test")
 }
@@ -137,19 +142,27 @@ func (self *testSystemBackend) HandleMsg(peerPublicKey string, data []byte) erro
 
 // Start is initialized peers
 func (self *testSystemBackend) Start(chain consensus.ChainReader) error {
-	peers := make([]*pbft.Validator, len(self.sys.backends))
-	for i, backend := range self.sys.backends {
-		peers[i] = pbft.NewValidator(
-			uint64(i), // use the index as id
-			getPublicKeyAddress(backend.privateKey),
-		)
-	}
-	self.peers = pbft.NewValidatorSet(peers)
 	return nil
 }
 
 // Stop the engine
 func (self *testSystemBackend) Stop() error {
+	testLogger.Warn("nothing to happen")
+	return nil
+}
+
+// ==============================================
+//
+// define the struct that need to be provided for DB manager.
+
+// Save an object into db
+func (self *testSystemBackend) Save(key string, val interface{}) error {
+	testLogger.Warn("nothing to happen")
+	return nil
+}
+
+// Restore an object to val from db
+func (self *testSystemBackend) Restore(key string, val interface{}) error {
 	testLogger.Warn("nothing to happen")
 	return nil
 }
