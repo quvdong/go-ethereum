@@ -20,9 +20,13 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	elog "github.com/ethereum/go-ethereum/log"
 )
 
 func TestNewRequest(t *testing.T) {
+	testLogger.SetHandler(elog.StdoutHandler)
+
 	N := uint64(4)
 
 	sys := NewTestSystemWithBackend(N)
@@ -51,7 +55,7 @@ func TestNewRequest(t *testing.T) {
 
 	for _, backend := range sys.backends {
 		if len(backend.commitMsgs) != 2 {
-			t.Error("expected execution of requests should be 2, id:", backend.ID())
+			t.Error("expected execution of requests should be 2")
 		}
 		if !reflect.DeepEqual(request1, backend.commitMsgs[0].Payload) {
 			t.Error("payload is not the same (1)")

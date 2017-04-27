@@ -28,7 +28,7 @@ import (
 func TestVerifyPrepare(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
-	peer := pbft.NewValidator(uint64(0), getPublicKeyAddress(privateKey))
+	peer := pbft.NewValidator(getPublicKeyAddress(privateKey))
 
 	sys := NewTestSystemWithBackend(uint64(1))
 
