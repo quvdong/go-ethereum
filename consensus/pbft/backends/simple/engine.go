@@ -194,7 +194,7 @@ func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) erro
 		sb.peerSet.Add(peer)
 		// post connection event to pbft core
 		go sb.pbftEventMux.Post(pbft.ConnectionEvent{
-			ID: val.ID(),
+			Address: val.Address(),
 		})
 	}
 	return nil
@@ -242,19 +242,9 @@ func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) {
 	addrs := getValidatorSet(currentHeader)
 	vals := make([]*pbft.Validator, len(addrs))
 	for i, addr := range addrs {
-		vals[i] = pbft.NewValidator(uint64(i), addr)
+		vals[i] = pbft.NewValidator(addr)
 	}
 	sb.valSet = pbft.NewValidatorSet(vals)
-
-	// FIXME: self should be the one of valifators
-	// update self id
-	// get peer by address
-	addr := crypto.PubkeyToAddress(sb.privateKey.PublicKey)
-	privVal := sb.valSet.GetByAddress(addr)
-	// update validator id
-	if privVal != nil {
-		sb.id = privVal.ID()
-	}
 }
 
 func getValidatorSet(block *types.Header) []common.Address {

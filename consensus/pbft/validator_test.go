@@ -17,9 +17,11 @@
 package pbft
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 )
 
 var (
@@ -28,15 +30,41 @@ var (
 )
 
 func TestValidatorSet(t *testing.T) {
+	testNewValidatorSet(t)
 	testNormalValSet(t)
 	testEmptyValSet(t)
 }
 
+func testNewValidatorSet(t *testing.T) {
+	var validators []*Validator
+	const ValCnt = 100
+
+	// Create 100 validators with random addresses
+	for i := 0; i < ValCnt; i++ {
+		key, _ := crypto.GenerateKey()
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		val := NewValidator(addr)
+		validators = append(validators, val)
+	}
+
+	// Create ValidatorSet
+	validatorSet := NewValidatorSet(validators)
+
+	// Check validators sorting: should be in ascending order
+	for i := 0; i < ValCnt-1; i++ {
+		val := validatorSet.GetByIndex(uint64(i))
+		nextVal := validatorSet.GetByIndex(uint64(i + 1))
+		if strings.Compare(val.Address().Hex(), nextVal.Address().Hex()) >= 0 {
+			t.Errorf("Validator set is not sorted in sorted in ascending order")
+		}
+	}
+}
+
 func testNormalValSet(t *testing.T) {
 	addr1 := common.HexToAddress(testAddress)
-	val1 := NewValidator(uint64(0), addr1)
+	val1 := NewValidator(addr1)
 	addr2 := common.HexToAddress(testAddress2)
-	val2 := NewValidator(uint64(1), addr2)
+	val2 := NewValidator(addr2)
 
 	valSet := NewValidatorSet([]*Validator{val1, val2})
 

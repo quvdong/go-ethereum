@@ -45,16 +45,17 @@ var peers []*peer = []*peer{
 func NewBackend(id uint64) *Backend {
 	db, _ := ethdb.NewMemDatabase()
 	backend := &Backend{
-		id:     id,
-		me:     peers[id],
-		peers:  make([]*peer, len(peers)),
-		logger: log.New("backend", "simulated", "id", id),
-		mux:    new(event.TypeMux),
-		db:     db,
+		address: peers[id].Address(),
+		peerID:  id,
+		me:      peers[id],
+		peers:   make([]*peer, len(peers)),
+		logger:  log.New("backend", "simulated", "id", id),
+		mux:     new(event.TypeMux),
+		db:      db,
 	}
 	var vals []*pbft.Validator
-	for i, peer := range peers {
-		vals = append(vals, pbft.NewValidator(uint64(i), peer.Address()))
+	for _, peer := range peers {
+		vals = append(vals, pbft.NewValidator(peer.Address()))
 	}
 	backend.valSet = pbft.NewValidatorSet(vals)
 
@@ -80,7 +81,7 @@ func NewBackend(id uint64) *Backend {
 			}
 
 			go backend.mux.Post(pbft.MessageEvent{
-				ID:      m.Code,
+				Address: backend.peers[m.Code].Address(),
 				Payload: payload,
 			})
 		}
@@ -92,19 +93,20 @@ func NewBackend(id uint64) *Backend {
 // ----------------------------------------------------------------------------
 
 type Backend struct {
-	id     uint64
-	mux    *event.TypeMux
-	appMux *event.TypeMux
-	me     *peer
-	valSet *pbft.ValidatorSet
-	peers  []*peer
-	logger log.Logger
-	db     ethdb.Database
+	address common.Address
+	mux     *event.TypeMux
+	appMux  *event.TypeMux
+	peerID  uint64
+	me      *peer
+	valSet  *pbft.ValidatorSet
+	peers   []*peer
+	logger  log.Logger
+	db      ethdb.Database
 }
 
-// ID implements pbft.Backend.ID
-func (sb *Backend) ID() uint64 {
-	return sb.id
+// Address implements pbft.Backend.Address
+func (sb *Backend) Address() common.Address {
+	return sb.address
 }
 
 // Validators implements pbft.Backend.Validators
@@ -116,11 +118,11 @@ func (sb *Backend) Validators() *pbft.ValidatorSet {
 func (sb *Backend) Send(payload []byte) error {
 	go func() {
 		for _, p := range peers {
-			if p.ID() != sb.me.ID() {
-				p2p.Send(p, sb.ID(), payload)
+			if p.Address() != sb.me.Address() {
+				p2p.Send(p, sb.peerID, payload)
 			} else {
 				go sb.mux.Post(pbft.MessageEvent{
-					ID:      sb.ID(),
+					Address: sb.Address(),
 					Payload: payload,
 				})
 			}
@@ -197,8 +199,8 @@ func (sb *Backend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
 		sb.logger.Error("Invalid peer ID", "id", peerID)
 		return pbft.ErrInvalidPeerId
 	}
-	if sb.ID() == uint64(numID) {
-		sb.logger.Error("Don't add myself", sb.ID(), numID)
+	if sb.peerID == uint64(numID) {
+		sb.logger.Error("Don't add myself", sb.peerID, numID)
 		return pbft.ErrInvalidPeerId
 	}
 
@@ -257,5 +259,5 @@ func (sb *Backend) IsProposer() bool {
 	if sb.valSet == nil {
 		return false
 	}
-	return sb.valSet.IsProposer(sb.id)
+	return sb.valSet.IsProposer(sb.address)
 }
