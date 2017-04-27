@@ -33,9 +33,9 @@ func (c *core) Start() error {
 			case pbft.RequestEvent:
 				c.handleRequest(&pbft.Request{
 					Payload: ev.Payload,
-				}, c.backend.Validators().GetByIndex(c.ID()))
+				}, c.backend.Validators().GetByAddress(c.address))
 			case pbft.MessageEvent:
-				c.handleMsg(ev.Payload, c.backend.Validators().GetByIndex(ev.ID))
+				c.handleMsg(ev.Payload, c.backend.Validators().GetByAddress(ev.Address))
 			case backlogEvent:
 				c.handle(ev.msg, ev.src)
 			}
@@ -51,7 +51,7 @@ func (c *core) Stop() error {
 }
 
 func (c *core) handleMsg(payload []byte, src *pbft.Validator) error {
-	logger := c.logger.New("id", c.ID(), "from", src.ID())
+	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
 	var msg pbft.Message
 
 	err := pbft.Decode(payload, &msg)
@@ -64,7 +64,7 @@ func (c *core) handleMsg(payload []byte, src *pbft.Validator) error {
 }
 
 func (c *core) handle(msg *pbft.Message, src *pbft.Validator) error {
-	logger := c.logger.New("id", c.ID(), "from", src.ID())
+	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
 
 	testBacklog := func(err error) error {
 		if err == errFutureMessage {
@@ -102,8 +102,4 @@ func (c *core) handle(msg *pbft.Message, src *pbft.Validator) error {
 	}
 
 	return nil
-}
-
-func (c *core) ID() uint64 {
-	return c.id
 }
