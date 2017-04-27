@@ -30,7 +30,7 @@ func TestVerifyPrepare(t *testing.T) {
 	privateKey, _ := crypto.GenerateKey()
 	peer := pbft.NewValidator(uint64(0), getPublicKeyAddress(privateKey))
 
-	sys := newTestSystemWithBackend(uint64(1))
+	sys := NewTestSystemWithBackend(uint64(1))
 
 	testCases := []struct {
 		expected error
