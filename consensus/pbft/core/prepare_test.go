@@ -75,10 +75,22 @@ func TestVerifyPrepare(t *testing.T) {
 			},
 		},
 		{
-			// wrong prepare message
+			// wrong prepare message with same sequence but different view number
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{ViewNumber: big.NewInt(1), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
+			},
+			self: &pbft.Subject{
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: []byte{1},
+			},
+		},
+		{
+			// wrong prepare message with same view number but different sequence
+			expected: pbft.ErrSubjectNotMatched,
+			prepare: &pbft.Subject{
+				View:   &pbft.View{ViewNumber: big.NewInt(0), Sequence: big.NewInt(1)},
 				Digest: []byte{1},
 			},
 			self: &pbft.Subject{
