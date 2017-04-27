@@ -39,15 +39,15 @@ type testSystemBackend struct {
 
 	commitMsgs []*pbft.Proposal
 
-	privateKey *ecdsa.PrivateKey
+	address common.Address
 }
 
 // ==============================================
 //
 // define the functions that needs to be provided for PBFT.
 
-func (self *testSystemBackend) ID() uint64 {
-	return self.id
+func (self *testSystemBackend) Address() common.Address {
+	return self.address
 }
 
 // Peers returns all connected peers
@@ -60,9 +60,9 @@ func (self *testSystemBackend) EventMux() *event.TypeMux {
 }
 
 func (self *testSystemBackend) Send(message []byte) error {
-	testLogger.Info("enqueuing a message...", "id", self.ID())
+	testLogger.Info("enqueuing a message...", "address", self.Address())
 	self.sys.queuedMessage <- pbft.MessageEvent{
-		ID:      self.ID(),
+		Address: self.Address(),
 		Payload: message,
 	}
 	return nil
@@ -79,7 +79,7 @@ func (self *testSystemBackend) ViewChanged(needNewProposal bool) error {
 }
 
 func (self *testSystemBackend) Commit(proposal *pbft.Proposal) error {
-	testLogger.Info("commit message", "id", self.ID())
+	testLogger.Info("commit message", "address", self.Address())
 	self.commitMsgs = append(self.commitMsgs, proposal)
 	return nil
 }
@@ -89,8 +89,8 @@ func (self *testSystemBackend) Verify(proposal *pbft.Proposal) (bool, error) {
 }
 
 func (self *testSystemBackend) Sign(data []byte) ([]byte, error) {
-	hashData := crypto.Keccak256([]byte(data))
-	return crypto.Sign(hashData, self.privateKey)
+	testLogger.Warn("not sign any data")
+	return data, nil
 }
 
 func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) error {
@@ -99,7 +99,10 @@ func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) er
 
 func (self *testSystemBackend) IsProposer() bool {
 	testLogger.Info("use replica 0 as proposer")
-	return self.ID() == uint64(0)
+	if len(self.sys.backends) == 0 {
+		return false
+	}
+	return self.Address() == self.sys.backends[0].Address()
 }
 
 func (self *testSystemBackend) Hash(b interface{}) common.Hash {
@@ -193,18 +196,14 @@ func NewTestSystemWithBackend(n uint64) *testSystem {
 
 	// generate validators
 	peers := make([]*pbft.Validator, int(n))
-	privateKeys := make([]*ecdsa.PrivateKey, int(n))
 	for i := uint64(0); i < n; i++ {
+		// TODO: the private key should be stored if we want to add new feature for sign data
 		privateKey, err := crypto.GenerateKey()
 		if err != nil {
 			panic(err)
 		}
-		privateKeys[i] = privateKey
 
-		peers[i] = pbft.NewValidator(
-			uint64(i), // use the index as id
-			getPublicKeyAddress(privateKey),
-		)
+		peers[i] = pbft.NewValidator(getPublicKeyAddress(privateKey))
 	}
 	vset := pbft.NewValidatorSet(peers)
 
@@ -213,13 +212,14 @@ func NewTestSystemWithBackend(n uint64) *testSystem {
 	for i := uint64(0); i < n; i++ {
 		backend := sys.NewBackend(i)
 		backend.peers = vset
-		backend.privateKey = privateKeys[i]
+		backend.address = vset.GetByIndex(i).Address()
 
 		core := New(backend).(*core)
 		core.current = pbft.NewLog(&pbft.Preprepare{
 			View:     &pbft.View{},
 			Proposal: &pbft.Proposal{},
 		})
+		core.logger = testLogger
 
 		backend.engine = core
 	}
@@ -236,7 +236,7 @@ func (t *testSystem) run() {
 			case <-t.quit:
 				return
 			case queuedMessage := <-t.queuedMessage:
-				testLogger.Info("consuming a queue message...", "msg from", queuedMessage.ID)
+				testLogger.Info("consuming a queue message...", "msg from", queuedMessage.Address)
 				for _, backend := range t.backends {
 					go backend.EventMux().Post(queuedMessage)
 				}
