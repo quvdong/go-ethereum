@@ -18,7 +18,6 @@ package core
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -120,7 +119,7 @@ func (self *testSystemBackend) NewRequest(request []byte) {
 // define the functions that need to be provided for PBFT protocol manager.
 
 func (self *testSystemBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
-	testLogger.Info(fmt.Sprintf("add peer: %s", peerID), "id", self.ID())
+	testLogger.Warn("nothing to happen")
 	return nil
 }
 

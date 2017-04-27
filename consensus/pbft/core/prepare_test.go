@@ -25,7 +25,7 @@ import (
 )
 
 // view number is not checked for now
-func TestCore_verifyPrepare(t *testing.T) {
+func TestVerifyPrepare(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
 	peer := pbft.NewValidator(uint64(0), getPublicKeyAddress(privateKey))

@@ -17,28 +17,12 @@
 package core
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 	"time"
 )
 
-func connectAll(bs []*testSystemBackend) {
-	for i := uint64(0); i < uint64(len(bs)); i++ {
-		x := bs[i]
-
-		for j := uint64(0); j < uint64(len(bs)); j++ {
-			y := bs[j]
-
-			if x == y {
-				continue
-			}
-			x.sys.backends[i].AddPeer(fmt.Sprintf("%d", y.sys.backends[j].ID()), &y.sys.backends[j].privateKey.PublicKey)
-		}
-	}
-}
-
-func TestCore_NewRequest(t *testing.T) {
+func TestNewRequest(t *testing.T) {
 	N := uint64(4)
 
 	sys := newTestSystem(N)
@@ -56,7 +40,6 @@ func TestCore_NewRequest(t *testing.T) {
 		backend.Start(nil)
 		backend.engine.Start() // start PBFT core
 	}
-	connectAll(sys.backends)
 
 	sys.run()
 	defer sys.stop()
