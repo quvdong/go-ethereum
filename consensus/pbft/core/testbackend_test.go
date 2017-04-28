@@ -22,6 +22,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/event"
 	elog "github.com/ethereum/go-ethereum/log"
@@ -34,7 +35,7 @@ type testSystemBackend struct {
 	sys *testSystem
 
 	engine Engine
-	peers  *pbft.ValidatorSet
+	peers  pbft.ValidatorSet
 	events *event.TypeMux
 
 	commitMsgs []*pbft.Proposal
@@ -51,7 +52,7 @@ func (self *testSystemBackend) Address() common.Address {
 }
 
 // Peers returns all connected peers
-func (self *testSystemBackend) Validators() *pbft.ValidatorSet {
+func (self *testSystemBackend) Validators() pbft.ValidatorSet {
 	return self.peers
 }
 
@@ -196,7 +197,8 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
 
 	// generate validators
-	peers := make([]*pbft.Validator, int(n))
+	peers := make([]pbft.Validator, int(n))
+	b := []byte{}
 	for i := uint64(0); i < n; i++ {
 		// TODO: the private key should be stored if we want to add new feature for sign data
 		privateKey, err := crypto.GenerateKey()
@@ -204,9 +206,10 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 			panic(err)
 		}
 
-		peers[i] = pbft.NewValidator(getPublicKeyAddress(privateKey))
+		peers[i] = validator.New(getPublicKeyAddress(privateKey))
+		b = append(b, peers[i].Address().Bytes()...)
 	}
-	vset := pbft.NewValidatorSet(peers)
+	vset, _ := validator.NewSet(b)
 
 	sys := newTestSystem(n)
 

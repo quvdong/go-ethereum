@@ -50,7 +50,7 @@ func (c *core) Stop() error {
 	return nil
 }
 
-func (c *core) handleMsg(payload []byte, src *pbft.Validator) error {
+func (c *core) handleMsg(payload []byte, src pbft.Validator) error {
 	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
 	var msg pbft.Message
 
@@ -63,7 +63,7 @@ func (c *core) handleMsg(payload []byte, src *pbft.Validator) error {
 	return c.handle(&msg, src)
 }
 
-func (c *core) handle(msg *pbft.Message, src *pbft.Validator) error {
+func (c *core) handle(msg *pbft.Message, src pbft.Validator) error {
 	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
 
 	testBacklog := func(err error) error {

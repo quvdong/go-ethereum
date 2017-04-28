@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -28,7 +29,7 @@ import (
 func TestVerifyPrepare(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
-	peer := pbft.NewValidator(getPublicKeyAddress(privateKey))
+	peer := validator.New(getPublicKeyAddress(privateKey))
 
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 

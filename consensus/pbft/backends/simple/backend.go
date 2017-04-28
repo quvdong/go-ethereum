@@ -56,7 +56,7 @@ func New(timeout int, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db 
 // ----------------------------------------------------------------------------
 type simpleBackend struct {
 	peerSet        *peerSet
-	valSet         *pbft.ValidatorSet
+	valSet         pbft.ValidatorSet
 	eventMux       *event.TypeMux
 	pbftEventMux   *event.TypeMux
 	privateKey     *ecdsa.PrivateKey
@@ -79,7 +79,7 @@ func (sb *simpleBackend) Address() common.Address {
 }
 
 // Validators implements pbft.Backend.Validators
-func (sb *simpleBackend) Validators() *pbft.ValidatorSet {
+func (sb *simpleBackend) Validators() pbft.ValidatorSet {
 	return sb.valSet
 }
 

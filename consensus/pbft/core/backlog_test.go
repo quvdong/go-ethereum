@@ -26,6 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/consensus/pbft/backends/simulation"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/log"
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
@@ -93,14 +94,14 @@ func TestIsFutureMessage(t *testing.T) {
 func TestStoreBacklog(t *testing.T) {
 	c := &core{
 		logger:     log.New("backend", "test", "id", 0),
-		backlogs:   make(map[*pbft.Validator]*prque.Prque),
+		backlogs:   make(map[pbft.Validator]*prque.Prque),
 		backlogsMu: new(sync.Mutex),
 	}
 	v := &pbft.View{
 		ViewNumber: big.NewInt(10),
 		Sequence:   big.NewInt(10),
 	}
-	p := pbft.NewValidator(common.StringToAddress("12345667890"))
+	p := validator.New(common.StringToAddress("12345667890"))
 	// push preprepare msg
 	preprepare := &pbft.Preprepare{
 		View: v,
@@ -152,7 +153,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 	backend := simulation.NewBackend(1)
 	c := &core{
 		logger:     log.New("backend", "test", "id", 0),
-		backlogs:   make(map[*pbft.Validator]*prque.Prque),
+		backlogs:   make(map[pbft.Validator]*prque.Prque),
 		backlogsMu: new(sync.Mutex),
 		backend:    backend,
 		events: backend.EventMux().Subscribe(
@@ -163,7 +164,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 		ViewNumber: big.NewInt(10),
 		Sequence:   big.NewInt(10),
 	}
-	p := pbft.NewValidator(common.StringToAddress("12345667890"))
+	p := validator.New(common.StringToAddress("12345667890"))
 	// push a future msg
 	subject := &pbft.Subject{
 		View:   v,
@@ -232,7 +233,7 @@ func testProcessBacklog(t *testing.T, msg *pbft.Message) {
 	backend := simulation.NewBackend(1)
 	c := &core{
 		logger:     log.New("backend", "test", "id", 0),
-		backlogs:   make(map[*pbft.Validator]*prque.Prque),
+		backlogs:   make(map[pbft.Validator]*prque.Prque),
 		backlogsMu: new(sync.Mutex),
 		backend:    backend,
 		events: backend.EventMux().Subscribe(
@@ -247,7 +248,8 @@ func testProcessBacklog(t *testing.T, msg *pbft.Message) {
 			},
 		},
 	}
-	p := pbft.NewValidator(common.StringToAddress("12345667890"))
+
+	p := validator.New(common.StringToAddress("12345667890"))
 	c.storeBacklog(msg, p)
 	c.processBacklog()
 

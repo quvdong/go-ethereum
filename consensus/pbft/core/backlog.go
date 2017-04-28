@@ -67,7 +67,7 @@ func (c *core) isFutureMessage(msgCode uint64, view *pbft.View) bool {
 	return priority > newPriority
 }
 
-func (c *core) storeBacklog(msg *pbft.Message, src *pbft.Validator) {
+func (c *core) storeBacklog(msg *pbft.Message, src pbft.Validator) {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
 	if src.Address() == c.Address() {

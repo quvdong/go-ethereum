@@ -14,30 +14,19 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package pbft
+package validator
 
-import "github.com/ethereum/go-ethereum/common"
+import (
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/pbft"
+)
 
-type Validator interface {
-	// Return address
-	Address() common.Address
+func New(addr common.Address) pbft.Validator {
+	return &defaultValidator{
+		address: addr,
+	}
 }
 
-type ValidatorSet interface {
-	// Check whether the extraData is presented in correct format
-	CheckFormat(extraData []byte) bool
-	// Calculate the proposer
-	CalcProposer(seed uint64)
-	// Return the validator size
-	Size() int
-	// Return the validator array
-	List() []Validator
-	// Get validator by index
-	GetByIndex(i uint64) Validator
-	// Get validator by address
-	GetByAddress(addr common.Address) Validator
-	// Get current proposer
-	GetProposer() Validator
-	// Check whether the validator with address is a proposer
-	IsProposer(address common.Address) bool
+func NewSet(extraData []byte) (pbft.ValidatorSet, bool) {
+	return newDefaultSet(extraData)
 }

@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	pbftCore "github.com/ethereum/go-ethereum/consensus/pbft/core"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -37,6 +38,8 @@ var (
 	errNotProposer         = errors.New("not a proposer")
 	errViewChanged         = errors.New("view changed")
 	errOtherBlockCommitted = errors.New("other block is committed")
+
+	errInvalidExtraDataFormat = errors.New("invalid extra data format")
 
 	defaultDifficulty = big.NewInt(1)
 )
@@ -227,7 +230,9 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 
 // Start implements consensus.PBFT.Start
 func (sb *simpleBackend) Start(chain consensus.ChainReader) error {
-	sb.initValidatorSet(chain)
+	if !sb.initValidatorSet(chain) {
+		return errInvalidExtraDataFormat
+	}
 	sb.core = pbftCore.New(sb)
 	return sb.core.Start()
 }
@@ -237,23 +242,16 @@ func (sb *simpleBackend) Stop() error {
 	return sb.core.Stop()
 }
 
-func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) {
+func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) bool {
 	currentHeader := chain.CurrentHeader()
-	addrs := getValidatorSet(currentHeader)
-	vals := make([]*pbft.Validator, len(addrs))
-	for i, addr := range addrs {
-		vals[i] = pbft.NewValidator(addr)
+	// get the validator byte array and feed into validator set
+	length := len(currentHeader.Extra)
+	valSet, r := validator.NewSet(currentHeader.Extra[extraVanity : length-extraSeal])
+	if !r || valSet == nil {
+		return false
 	}
-	sb.valSet = pbft.NewValidatorSet(vals)
-}
-
-func getValidatorSet(block *types.Header) []common.Address {
-	// get validator address from block header
-	addrs := make([]common.Address, (len(block.Extra)-extraVanity-extraSeal)/common.AddressLength)
-	for i := 0; i < len(addrs); i++ {
-		copy(addrs[i][:], block.Extra[extraVanity+i*common.AddressLength:])
-	}
-	return addrs
+	sb.valSet = valSet
+	return true
 }
 
 // FIXME: Need to update this for PBFT

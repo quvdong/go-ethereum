@@ -23,6 +23,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
@@ -53,11 +54,11 @@ func NewBackend(id uint64) *Backend {
 		mux:     new(event.TypeMux),
 		db:      db,
 	}
-	var vals []*pbft.Validator
+	b := []byte{}
 	for _, peer := range peers {
-		vals = append(vals, pbft.NewValidator(peer.Address()))
+		b = append(b, peer.Address().Bytes()...)
 	}
-	backend.valSet = pbft.NewValidatorSet(vals)
+	backend.valSet, _ = validator.NewSet(b)
 
 	backend.peers[id] = peers[id]
 
@@ -98,7 +99,7 @@ type Backend struct {
 	appMux  *event.TypeMux
 	peerID  uint64
 	me      *peer
-	valSet  *pbft.ValidatorSet
+	valSet  pbft.ValidatorSet
 	peers   []*peer
 	logger  log.Logger
 	db      ethdb.Database
@@ -110,7 +111,7 @@ func (sb *Backend) Address() common.Address {
 }
 
 // Validators implements pbft.Backend.Validators
-func (sb *Backend) Validators() *pbft.ValidatorSet {
+func (sb *Backend) Validators() pbft.ValidatorSet {
 	return sb.valSet
 }
 
