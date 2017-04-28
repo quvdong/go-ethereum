@@ -25,6 +25,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/params"
 )
 
 const (
@@ -43,6 +44,7 @@ func main() {
 	glogger.Verbosity(log.LvlDebug)
 	log.Root().SetHandler(glogger)
 
+	// 1. Setup validators
 	var nodeKeys = make([]*simulation.NodeKey, N)
 	var addrs = make([]common.Address, N)
 	for i := 0; i < N; i++ {
@@ -51,17 +53,19 @@ func main() {
 	}
 
 	// generate genesis block
-	defaultGenesis, _ := core.DefaultGenesisBlock().ToBlock()
-	genesisBlock := simulation.AppendValidators(defaultGenesis.Header(), addrs)
+	genesis := core.DefaultGenesisBlock()
+	genesis.Config = params.TestChainConfig
+	simulation.AppendValidators(genesis, addrs)
 
+	// 2. Setup backends
 	var backends = make([]*simulation.ProtocolManager, N)
 	for i := 0; i < N; i++ {
-		backends[i] = simulation.New(nodeKeys[i], genesisBlock)
+		backends[i] = simulation.New(nodeKeys[i], genesis)
 		backends[i].Start()
 		defer backends[i].Stop()
 	}
 
-	// 2. Add peers for each backend
+	// 3. Add peers for each backend
 	for i := 0; i < N; i++ {
 		for j := 0; j < N; j++ {
 			if i != j {
@@ -72,6 +76,8 @@ func main() {
 
 	log.Info("Start")
 
+	// 4. Make each backend to try to create new request
+	// only proposer can create new request successfully
 	time.Sleep(3 * time.Second)
 	for _, backend := range backends {
 		backend.TryNewRequest()
