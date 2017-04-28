@@ -27,7 +27,7 @@ type Backend interface {
 	Address() common.Address
 
 	// Validators returns validator set
-	Validators() *ValidatorSet
+	Validators() ValidatorSet
 
 	// EventMux is defined to handle request event and pbft message event
 	EventMux() *event.TypeMux
