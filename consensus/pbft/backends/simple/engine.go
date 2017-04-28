@@ -230,8 +230,8 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 
 // Start implements consensus.PBFT.Start
 func (sb *simpleBackend) Start(chain consensus.ChainReader) error {
-	if !sb.initValidatorSet(chain) {
-		return errInvalidExtraDataFormat
+	if err := sb.initValidatorSet(chain); err != nil {
+		return err
 	}
 	sb.core = pbftCore.New(sb)
 	return sb.core.Start()
@@ -242,16 +242,16 @@ func (sb *simpleBackend) Stop() error {
 	return sb.core.Stop()
 }
 
-func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) bool {
+func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) error {
 	currentHeader := chain.CurrentHeader()
 	// get the validator byte array and feed into validator set
 	length := len(currentHeader.Extra)
 	valSet, r := validator.NewSet(currentHeader.Extra[extraVanity : length-extraSeal])
 	if !r || valSet == nil {
-		return false
+		return errInvalidExtraDataFormat
 	}
 	sb.valSet = valSet
-	return true
+	return nil
 }
 
 // FIXME: Need to update this for PBFT
