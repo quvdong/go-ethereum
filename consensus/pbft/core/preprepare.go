@@ -38,7 +38,7 @@ func (c *core) sendPreprepare(request *pbft.Request) {
 	}
 }
 
-func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src *pbft.Validator) error {
+func (c *core) handlePreprepare(preprepare *pbft.Preprepare, src pbft.Validator) error {
 	logger := log.New("from", src.Address().Hex(), "state", c.state)
 	logger.Debug("handlePreprepare")
 
