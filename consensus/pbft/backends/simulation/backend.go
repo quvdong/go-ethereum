@@ -17,6 +17,7 @@
 package simulation
 
 import (
+	"bytes"
 	"math/big"
 	"sync"
 	"time"
@@ -25,7 +26,9 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/consensus/pbft/backends/simple"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -33,22 +36,26 @@ import (
 )
 
 const (
+	extraVanity = 32 // Fixed number of extra-data prefix bytes reserved for signer vanity
+	extraSeal   = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
+
 	PBFTMsg = 0x11
 )
 
-func New(nodeKey *NodeKey, genesis *types.Block) *ProtocolManager {
+func New(nodeKey *NodeKey, genesis *core.Genesis) *ProtocolManager {
 	eventMux := new(event.TypeMux)
-	p := newPeer(nodeKey)
 	memDB, _ := ethdb.NewMemDatabase()
+	backend := simple.New(3000, eventMux, nodeKey.PrivateKey(), memDB)
+	p := newPeer(nodeKey)
 	pm := &ProtocolManager{
-		rwMutex:   new(sync.RWMutex),
-		backend:   simple.New(3000, eventMux, nodeKey.PrivateKey(), memDB),
-		genesis:   genesis,
-		mockChain: newMockChain(genesis),
-		eventMux:  eventMux,
-		me:        p,
-		peers:     make(map[string]*peer),
-		logger:    log.New("backend", "simulated", "id", p.ID()),
+		rwMutex:  new(sync.RWMutex),
+		backend:  backend,
+		db:       memDB,
+		chain:    newTestBlockChain(genesis, eventMux, backend, memDB),
+		eventMux: eventMux,
+		me:       p,
+		peers:    make(map[string]*peer),
+		logger:   log.New("backend", "simulated", "id", p.ID()),
 	}
 
 	return pm
@@ -59,21 +66,21 @@ func New(nodeKey *NodeKey, genesis *types.Block) *ProtocolManager {
 type ProtocolManager struct {
 	rwMutex *sync.RWMutex
 
-	backend   consensus.PBFT
-	genesis   *types.Block
-	mockChain *mockChain
-	eventMux  *event.TypeMux
-	eventSub  *event.TypeMuxSubscription
-	me        *peer
-	peers     map[string]*peer
-	logger    log.Logger
+	backend  consensus.PBFT
+	db       ethdb.Database
+	chain    *core.BlockChain
+	eventMux *event.TypeMux
+	eventSub *event.TypeMuxSubscription
+	me       *peer
+	peers    map[string]*peer
+	logger   log.Logger
 }
 
 func (pm *ProtocolManager) Start() {
 	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{}, pbft.ConsensusCommitBlockEvent{})
 	go pm.consensusEventLoop()
 
-	pm.backend.Start(pm.mockChain)
+	pm.backend.Start(pm.chain)
 	go pm.handlePeerMessage()
 }
 
@@ -85,7 +92,7 @@ func (pm *ProtocolManager) Stop() {
 
 func (pm *ProtocolManager) TryNewRequest() {
 	// try to make next block
-	pm.newRequest(pm.genesis)
+	pm.newRequest(pm.chain.Genesis())
 }
 
 func (pm *ProtocolManager) SelfPeer() *peer {
@@ -160,28 +167,69 @@ func (pm *ProtocolManager) sendEvent(event pbft.ConsensusDataEvent) {
 }
 
 func (pm *ProtocolManager) commitBlock(block *types.Block) {
-	pm.mockChain.InsertBlock(block)
+	pm.chain.InsertChain([]*types.Block{block})
 	pm.newRequest(block)
 }
 
 func (pm *ProtocolManager) newRequest(lastBlock *types.Block) {
-	block := makeBlock(lastBlock, lastBlock.Number())
-	// will get consensus block after Seal if backend is the proposer; otherwise, will get error
-	newBlock, err := pm.backend.Seal(pm.mockChain, block, nil)
+	block := pm.makeBlock(lastBlock)
+	// only proposer can make block; otherwise, will get nil
+	if block == nil {
+		return
+	}
+
+	// proposer gets new block after Seal and commit it directly
+	// non-proposer validators get new block by receiving ConsensusCommitBlockEvent
+	newBlock, err := pm.backend.Seal(pm.chain, block, nil)
 	if newBlock != nil && err == nil {
 		pm.commitBlock(block)
 	}
 }
 
-func makeBlock(parent *types.Block, num *big.Int) *types.Block {
+func (pm *ProtocolManager) makeBlock(parent *types.Block) *types.Block {
 	header := &types.Header{
 		ParentHash: parent.Hash(),
-		Number:     num.Add(num, common.Big1),
-		GasLimit:   new(big.Int),
+		Number:     parent.Number().Add(parent.Number(), common.Big1),
+		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    new(big.Int),
 		Extra:      parent.Extra(),
 		Time:       big.NewInt(int64(time.Now().Nanosecond())),
 	}
 
-	return types.NewBlockWithHeader(header)
+	if err := pm.backend.Prepare(pm.chain, header); err != nil {
+		return nil
+	}
+
+	state, err := pm.chain.StateAt(parent.Root())
+	if err != nil {
+		return nil
+	}
+
+	block, err := pm.backend.Finalize(pm.chain, header, state, nil, nil, nil)
+	if err != nil {
+		return nil
+	}
+
+	return block
+}
+
+func newTestBlockChain(genesis *core.Genesis, eventMux *event.TypeMux, engine consensus.Engine, db ethdb.Database) *core.BlockChain {
+	genesis.MustCommit(db)
+	blockchain, err := core.NewBlockChain(db, genesis.Config, engine, eventMux, vm.Config{})
+	if err != nil {
+		panic(err)
+	}
+	return blockchain
+}
+
+func AppendValidators(genesis *core.Genesis, addrs []common.Address) {
+	if len(genesis.ExtraData) < extraVanity {
+		genesis.ExtraData = append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, extraVanity)...)
+	}
+	genesis.ExtraData = genesis.ExtraData[:extraVanity]
+
+	for _, addr := range addrs {
+		genesis.ExtraData = append(genesis.ExtraData, addr[:]...)
+	}
+	genesis.ExtraData = append(genesis.ExtraData, make([]byte, extraSeal)...)
 }
