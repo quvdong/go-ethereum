@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
-func TestCore_handlePrepare(t *testing.T) {
+func TestHandlePrepare(t *testing.T) {
 	N := uint64(4)
 	F := uint64(1)
 
