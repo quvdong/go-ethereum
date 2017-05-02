@@ -48,7 +48,8 @@ var (
 	errViewChanged = errors.New("view changed")
 	// errOtherBlockCommitted is returned when other block is committed.
 	errOtherBlockCommitted = errors.New("other block is committed")
-	errInvalidPeer         = errors.New("invalid peer")
+	// errInvalidPeer is returned when a message from invalid peer comes
+	errInvalidPeer = errors.New("invalid peer")
 	// errInvalidExtraDataFormat is returned when the extra data format is incorrect
 	errInvalidExtraDataFormat = errors.New("invalid extra data format")
 	// errInvalidMixDigest is returned if a block's mix digest is non zero.
