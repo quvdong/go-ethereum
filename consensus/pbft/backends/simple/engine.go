@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
-	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -87,10 +86,12 @@ func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types
 		return errUnknownBlock
 	}
 
-	// Don't waste time checking blocks from the future
-	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
-		return consensus.ErrFutureBlock
-	}
+	// TODO: Remove this check because the speed of BPFT is too fast.
+	//       The future blocks happen frequently.
+	// // Don't waste time checking blocks from the future
+	// if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
+	// 	return consensus.ErrFutureBlock
+	// }
 
 	// Check that the extra-data contains both the vanity and signature
 	length := len(header.Extra)
