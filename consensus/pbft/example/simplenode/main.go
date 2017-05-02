@@ -55,6 +55,10 @@ func main() {
 	// generate genesis block
 	genesis := core.DefaultGenesisBlock()
 	genesis.Config = params.TestChainConfig
+	// force enable PBFT engine
+	genesis.Config.PBFT = &params.PBFTConfig{}
+	genesis.Config.Ethash = nil
+
 	simulation.AppendValidators(genesis, addrs)
 
 	// 2. Setup backends
