@@ -20,6 +20,7 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"math/big"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
@@ -28,34 +29,118 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
 var (
-	errNotProposer            = errors.New("not a proposer")
-	errViewChanged            = errors.New("view changed")
-	errOtherBlockCommitted    = errors.New("other block is committed")
-	errInvalidPeer            = errors.New("invalid peer")
+	// errUnknownBlock is returned when the list of signers is requested for a block
+	// that is not part of the local blockchain.
+	errUnknownBlock = errors.New("unknown block")
+	// errUnauthorized is returned if a header is signed by a non authorized entity.
+	errUnauthorized = errors.New("unauthorized")
+	// errInvalidDifficulty is returned if the difficulty of a block is not 1
+	errInvalidDifficulty = errors.New("invalid difficulty")
+	// errNotProposer is returned when I'm not a proposer
+	errNotProposer = errors.New("not a proposer")
+	// errViewChanged is returned when we receive a view change event
+	errViewChanged = errors.New("view changed")
+	// errOtherBlockCommitted is returned when other block is committed.
+	errOtherBlockCommitted = errors.New("other block is committed")
+	errInvalidPeer         = errors.New("invalid peer")
+	// errInvalidExtraDataFormat is returned when the extra data format is incorrect
 	errInvalidExtraDataFormat = errors.New("invalid extra data format")
-
+	// errInvalidMixDigest is returned if a block's mix digest is non zero.
+	errInvalidMixDigest = errors.New("non-zero mix digest")
+	// errInvalidCoinbase is returned if a block's coinbase is non zero.
+	errInvalidCoinbase = errors.New("non-zero coinbase")
+	// errInvalidUncleHash is returned if a block contains an non-empty uncle list.
+	errInvalidUncleHash = errors.New("non empty uncle hash")
+)
+var (
 	defaultDifficulty = big.NewInt(1)
+	nilUncleHash      = types.CalcUncleHash(nil) // Always Keccak256(RLP([])) as uncles are meaningless outside of PoW.
 )
 
 // Author retrieves the Ethereum address of the account that minted the given
 // block, which may be different from the header's coinbase if a consensus
 // engine is based on signatures.
 func (sb *simpleBackend) Author(header *types.Header) (common.Address, error) {
-	return ecrecover(header)
+	return sb.ecrecover(header)
 }
 
 // VerifyHeader checks whether a header conforms to the consensus rules of a
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (sb *simpleBackend) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
-	return nil
+	return sb.verifyHeader(chain, header, nil)
+}
+
+// verifyHeader checks whether a header conforms to the consensus rules.The
+// caller may optionally pass in a batch of parents (ascending order) to avoid
+// looking those up from the database. This is useful for concurrently verifying
+// a batch of new headers.
+func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+	if header.Number == nil {
+		return errUnknownBlock
+	}
+
+	// Don't waste time checking blocks from the future
+	if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
+		return consensus.ErrFutureBlock
+	}
+
+	// Check that the extra-data contains both the vanity and signature
+	length := len(header.Extra)
+	if length < extraVanity+extraSeal {
+		return errInvalidExtraDataFormat
+	}
+	if !sb.valSet.CheckFormat(sb.getValidatorBytes(header)) {
+		return errInvalidExtraDataFormat
+	}
+
+	// Ensure that the coinbase is zero
+	if header.Coinbase != (common.Address{}) {
+		return errInvalidCoinbase
+	}
+	// Ensure that the mix digest is zero as we don't have fork protection currently
+	if header.MixDigest != (common.Hash{}) {
+		return errInvalidMixDigest
+	}
+	// Ensure that the block doesn't contain any uncles which are meaningless in PBFT
+	if header.UncleHash != nilUncleHash {
+		return errInvalidUncleHash
+	}
+	// Ensure that the block's difficulty is meaningful (may not be correct at this point)
+	if header.Difficulty == nil || header.Difficulty.Cmp(defaultDifficulty) != 0 {
+		return errInvalidDifficulty
+	}
+
+	return sb.verifyCascadingFields(chain, header, parents)
+}
+
+// verifyCascadingFields verifies all the header fields that are not standalone,
+// rather depend on a batch of previous headers. The caller may optionally pass
+// in a batch of parents (ascending order) to avoid looking those up from the
+// database. This is useful for concurrently verifying a batch of new headers.
+func (sb *simpleBackend) verifyCascadingFields(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+	// The genesis block is the always valid dead-end
+	number := header.Number.Uint64()
+	if number == 0 {
+		return nil
+	}
+	// Ensure that the block's timestamp isn't too close to it's parent
+	var parent *types.Header
+	if len(parents) > 0 {
+		parent = parents[len(parents)-1]
+	} else {
+		parent = chain.GetHeader(header.ParentHash, number-1)
+	}
+	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
+		return consensus.ErrUnknownAncestor
+	}
+	return sb.VerifySeal(chain, header)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -67,7 +152,7 @@ func (sb *simpleBackend) VerifyHeaders(chain consensus.ChainReader, headers []*t
 	results := make(chan error, len(headers))
 	go func() {
 		for i, header := range headers {
-			err := sb.VerifyHeader(chain, header, seals[i])
+			err := sb.verifyHeader(chain, header, headers[:i])
 
 			select {
 			case <-abort:
@@ -82,25 +167,50 @@ func (sb *simpleBackend) VerifyHeaders(chain consensus.ChainReader, headers []*t
 // VerifyUncles verifies that the given block's uncles conform to the consensus
 // rules of a given engine.
 func (sb *simpleBackend) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
+	if len(block.Uncles()) > 0 {
+		return errors.New("uncles not allowed")
+	}
 	return nil
 }
 
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (sb *simpleBackend) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
+	// Verifying the genesis block is not supported
+	number := header.Number.Uint64()
+	if number == 0 {
+		return errUnknownBlock
+	}
+
+	// Resolve the authorization key and check against signers
+	signer, err := sb.ecrecover(header)
+	if err != nil {
+		return err
+	}
+	if v := sb.valSet.GetByAddress(signer); v == nil {
+		return errUnauthorized
+	}
+	// Ensure that the difficulty corresponts to the turn-ness of the signer
+	if header.Difficulty.Cmp(defaultDifficulty) != 0 {
+		return errInvalidDifficulty
+	}
 	return nil
 }
 
 // Prepare initializes the consensus fields of a block header according to the
 // rules of a particular engine. The changes are executed inline.
 func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Header) error {
-	if !sb.IsProposer() {
-		return errNotProposer
-	}
+	// unused fields, force to set to empty
+	header.Coinbase = common.Address{}
+	header.Nonce = types.BlockNonce{}
+	header.MixDigest = common.Hash{}
 
 	// copy the parent extra data as the header extra data
-	height := uint64(header.Number.Int64())
-	parent := chain.GetHeader(header.ParentHash, height-1)
+	number := header.Number.Uint64()
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
 	header.Extra = parent.Extra
 	// use the same difficulty for all blocks
 	header.Difficulty = defaultDifficulty
@@ -114,13 +224,9 @@ func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Head
 // consensus rules that happen at finalization (e.g. block rewards).
 func (sb *simpleBackend) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction,
 	uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	if !sb.IsProposer() {
-		return nil, errNotProposer
-	}
-
 	// No block rewards in PBFT, so the state remains as is and uncles are dropped
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
-	header.UncleHash = types.CalcUncleHash(nil)
+	header.UncleHash = nilUncleHash
 
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts), nil
@@ -153,7 +259,15 @@ func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, s
 	sb.newChannels()
 	defer sb.closeChannels()
 
-	// step 1. feed block into PBFT engine
+	// step 1. sign the hash
+	header := block.Header()
+	sighash, err := sb.Sign(sigHash(header).Bytes())
+	if err != nil {
+		return nil, err
+	}
+	copy(header.Extra[len(header.Extra)-extraSeal:], sighash)
+	block = block.WithSeal(header)
+	// step 2. feed block into PBFT engine
 	b, e := rlp.EncodeToBytes(block)
 	if e != nil {
 		return nil, e
@@ -247,15 +361,19 @@ func (sb *simpleBackend) Stop() error {
 }
 
 func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) error {
-	currentHeader := chain.CurrentHeader()
+	header := chain.CurrentHeader()
 	// get the validator byte array and feed into validator set
-	length := len(currentHeader.Extra)
-	valSet, r := validator.NewSet(currentHeader.Extra[extraVanity : length-extraSeal])
+	valSet, r := validator.NewSet(sb.getValidatorBytes(header))
 	if !r || valSet == nil {
 		return errInvalidExtraDataFormat
 	}
 	sb.valSet = valSet
 	return nil
+}
+
+func (sb *simpleBackend) getValidatorBytes(header *types.Header) []byte {
+	length := len(header.Extra)
+	return header.Extra[extraVanity : length-extraSeal]
 }
 
 // FIXME: Need to update this for PBFT
@@ -282,7 +400,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-65], // Yes, this will panic if extra is too short
+		header.Extra[:len(header.Extra)-extraSeal], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
 	})
@@ -290,22 +408,12 @@ func sigHash(header *types.Header) (hash common.Hash) {
 	return hash
 }
 
-// FIXME: Need to update this for PBFT
 // ecrecover extracts the Ethereum account address from a signed header.
-func ecrecover(header *types.Header) (common.Address, error) {
+func (sb *simpleBackend) ecrecover(header *types.Header) (common.Address, error) {
 	// Retrieve the signature from the header extra-data
 	if len(header.Extra) < extraSeal {
 		return common.Address{}, consensus.ErrMissingSignature
 	}
 	signature := header.Extra[len(header.Extra)-extraSeal:]
-
-	// Recover the public key and the Ethereum address
-	pubkey, err := crypto.Ecrecover(sigHash(header).Bytes(), signature)
-	if err != nil {
-		return common.Address{}, err
-	}
-	var signer common.Address
-	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
-
-	return signer, nil
+	return sb.getSignatureAddress(sigHash(header).Bytes(), signature)
 }
