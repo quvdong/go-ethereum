@@ -28,16 +28,12 @@ func TestNewRequest(t *testing.T) {
 	testLogger.SetHandler(elog.StdoutHandler)
 
 	N := uint64(4)
+	F := uint64(1)
 
-	sys := NewTestSystemWithBackend(N)
+	sys := NewTestSystemWithBackend(N, F)
 
-	for _, backend := range sys.backends {
-		backend.Start(nil)
-		backend.engine.Start() // start PBFT core
-	}
-
-	sys.run()
-	defer sys.stop()
+	close := sys.Run(true, true)
+	defer close()
 
 	request1 := []byte("request 1")
 	sys.backends[0].NewRequest(request1)
