@@ -194,20 +194,28 @@ func (sb *simpleBackend) Sign(data []byte) ([]byte, error) {
 
 // CheckSignature implements pbft.Backend.CheckSignature
 func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig []byte) error {
+	signer, err := sb.getSignatureAddress(data, sig)
+	if err != nil {
+		log.Error("CheckSignature", "error", err)
+		return err
+	}
+	//Compare derived addresses
+	if bytes.Compare(signer.Bytes(), address.Bytes()) != 0 {
+		return pbft.ErrInvalidSignature
+	}
+	return nil
+}
+
+// CheckSignature implements pbft.Backend.CheckSignature
+func (sb *simpleBackend) getSignatureAddress(data []byte, sig []byte) (common.Address, error) {
 	//1. Keccak data
 	hashData := crypto.Keccak256([]byte(data))
 	//2. Recover public key
 	pubkey, err := crypto.SigToPub(hashData, sig)
 	if err != nil {
-		log.Error("CheckSignature", "error", err)
-		return err
+		return common.Address{}, err
 	}
-	//3. Compare derived addresses
-	signer := crypto.PubkeyToAddress(*pubkey)
-	if bytes.Compare(signer.Bytes(), address.Bytes()) != 0 {
-		return pbft.ErrInvalidSignature
-	}
-	return nil
+	return crypto.PubkeyToAddress(*pubkey), nil
 }
 
 // UpdateState implements pbft.Backend.UpdateState
