@@ -38,6 +38,7 @@ var (
 	errNotProposer         = errors.New("not a proposer")
 	errViewChanged         = errors.New("view changed")
 	errOtherBlockCommitted = errors.New("other block is committed")
+	errInvalidPeer         = errors.New("invalid peer")
 
 	errInvalidExtraDataFormat = errors.New("invalid extra data format")
 
@@ -213,18 +214,22 @@ func (sb *simpleBackend) RemovePeer(peerID string) error {
 func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 	peer := sb.peerSet.Get(peerID)
 	if peer == nil {
-		return nil
+		sb.logger.Error("Not in peer set", "peerID", peerID)
+		return errInvalidPeer
 	}
 
 	msgEvent, err := Decode(data)
 	if err != nil {
+		sb.logger.Error("Decode message event failed", "error", err)
 		return err
 	}
 
-	if val := sb.valSet.GetByAddress(peer.Address()); val != nil {
-		go sb.pbftEventMux.Post(*msgEvent)
+	if val := sb.valSet.GetByAddress(peer.Address()); val == nil {
+		sb.logger.Error("Not in validator set", "peerAddr", peer.Address().Hex())
+		return errInvalidPeer
 	}
 
+	go sb.pbftEventMux.Post(*msgEvent)
 	return nil
 }
 
