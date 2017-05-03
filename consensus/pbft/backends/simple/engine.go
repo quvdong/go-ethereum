@@ -74,14 +74,15 @@ func (sb *simpleBackend) Author(header *types.Header) (common.Address, error) {
 // given engine. Verifying the seal may be done optionally here, or explicitly
 // via the VerifySeal method.
 func (sb *simpleBackend) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
-	return sb.verifyHeader(chain, header, nil)
+	number := header.Number.Uint64()
+	return sb.verifyHeader(chain, header, chain.GetHeader(header.ParentHash, number-1))
 }
 
 // verifyHeader checks whether a header conforms to the consensus rules.The
 // caller may optionally pass in a batch of parents (ascending order) to avoid
 // looking those up from the database. This is useful for concurrently verifying
 // a batch of new headers.
-func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types.Header, parent *types.Header) error {
 	if header.Number == nil {
 		return errUnknownBlock
 	}
@@ -119,26 +120,20 @@ func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types
 		return errInvalidDifficulty
 	}
 
-	return sb.verifyCascadingFields(chain, header, parents)
+	return sb.verifyCascadingFields(chain, header, parent)
 }
 
 // verifyCascadingFields verifies all the header fields that are not standalone,
 // rather depend on a batch of previous headers. The caller may optionally pass
 // in a batch of parents (ascending order) to avoid looking those up from the
 // database. This is useful for concurrently verifying a batch of new headers.
-func (sb *simpleBackend) verifyCascadingFields(chain consensus.ChainReader, header *types.Header, parents []*types.Header) error {
+func (sb *simpleBackend) verifyCascadingFields(chain consensus.ChainReader, header *types.Header, parent *types.Header) error {
 	// The genesis block is the always valid dead-end
 	number := header.Number.Uint64()
 	if number == 0 {
 		return nil
 	}
 	// Ensure that the block's timestamp isn't too close to it's parent
-	var parent *types.Header
-	if len(parents) > 0 {
-		parent = parents[len(parents)-1]
-	} else {
-		parent = chain.GetHeader(header.ParentHash, number-1)
-	}
 	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
 		return consensus.ErrUnknownAncestor
 	}
@@ -154,7 +149,13 @@ func (sb *simpleBackend) VerifyHeaders(chain consensus.ChainReader, headers []*t
 	results := make(chan error, len(headers))
 	go func() {
 		for i, header := range headers {
-			err := sb.verifyHeader(chain, header, headers[:i])
+			var err error
+			if i == 0 {
+				err = sb.VerifyHeader(chain, header, false)
+			} else {
+				// The headers are ordered, and the parent header is the previous one.
+				err = sb.verifyHeader(chain, header, headers[i-1])
+			}
 
 			select {
 			case <-abort:
@@ -170,7 +171,7 @@ func (sb *simpleBackend) VerifyHeaders(chain consensus.ChainReader, headers []*t
 // rules of a given engine.
 func (sb *simpleBackend) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
 	if len(block.Uncles()) > 0 {
-		return errors.New("uncles not allowed")
+		return errInvalidUncleHash
 	}
 	return nil
 }
@@ -213,7 +214,10 @@ func (sb *simpleBackend) Prepare(chain consensus.ChainReader, header *types.Head
 	if parent == nil {
 		return consensus.ErrUnknownAncestor
 	}
-	header.Extra = parent.Extra
+	// Ensure the extra data has all it's components
+	length := len(header.Extra)
+	header.Extra = header.Extra[:length-extraSeal]
+	header.Extra = append(header.Extra, make([]byte, extraSeal)...)
 	// use the same difficulty for all blocks
 	header.Difficulty = defaultDifficulty
 	return nil
@@ -290,6 +294,8 @@ func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, s
 				return block, nil
 			}
 			return nil, errOtherBlockCommitted
+		case <-stop:
+			return nil, nil
 		}
 	}
 }
