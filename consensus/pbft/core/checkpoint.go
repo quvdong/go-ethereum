@@ -17,7 +17,7 @@
 package core
 
 import (
-	"math/big"
+	"sort"
 
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
@@ -44,14 +44,21 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	if cp.Sequence.Cmp(c.current.Sequence) == 0 { // current
 		snapshot = c.current
 	} else if cp.Sequence.Cmp(c.current.Sequence) < 0 { // old checkpoint
-		snapshotIndex := c.searchSnapshot(cp.Sequence, 0, len(c.snapshots)-1)
-		if snapshotIndex >= 0 {
+		snapshotIndex := sort.Search(len(c.snapshots),
+			func(i int) bool {
+				return c.snapshots[i].Sequence.Cmp(cp.Sequence) >= 0
+			},
+		)
+
+		// If there is no such index, Search returns len(c.snapshots).
+		if snapshotIndex < len(c.snapshots) {
 			snapshot = c.snapshots[snapshotIndex]
 		} else {
 			logger.Error("Failed to find snapshot entry", "seq", cp.Sequence, "current", c.current.Sequence)
 			return pbft.ErrInvalidMessage
 		}
 	} else { // future checkpoint
+		// TODO: Do we have to handle this?
 		return pbft.ErrInvalidMessage
 	}
 
@@ -61,25 +68,6 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	}
 
 	return nil
-}
-
-func (c *core) searchSnapshot(seq *big.Int, low, high int) (mid int) {
-	if low < 0 || high >= len(c.snapshots) {
-		return -1
-	}
-
-	for low <= high {
-		mid = (low + high) / 2
-		if c.snapshots[mid].Sequence.Cmp(seq) > 0 {
-			high = mid - 1
-		} else if c.snapshots[mid].Sequence.Cmp(seq) < 0 {
-			low = mid + 1
-		} else {
-			return mid
-		}
-	}
-
-	return -1
 }
 
 func (c *core) buildStableCheckpoint() {
