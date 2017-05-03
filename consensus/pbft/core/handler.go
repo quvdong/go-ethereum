@@ -17,8 +17,6 @@
 package core
 
 import (
-	"fmt"
-
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
@@ -79,19 +77,19 @@ func (c *core) handle(msg *pbft.Message, src pbft.Validator) error {
 	case pbft.MsgPreprepare:
 		m, ok := msg.Msg.(*pbft.Preprepare)
 		if !ok {
-			return fmt.Errorf("failed to decode Preprepare")
+			return errFailedDecodePreprepare
 		}
 		return testBacklog(c.handlePreprepare(m, src))
 	case pbft.MsgPrepare:
 		m, ok := msg.Msg.(*pbft.Subject)
 		if !ok {
-			return fmt.Errorf("failed to decode Prepare")
+			return errFailedDecodePrepare
 		}
 		return testBacklog(c.handlePrepare(m, src))
 	case pbft.MsgCommit:
 		m, ok := msg.Msg.(*pbft.Subject)
 		if !ok {
-			return fmt.Errorf("failed to decode Commit")
+			return errFailedDecodeCommit
 		}
 		return testBacklog(c.handleCommit(m, src))
 	case pbft.MsgCheckpoint:
