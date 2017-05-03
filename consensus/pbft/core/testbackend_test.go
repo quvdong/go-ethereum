@@ -194,25 +194,26 @@ func newTestSystem(n uint64) *testSystem {
 	}
 }
 
+func newTestValidatorSet(n int) pbft.ValidatorSet {
+	// generate validators
+	validators := make([]pbft.Validator, n)
+	b := []byte{}
+	for i := 0; i < n; i++ {
+		// TODO: the private key should be stored if we want to add new feature for sign data
+		privateKey, _ := crypto.GenerateKey()
+		validators[i] = validator.New(crypto.PubkeyToAddress(privateKey.PublicKey))
+		b = append(b, validators[i].Address().Bytes()...)
+	}
+	vset, _ := validator.NewSet(b)
+
+	return vset
+}
+
 // FIXME: int64 is needed for N and F
 func NewTestSystemWithBackend(n, f uint64) *testSystem {
 	testLogger.SetHandler(elog.StdoutHandler)
 
-	// generate validators
-	peers := make([]pbft.Validator, int(n))
-	b := []byte{}
-	for i := uint64(0); i < n; i++ {
-		// TODO: the private key should be stored if we want to add new feature for sign data
-		privateKey, err := crypto.GenerateKey()
-		if err != nil {
-			panic(err)
-		}
-
-		peers[i] = validator.New(getPublicKeyAddress(privateKey))
-		b = append(b, peers[i].Address().Bytes()...)
-	}
-	vset, _ := validator.NewSet(b)
-
+	vset := newTestValidatorSet(int(n))
 	sys := newTestSystem(n)
 
 	for i := uint64(0); i < n; i++ {
