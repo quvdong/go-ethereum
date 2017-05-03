@@ -20,4 +20,7 @@ import "errors"
 
 var (
 	errFutureMessage = errors.New("future message")
+	errFailedDecodePreprepare = errors.New("failed to decode Preprepare")
+	errFailedDecodePrepare = errors.New("failed to decode Prepare")
+	errFailedDecodeCommit = errors.New("failed to decode Commit")
 )
