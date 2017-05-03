@@ -53,22 +53,15 @@ func New(backend pbft.Backend) Engine {
 	n := int64(backend.Validators().Size())
 	f := int64(math.Ceil(float64(n)/3) - 1)
 	return &core{
-		address:    backend.Address(),
-		N:          n,
-		F:          f,
-		state:      StateAcceptRequest,
-		logger:     log.New("address", backend.Address().Hex()),
-		backend:    backend,
-		sequence:   new(big.Int),
-		viewNumber: new(big.Int),
-		events: backend.EventMux().Subscribe(
-			pbft.RequestEvent{},
-			pbft.ConnectionEvent{},
-			pbft.MessageEvent{},
-			pbft.CheckpointEvent{},
-			backlogEvent{},
-			buildCheckpointEvent{},
-		),
+		address:     backend.Address(),
+		N:           n,
+		F:           f,
+		state:       StateAcceptRequest,
+		logger:      log.New("address", backend.Address().Hex()),
+		backend:     backend,
+		sequence:    new(big.Int),
+		viewNumber:  new(big.Int),
+		internalMux: new(event.TypeMux),
 		backlogs:    make(map[pbft.Validator]*prque.Prque),
 		backlogsMu:  new(sync.Mutex),
 		snapshotsMu: new(sync.RWMutex),
@@ -86,6 +79,9 @@ type core struct {
 
 	backend pbft.Backend
 	events  *event.TypeMuxSubscription
+
+	internalMux    *event.TypeMux
+	internalEvents *event.TypeMuxSubscription
 
 	sequence   *big.Int
 	viewNumber *big.Int
@@ -169,7 +165,7 @@ func (c *core) commit() {
 	// We build stable checkpoint every 100 requests
 	// FIXME: this should be passed by configuration
 	if new(big.Int).Mod(c.sequence, big.NewInt(100)).Int64() == 0 {
-		go c.backend.EventMux().Post(buildCheckpointEvent{})
+		go c.sendInternalEvent(buildCheckpointEvent{})
 	}
 }
 

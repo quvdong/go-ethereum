@@ -22,38 +22,79 @@ import (
 
 // Start implements core.Engine.Start
 func (c *core) Start() error {
-	go func() {
-		for event := range c.events.Chan() {
-			// A real event arrived, process interesting content
-			switch ev := event.Data.(type) {
-			case pbft.CheckpointEvent:
-				// TODO: we only implement sequence and digest now
-				c.sendCheckpoint(&pbft.Checkpoint{
-					Sequence: ev.BlockNumber,
-					Digest:   ev.BlockHash.Bytes(),
-				})
-			case pbft.ConnectionEvent:
+	// Tests will handle events itself, so we have to make subscribeEvents()
+	// be able to call in test.
+	c.subscribeEvents()
 
-			case pbft.RequestEvent:
-				c.handleRequest(&pbft.Request{
-					Payload: ev.Payload,
-				}, c.backend.Validators().GetByAddress(c.address))
-			case pbft.MessageEvent:
-				c.handleMsg(ev.Payload, c.backend.Validators().GetByAddress(ev.Address))
-			case backlogEvent:
-				c.handle(ev.msg, ev.src)
-			case buildCheckpointEvent:
-				go c.buildStableCheckpoint()
-			}
-		}
-	}()
+	go c.handleExternalEvent()
+	go c.handleInternalEvent()
+
 	return nil
 }
 
 // Stop implements core.Engine.Stop
 func (c *core) Stop() error {
-	c.events.Unsubscribe()
+	c.unsubscribeEvents()
 	return nil
+}
+
+// ----------------------------------------------------------------------------
+
+func (c *core) subscribeEvents() {
+	c.events = c.backend.EventMux().Subscribe(
+		pbft.RequestEvent{},
+		pbft.ConnectionEvent{},
+		pbft.MessageEvent{},
+		pbft.CheckpointEvent{},
+	)
+
+	c.internalEvents = c.internalMux.Subscribe(
+		backlogEvent{},
+		buildCheckpointEvent{},
+	)
+}
+
+func (c *core) unsubscribeEvents() {
+	c.events.Unsubscribe()
+	c.internalEvents.Unsubscribe()
+}
+
+func (c *core) handleExternalEvent() {
+	for event := range c.events.Chan() {
+		// A real event arrived, process interesting content
+		switch ev := event.Data.(type) {
+		case pbft.CheckpointEvent:
+			// TODO: we only implement sequence and digest now
+			c.sendCheckpoint(&pbft.Checkpoint{
+				Sequence: ev.BlockNumber,
+				Digest:   ev.BlockHash.Bytes(),
+			})
+		case pbft.ConnectionEvent:
+
+		case pbft.RequestEvent:
+			c.handleRequest(&pbft.Request{
+				Payload: ev.Payload,
+			}, c.backend.Validators().GetByAddress(c.address))
+		case pbft.MessageEvent:
+			c.handleMsg(ev.Payload, c.backend.Validators().GetByAddress(ev.Address))
+		}
+	}
+}
+
+func (c *core) sendInternalEvent(ev interface{}) {
+	c.internalMux.Post(ev)
+}
+
+func (c *core) handleInternalEvent() {
+	for event := range c.internalEvents.Chan() {
+		// A real event arrived, process interesting content
+		switch ev := event.Data.(type) {
+		case backlogEvent:
+			c.handle(ev.msg, ev.src)
+		case buildCheckpointEvent:
+			go c.buildStableCheckpoint()
+		}
+	}
 }
 
 func (c *core) handleMsg(payload []byte, src pbft.Validator) error {
