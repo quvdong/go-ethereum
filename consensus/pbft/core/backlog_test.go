@@ -154,14 +154,15 @@ func TestProcessFutureBacklog(t *testing.T) {
 		events: new(event.TypeMux),
 	}
 	c := &core{
-		logger:     log.New("backend", "test", "id", 0),
-		backlogs:   make(map[pbft.Validator]*prque.Prque),
-		backlogsMu: new(sync.Mutex),
-		backend:    backend,
-		events: backend.EventMux().Subscribe(
-			backlogEvent{},
-		),
+		logger:      log.New("backend", "test", "id", 0),
+		backlogs:    make(map[pbft.Validator]*prque.Prque),
+		backlogsMu:  new(sync.Mutex),
+		backend:     backend,
+		internalMux: new(event.TypeMux),
 	}
+	c.subscribeEvents()
+	defer c.unsubscribeEvents()
+
 	v := &pbft.View{
 		ViewNumber: big.NewInt(10),
 		Sequence:   big.NewInt(10),
@@ -182,7 +183,7 @@ func TestProcessFutureBacklog(t *testing.T) {
 	const timeoutDura = 2 * time.Second
 	timeout := time.NewTimer(timeoutDura)
 	select {
-	case <-c.events.Chan():
+	case <-c.internalEvents.Chan():
 		t.Errorf("Should not receive any events")
 
 	case <-timeout.C:
@@ -232,19 +233,19 @@ func TestProcessBacklog(t *testing.T) {
 }
 
 func testProcessBacklog(t *testing.T, msg *pbft.Message) {
+	vset := newTestValidatorSet(1)
 	backend := &testSystemBackend{
 		events: new(event.TypeMux),
+		peers:  vset,
 	}
 	c := &core{
-		logger:     log.New("backend", "test", "id", 0),
-		backlogs:   make(map[pbft.Validator]*prque.Prque),
-		backlogsMu: new(sync.Mutex),
-		backend:    backend,
-		events: backend.EventMux().Subscribe(
-			backlogEvent{},
-		),
-		state:    State(msg.Code),
-		sequence: big.NewInt(1),
+		logger:      log.New("backend", "test", "id", 0),
+		backlogs:    make(map[pbft.Validator]*prque.Prque),
+		backlogsMu:  new(sync.Mutex),
+		backend:     backend,
+		internalMux: new(event.TypeMux),
+		state:       State(msg.Code),
+		sequence:    big.NewInt(1),
 		subject: &pbft.Subject{
 			View: &pbft.View{
 				Sequence:   big.NewInt(1),
@@ -252,15 +253,16 @@ func testProcessBacklog(t *testing.T, msg *pbft.Message) {
 			},
 		},
 	}
+	c.subscribeEvents()
+	defer c.unsubscribeEvents()
 
-	p := validator.New(common.StringToAddress("12345667890"))
-	c.storeBacklog(msg, p)
+	c.storeBacklog(msg, vset.GetByIndex(0))
 	c.processBacklog()
 
 	const timeoutDura = 2 * time.Second
 	timeout := time.NewTimer(timeoutDura)
 	select {
-	case ev := <-c.events.Chan():
+	case ev := <-c.internalEvents.Chan():
 		e, ok := ev.Data.(backlogEvent)
 		if !ok {
 			t.Fatalf("Unexpected event comes")
