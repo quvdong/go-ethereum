@@ -35,11 +35,10 @@ import (
 )
 
 var (
-	errNotProposer         = errors.New("not a proposer")
-	errViewChanged         = errors.New("view changed")
-	errOtherBlockCommitted = errors.New("other block is committed")
-	errInvalidPeer         = errors.New("invalid peer")
-
+	errNotProposer            = errors.New("not a proposer")
+	errViewChanged            = errors.New("view changed")
+	errOtherBlockCommitted    = errors.New("other block is committed")
+	errInvalidPeer            = errors.New("invalid peer")
 	errInvalidExtraDataFormat = errors.New("invalid extra data format")
 
 	defaultDifficulty = big.NewInt(1)
