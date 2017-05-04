@@ -20,6 +20,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 )
 
+// in this test, we can set n to 1, and it means we can process PBFT and commit a
+// block by one node. Otherwise, if n is larger than 1, we have to generate
+// other fake events to process PBFT.
 func newBlockChain(n int) (*core.BlockChain, *simpleBackend) {
 	genesis, nodeKeys := getGenesisAndKeys(n)
 	eventMux := new(event.TypeMux)
@@ -33,6 +36,16 @@ func newBlockChain(n int) (*core.BlockChain, *simpleBackend) {
 	}
 	backend.Start(blockchain)
 	b, _ := backend.(*simpleBackend)
+
+	proposerAddr := b.valSet.GetProposer().Address()
+	// find proposer key
+	for _, key := range nodeKeys {
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		if addr.String() == proposerAddr.String() {
+			b.privateKey = key
+			b.address = addr
+		}
+	}
 
 	return blockchain, b
 }
@@ -114,7 +127,7 @@ func TestPrepare(t *testing.T) {
 }
 
 func TestSealStopChannel(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(4)
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
@@ -141,11 +154,10 @@ func TestSealStopChannel(t *testing.T) {
 }
 
 func TestSealViewChange(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(4)
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
-	expectedBlock := getExpectedBlock(engine, block)
 	eventLoop := func() {
 		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 		select {
@@ -160,13 +172,8 @@ func TestSealViewChange(t *testing.T) {
 	go eventLoop()
 
 	seal := func() {
-		finalBlock, err := engine.Seal(chain, block, nil)
-		if err != nil {
-			t.Errorf("error should be nil, but got: %v", err)
-		}
-		if finalBlock.Hash().Hex() != expectedBlock.Hash().Hex() {
-			t.Errorf("block should be equal, got: %v, expected: %v", finalBlock.Hash().Hex(), expectedBlock.Hash().Hex())
-		}
+		engine.Seal(chain, block, nil)
+		t.Errorf("should not be called")
 	}
 	go seal()
 
@@ -178,8 +185,35 @@ func TestSealViewChange(t *testing.T) {
 	}
 }
 
+func TestSealViewChangeNeedNewProposal(t *testing.T) {
+	chain, engine := newBlockChain(4)
+	header := makeHeader(chain.Genesis())
+	state, _ := chain.StateAt(chain.Genesis().Root())
+	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
+	eventLoop := func() {
+		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
+		select {
+		case ev := <-eventSub.Chan():
+			_, ok := ev.Data.(pbft.RequestEvent)
+			if !ok {
+				t.Errorf("unexpected event comes, got: %v, expected: pbft.RequestEvent", reflect.TypeOf(ev.Data))
+			}
+			engine.viewChange <- true
+		}
+	}
+	go eventLoop()
+
+	finalBlock, err := engine.Seal(chain, block, nil)
+	if err != errViewChanged {
+		t.Errorf("unexpected error comes, got: %v, expected: errViewChanged", err)
+	}
+	if finalBlock != nil {
+		t.Errorf("block should be nil, but got: %v", finalBlock.Hash().Hex())
+	}
+}
+
 func TestSealCommittedOtherHash(t *testing.T) {
-	chain, engine := newBlockChain(1)
+	chain, engine := newBlockChain(4)
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
