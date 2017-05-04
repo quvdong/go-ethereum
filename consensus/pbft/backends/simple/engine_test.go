@@ -132,8 +132,8 @@ func TestSealStopChannel(t *testing.T) {
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
 	stop := make(chan struct{}, 1)
+	eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 	eventLoop := func() {
-		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 		select {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(pbft.RequestEvent)
@@ -142,6 +142,7 @@ func TestSealStopChannel(t *testing.T) {
 			}
 			stop <- struct{}{}
 		}
+		eventSub.Unsubscribe()
 	}
 	go eventLoop()
 	finalBlock, err := engine.Seal(chain, block, stop)
@@ -158,8 +159,8 @@ func TestSealViewChange(t *testing.T) {
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
+	eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 	eventLoop := func() {
-		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 		select {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(pbft.RequestEvent)
@@ -168,6 +169,7 @@ func TestSealViewChange(t *testing.T) {
 			}
 			engine.viewChange <- false
 		}
+		eventSub.Unsubscribe()
 	}
 	go eventLoop()
 
@@ -190,8 +192,8 @@ func TestSealViewChangeNeedNewProposal(t *testing.T) {
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
+	eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 	eventLoop := func() {
-		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 		select {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(pbft.RequestEvent)
@@ -200,6 +202,7 @@ func TestSealViewChangeNeedNewProposal(t *testing.T) {
 			}
 			engine.viewChange <- true
 		}
+		eventSub.Unsubscribe()
 	}
 	go eventLoop()
 
@@ -217,8 +220,8 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	header := makeHeader(chain.Genesis())
 	state, _ := chain.StateAt(chain.Genesis().Root())
 	block, _ := engine.Finalize(chain, header, state, nil, nil, nil)
+	eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 	eventLoop := func() {
-		eventSub := engine.EventMux().Subscribe(pbft.RequestEvent{})
 		select {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(pbft.RequestEvent)
@@ -227,6 +230,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 			}
 			engine.commit <- common.StringToHash("1234567890")
 		}
+		eventSub.Unsubscribe()
 	}
 	go eventLoop()
 	finalBlock, err := engine.Seal(chain, block, nil)
