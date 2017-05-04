@@ -110,6 +110,10 @@ func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) er
 	return nil
 }
 
+func (self *testSystemBackend) CheckValidatorSignature(data []byte, sig []byte) (common.Address, error) {
+	return common.Address{}, nil
+}
+
 func (self *testSystemBackend) IsProposer() bool {
 	testLogger.Info("use replica 0 as proposer")
 	if len(self.sys.backends) == 0 {

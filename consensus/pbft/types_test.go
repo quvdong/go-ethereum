@@ -17,6 +17,7 @@
 package pbft
 
 import (
+	"bytes"
 	"math/big"
 	"reflect"
 	"testing"
@@ -44,7 +45,7 @@ func testPreprepare(t *testing.T) {
 		},
 	}
 
-	m, err := Encode(MsgPreprepare, pp)
+	m, err := Encode(MsgPreprepare, pp, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -54,8 +55,7 @@ func testPreprepare(t *testing.T) {
 		t.Error(err)
 	}
 
-	var decodedMsg Message
-	err = Decode(msgPayload, &decodedMsg)
+	decodedMsg, err := Decode(msgPayload, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -80,7 +80,7 @@ func testSubject(t *testing.T) {
 		Digest: []byte{0x01, 0x02},
 	}
 
-	m, err := Encode(MsgPrepare, s)
+	m, err := Encode(MsgPrepare, s, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -90,8 +90,7 @@ func testSubject(t *testing.T) {
 		t.Error(err)
 	}
 
-	var decodedMsg Message
-	err = Decode(msgPayload, &decodedMsg)
+	decodedMsg, err := Decode(msgPayload, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -107,7 +106,51 @@ func testSubject(t *testing.T) {
 	}
 }
 
+func testSignature(t *testing.T) {
+	s := &Subject{Digest: []byte{0x01, 0x02}}
+
+	// 1. Encode test
+	// 1.1. Test nil sign func
+	m, err := Encode(MsgPrepare, s, nil)
+	if err != nil {
+		t.Error(err)
+	}
+	if m.Signature != nil {
+		t.Errorf("Signature should be nil, but got :%v", m.Signature)
+	}
+
+	// 1.2. Test sign fun
+	expectedSig := []byte{0x01}
+	m, err = Encode(MsgPrepare, s, func(data []byte) ([]byte, error) {
+		return expectedSig, nil
+	})
+	if bytes.Compare(m.Signature, expectedSig) != 0 {
+		t.Errorf("Signature should be %v, but got: %v", expectedSig, m.Signature)
+	}
+
+	// 2. Decode test
+	msgPayload, err := m.ToPayload()
+	if err != nil {
+		t.Error(err)
+	}
+
+	// 2.1 Test nil validate func
+	_, err = Decode(msgPayload, nil)
+	if err != nil {
+		t.Errorf("Decode should succeed, but got error: %v", err)
+	}
+
+	// 2.2 Test validate func
+	_, err = Decode(msgPayload, func(data []byte, sig []byte) (common.Address, error) {
+		return common.Address{}, ErrNoMatchingValidator
+	})
+	if err != ErrNoMatchingValidator {
+		t.Errorf("Expect ErrNoMatchingValidator error, but got: %v", err)
+	}
+}
+
 func TestMessageEncodeDecode(t *testing.T) {
 	testPreprepare(t)
 	testSubject(t)
+	testSignature(t)
 }

@@ -44,8 +44,9 @@ type State struct {
 }
 
 type Message struct {
-	Code uint64
-	Msg  interface{}
+	Code      uint64
+	Msg       interface{}
+	Signature []byte
 }
 
 func (m *Message) ToPayload() ([]byte, error) {
@@ -57,14 +58,52 @@ func (m *Message) ToPayload() ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func Decode(b []byte, val interface{}) error {
-	return gob.NewDecoder(bytes.NewBuffer(b)).Decode(val)
+func Decode(b []byte, validateFn func([]byte, []byte) (common.Address, error)) (*Message, error) {
+	var msg Message
+	// Decode message
+	err := gob.NewDecoder(bytes.NewBuffer(b)).Decode(&msg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Validate message (on a Message without Signature)
+	if validateFn != nil {
+		m := &Message{Code: msg.Code, Msg: msg.Msg, Signature: nil}
+		var payload []byte
+		payload, err = m.ToPayload()
+		if err != nil {
+			return nil, err
+		}
+		_, err = validateFn(payload, msg.Signature)
+	}
+	// Still return the message even the err is not nil
+	return &msg, err
 }
 
-func Encode(code uint64, val interface{}) (*Message, error) {
+func Encode(code uint64, val interface{}, signFn func([]byte) ([]byte, error)) (*Message, error) {
+	var sig []byte
+
+	if signFn != nil {
+		// Create message without signature (for data signing)
+		m := &Message{Code: code, Msg: val, Signature: nil}
+
+		// Sign message
+		payload, err := m.ToPayload()
+		if err != nil {
+			return nil, err
+		}
+
+		sig, err = signFn(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Return Message with signature
 	return &Message{
-		Code: code,
-		Msg:  val,
+		Code:      code,
+		Msg:       val,
+		Signature: sig,
 	}, nil
 }
 
