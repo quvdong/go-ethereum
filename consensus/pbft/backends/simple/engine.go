@@ -87,7 +87,7 @@ func (sb *simpleBackend) verifyHeader(chain consensus.ChainReader, header *types
 		return errUnknownBlock
 	}
 
-	// TODO: Remove this check because the speed of BPFT is too fast.
+	// TODO: Remove this check because the speed of PBFT is too fast.
 	//       The future blocks happen frequently.
 	// // Don't waste time checking blocks from the future
 	// if header.Time.Cmp(big.NewInt(time.Now().Unix())) > 0 {
@@ -137,7 +137,7 @@ func (sb *simpleBackend) verifyCascadingFields(chain consensus.ChainReader, head
 	if parent == nil || parent.Number.Uint64() != number-1 || parent.Hash() != header.ParentHash {
 		return consensus.ErrUnknownAncestor
 	}
-	return sb.VerifySeal(chain, header)
+	return sb.verifySigner(chain, header, parent)
 }
 
 // VerifyHeaders is similar to VerifyHeader, but verifies a batch of headers
@@ -176,28 +176,43 @@ func (sb *simpleBackend) VerifyUncles(chain consensus.ChainReader, block *types.
 	return nil
 }
 
+// verifySigner checks whether the signer is in parent's validator set
+func (sb *simpleBackend) verifySigner(chain consensus.ChainReader, header *types.Header, parent *types.Header) error {
+	// resolve the authorization key and check against signers
+	signer, err := sb.ecrecover(header)
+	if err != nil {
+		return err
+	}
+	// ensure the signer is in parent's validator set
+	parentValSet, r := validator.NewSet(sb.getValidatorBytes(parent))
+	if !r || parentValSet == nil {
+		return errInvalidExtraDataFormat
+	}
+	if v := parentValSet.GetByAddress(signer); v == nil {
+		return errUnauthorized
+	}
+	return nil
+}
+
 // VerifySeal checks whether the crypto seal on a header is valid according to
 // the consensus rules of the given engine.
 func (sb *simpleBackend) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
-	// Verifying the genesis block is not supported
+	// get parent header and ensure the signer is in parent's validator set
 	number := header.Number.Uint64()
 	if number == 0 {
 		return errUnknownBlock
 	}
 
-	// Resolve the authorization key and check against signers
-	signer, err := sb.ecrecover(header)
-	if err != nil {
-		return err
-	}
-	if v := sb.valSet.GetByAddress(signer); v == nil {
-		return errUnauthorized
-	}
-	// Ensure that the difficulty corresponts to the turn-ness of the signer
+	// ensure that the difficulty equals to defaultDifficulty
 	if header.Difficulty.Cmp(defaultDifficulty) != 0 {
 		return errInvalidDifficulty
 	}
-	return nil
+
+	parent := chain.GetHeader(header.ParentHash, number-1)
+	if parent == nil {
+		return consensus.ErrUnknownAncestor
+	}
+	return sb.verifySigner(chain, header, parent)
 }
 
 // Prepare initializes the consensus fields of a block header according to the
