@@ -26,7 +26,7 @@ func TestHandleMsg(t *testing.T) {
 			ViewNumber: big.NewInt(0),
 		},
 		Digest: []byte{1},
-	})
+	}, nil)
 
 	if err := r0.handle(msg, v0.Validators().GetByAddress(v0.Address())); err != errFailedDecodePreprepare {
 		t.Error("message should decode failed")
@@ -39,7 +39,7 @@ func TestHandleMsg(t *testing.T) {
 			ViewNumber: big.NewInt(0),
 		},
 		Proposal: nil,
-	})
+	}, nil)
 
 	if err := r0.handle(msg, v0.Validators().GetByAddress(v0.Address())); err != errFailedDecodePrepare {
 		t.Error("message should decode failed")
@@ -52,7 +52,7 @@ func TestHandleMsg(t *testing.T) {
 			ViewNumber: big.NewInt(0),
 		},
 		Proposal: nil,
-	})
+	}, nil)
 
 	if err := r0.handle(msg, v0.Validators().GetByAddress(v0.Address())); err != errFailedDecodeCommit {
 		t.Error("message should decode failed")
@@ -65,7 +65,7 @@ func TestHandleMsg(t *testing.T) {
 			ViewNumber: big.NewInt(0),
 		},
 		Proposal: nil,
-	})
+	}, nil)
 
 	if err := r0.handle(msg, v0.Validators().GetByAddress(v0.Address())); err != nil {
 		t.Error("should not return failed message, but:", err)

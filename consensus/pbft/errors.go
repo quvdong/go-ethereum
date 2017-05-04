@@ -26,5 +26,9 @@ var (
 	ErrInvalidMessage    = errors.New("invalid message")
 	ErrSubjectNotMatched = errors.New("subjects are not matched")
 	ErrInvalidSignature  = errors.New("Invalid signature")
-	ErrInvalidPeerId     = errors.New("Invalid peer ID")
+	ErrInvalidPeerID     = errors.New("Invalid peer ID")
+
+	// ErrNoMatchingValidator is returned when validating a peer message by verifying its signature
+	// and the associated public is not found in the validator set.
+	ErrNoMatchingValidator = errors.New("Cannot find matching validator of the given signature")
 )

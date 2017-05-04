@@ -17,18 +17,21 @@
 package simple
 
 import (
+	"bytes"
 	"crypto/ecdsa"
+	"sort"
 	"strings"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/log"
 )
 
 func TestSign(t *testing.T) {
-	b := newSimpleBackend()
+	b, _, _ := newSimpleBackend()
 	data := []byte("Here is a string....")
 	sig, err := b.Sign(data)
 	if err != nil {
@@ -49,7 +52,7 @@ func TestCheckSignature(t *testing.T) {
 	data := []byte("Here is a string....")
 	hashData := crypto.Keccak256([]byte(data))
 	sig, _ := crypto.Sign(hashData, key)
-	b := newSimpleBackend()
+	b, _, _ := newSimpleBackend()
 	a := getAddress()
 	err := b.CheckSignature(data, a, sig)
 	if err != nil {
@@ -59,6 +62,50 @@ func TestCheckSignature(t *testing.T) {
 	err = b.CheckSignature(data, a, sig)
 	if err != pbft.ErrInvalidSignature {
 		t.Error("Should fail with ErrInvalidSignature")
+	}
+}
+
+func TestCheckValidatorSignature(t *testing.T) {
+	b, keys, vset := newSimpleBackend()
+
+	// 1. Positive test: sign with validator's key should succeed
+	data := []byte("dummy data")
+	hashData := crypto.Keccak256([]byte(data))
+	for i, k := range keys {
+		// Sign
+		sig, err := crypto.Sign(hashData, k)
+		if err != nil {
+			t.Errorf("Unable to sign data")
+		}
+		// CheckValidatorSignature should succeed
+		addr, err := b.CheckValidatorSignature(data, sig)
+		if err != nil {
+			t.Errorf("CheckValidatorSignature should succeed")
+		}
+		validator := vset.GetByIndex(uint64(i))
+		if bytes.Compare(addr.Bytes(), validator.Address().Bytes()) != 0 {
+			t.Errorf("CheckValidatorSignature should return correct validator's address")
+		}
+	}
+
+	// 2. Negative test: sign with any key other than validator's key should return error
+	key, err := crypto.GenerateKey()
+	if err != nil {
+		t.Errorf("Unable to generate key")
+	}
+	// Sign
+	sig, err := crypto.Sign(hashData, key)
+	if err != nil {
+		t.Errorf("Unable to sign data")
+	}
+
+	// CheckValidatorSignature should return ErrNoMatchingValidator
+	addr, err := b.CheckValidatorSignature(data, sig)
+	if err != pbft.ErrNoMatchingValidator {
+		t.Errorf("Expected error pbft.ErrNoMatchingValidator, but got: %v", err)
+	}
+	if bytes.Compare(addr.Bytes(), common.Address{}.Bytes()) != 0 {
+		t.Errorf("Expected empty address, but got: %v", addr)
 	}
 }
 
@@ -81,10 +128,43 @@ func generatePrivateKey() (*ecdsa.PrivateKey, error) {
 	return crypto.HexToECDSA(key)
 }
 
-func newSimpleBackend() *simpleBackend {
+func newTestValidatorSet(n int) (pbft.ValidatorSet, []*ecdsa.PrivateKey) {
+	// generate validators
+	validators := make([]pbft.Validator, n)
+	keys := make(Keys, n)
+	b := []byte{}
+	for i := 0; i < n; i++ {
+		privateKey, _ := crypto.GenerateKey()
+		keys[i] = privateKey
+		validators[i] = validator.New(crypto.PubkeyToAddress(privateKey.PublicKey))
+		b = append(b, validators[i].Address().Bytes()...)
+	}
+	vset, _ := validator.NewSet(b)
+	sort.Sort(keys) //Keys need to be sorted by its public key address
+	return vset, keys
+}
+
+type Keys []*ecdsa.PrivateKey
+
+func (slice Keys) Len() int {
+	return len(slice)
+}
+
+func (slice Keys) Less(i, j int) bool {
+	return strings.Compare(crypto.PubkeyToAddress(slice[i].PublicKey).Hex(), crypto.PubkeyToAddress(slice[j].PublicKey).Hex()) < 0
+}
+
+func (slice Keys) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func newSimpleBackend() (backend *simpleBackend, validatorKeys Keys, validatorSet pbft.ValidatorSet) {
 	key, _ := generatePrivateKey()
-	return &simpleBackend{
+	validatorSet, validatorKeys = newTestValidatorSet(5)
+	backend = &simpleBackend{
 		privateKey: key,
 		logger:     log.New("backend", "simple"),
+		valSet:     validatorSet,
 	}
+	return
 }
