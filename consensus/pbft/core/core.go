@@ -112,7 +112,7 @@ func (c *core) broadcast(code uint64, msg interface{}) {
 		return
 	}
 
-	c.backend.Send(payload)
+	c.backend.Broadcast(payload)
 }
 
 func (c *core) nextSequence() *pbft.View {

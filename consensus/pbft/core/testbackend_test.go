@@ -61,7 +61,17 @@ func (self *testSystemBackend) EventMux() *event.TypeMux {
 	return self.events
 }
 
-func (self *testSystemBackend) Send(message []byte) error {
+func (self *testSystemBackend) Send(message []byte, target common.Address) error {
+	testLogger.Info("enqueuing a message...", "address", self.Address())
+	self.sentMsgs = append(self.sentMsgs, message)
+	self.sys.queuedMessage <- pbft.MessageEvent{
+		Address: self.Address(),
+		Payload: message,
+	}
+	return nil
+}
+
+func (self *testSystemBackend) Broadcast(message []byte) error {
 	testLogger.Info("enqueuing a message...", "address", self.Address())
 	self.sentMsgs = append(self.sentMsgs, message)
 	self.sys.queuedMessage <- pbft.MessageEvent{
