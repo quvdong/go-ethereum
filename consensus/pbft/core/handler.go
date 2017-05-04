@@ -144,7 +144,7 @@ func (c *core) handle(msg *pbft.Message, src pbft.Validator) error {
 	case pbft.MsgCheckpoint:
 		m, ok := msg.Msg.(*pbft.Checkpoint)
 		if !ok {
-			return fmt.Errorf("failed to decode Commit")
+			return errFailedDecodeCheckpoint
 		}
 		return c.handleCheckpoint(m, src)
 	case pbft.MsgViewChange:
