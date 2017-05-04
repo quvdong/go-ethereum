@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
 )
 
@@ -170,7 +171,7 @@ OUTER:
 			t.Error("expected length of commit messages should be 1")
 		}
 
-		if len(r0.consensusLogs) != 1 {
+		if len(r0.snapshots) != 1 {
 			t.Error("expected length of consensus logs should be 1")
 		}
 
@@ -193,15 +194,15 @@ OUTER:
 func TestVerifyCommit(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
-	peer := pbft.NewValidator(getPublicKeyAddress(privateKey))
+	peer := validator.New(getPublicKeyAddress(privateKey))
 
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 
 	testCases := []struct {
 		expected error
 
-		commit   *pbft.Subject
-		self     *pbft.Subject
+		commit *pbft.Subject
+		self   *pbft.Subject
 	}{
 		{
 			// normal case
