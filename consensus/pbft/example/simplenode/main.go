@@ -82,4 +82,8 @@ func main() {
 	for _, backend := range backends {
 		backend.TryNewRequest()
 	}
+
+	for {
+		select {}
+	}
 }

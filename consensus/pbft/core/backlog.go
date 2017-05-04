@@ -146,7 +146,7 @@ func (c *core) processBacklog() {
 
 			logger.Debug("Post backlog event", "msg", msg)
 
-			go c.backend.EventMux().Post(backlogEvent{
+			go c.sendInternalEvent(backlogEvent{
 				src: src,
 				msg: msg,
 			})

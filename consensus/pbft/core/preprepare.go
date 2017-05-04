@@ -79,7 +79,6 @@ func (c *core) acceptPreprepare(preprepare *pbft.Preprepare) {
 	}
 
 	c.subject = subject
-	c.current = pbft.NewLog(preprepare)
-	c.checkpointMsgs = make(map[uint64]*pbft.Checkpoint)
+	c.current = newSnapshot(preprepare)
 	c.completed = false
 }
