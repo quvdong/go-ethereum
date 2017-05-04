@@ -89,7 +89,7 @@ func makeHeader(parent *types.Block) *types.Header {
 		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    new(big.Int),
 		Extra:      parent.Extra(),
-		Time:       big.NewInt(int64(time.Now().Nanosecond())),
+		Time:       big.NewInt(int64(time.Now().Second())),
 		Difficulty: defaultDifficulty,
 	}
 	return header
@@ -181,7 +181,7 @@ func TestSealViewChange(t *testing.T) {
 	timeout := time.NewTimer(timeoutDura)
 	select {
 	case <-timeout.C:
-		// wait 2 seconds to ensure the consensus is completed
+		// wait 2 seconds to ensure we cannot get any blocks from PBFT
 	}
 }
 
