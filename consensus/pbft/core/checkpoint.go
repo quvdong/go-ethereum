@@ -54,7 +54,7 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 		if snapshotIndex < len(c.snapshots) {
 			snapshot = c.snapshots[snapshotIndex]
 		} else {
-			logger.Error("Failed to find snapshot entry", "seq", cp.Sequence, "current", c.current.Sequence)
+			logger.Warn("Failed to find snapshot entry", "seq", cp.Sequence, "current", c.current.Sequence)
 			return pbft.ErrInvalidMessage
 		}
 	} else { // future checkpoint
