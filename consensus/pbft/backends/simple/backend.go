@@ -206,7 +206,7 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 	return nil
 }
 
-// CheckSignature implements pbft.Backend.CheckSignature
+// get the signer address from the signature
 func (sb *simpleBackend) getSignatureAddress(data []byte, sig []byte) (common.Address, error) {
 	//1. Keccak data
 	hashData := crypto.Keccak256([]byte(data))
