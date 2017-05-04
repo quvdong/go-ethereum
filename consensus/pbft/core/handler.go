@@ -99,15 +99,15 @@ func (c *core) handleInternalEvent() {
 
 func (c *core) handleMsg(payload []byte, src pbft.Validator) error {
 	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
-	var msg pbft.Message
 
-	err := pbft.Decode(payload, &msg)
+	// Decode message
+	msg, err := pbft.Decode(payload, c.backend.CheckValidatorSignature)
 	if err != nil {
 		logger.Error("Failed to decode message", "error", err)
 		return err
 	}
 
-	return c.handle(&msg, src)
+	return c.handle(msg, src)
 }
 
 func (c *core) handle(msg *pbft.Message, src pbft.Validator) error {

@@ -206,6 +206,23 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 	return nil
 }
 
+// CheckValidatorSignature implements pbft.Backend.CheckValidatorSignature
+func (sb *simpleBackend) CheckValidatorSignature(data []byte, sig []byte) (common.Address, error) {
+	// 1. Get signature address
+	signer, err := sb.getSignatureAddress(data, sig)
+	if err != nil {
+		log.Error("CheckValidatorSignature", "error", err)
+		return common.Address{}, err
+	}
+
+	// 2. Check validator
+	if val := sb.valSet.GetByAddress(signer); val != nil {
+		return val.Address(), nil
+	}
+
+	return common.Address{}, pbft.ErrNoMatchingValidator
+}
+
 // get the signer address from the signature
 func (sb *simpleBackend) getSignatureAddress(data []byte, sig []byte) (common.Address, error) {
 	//1. Keccak data

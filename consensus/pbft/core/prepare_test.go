@@ -174,8 +174,7 @@ OUTER:
 		}
 
 		// verify commit messages
-		var decodedMsg pbft.Message
-		err := pbft.Decode(v0.sentMsgs[0], &decodedMsg)
+		decodedMsg, err := pbft.Decode(v0.sentMsgs[0], nil)
 		if err != nil {
 			t.Error("failed to parse")
 		}
