@@ -83,11 +83,33 @@ func (sb *simpleBackend) Validators() pbft.ValidatorSet {
 	return sb.valSet
 }
 
-// Send implements pbft.Backend.Send
-func (sb *simpleBackend) Send(data []byte) error {
+func (sb *simpleBackend) Send(payload []byte, target common.Address) error {
 	pbftMsg := pbft.MessageEvent{
 		Address: sb.Address(),
-		Payload: data,
+		Payload: payload,
+	}
+	pbftByte, err := Encode(&pbftMsg)
+	if err != nil {
+		return err
+	}
+
+	peer := sb.peerSet.GetByAddress(target)
+	if peer == nil {
+		return errInvalidPeer
+	}
+
+	go sb.eventMux.Post(pbft.ConsensusDataEvent{
+		PeerID: peer.ID(),
+		Data:   pbftByte,
+	})
+	return nil
+}
+
+// Broadcast implements pbft.Backend.Send
+func (sb *simpleBackend) Broadcast(payload []byte) error {
+	pbftMsg := pbft.MessageEvent{
+		Address: sb.Address(),
+		Payload: payload,
 	}
 	pbftByte, err := Encode(&pbftMsg)
 	if err != nil {

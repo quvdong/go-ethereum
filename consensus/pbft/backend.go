@@ -32,8 +32,11 @@ type Backend interface {
 	// EventMux is defined to handle request event and pbft message event
 	EventMux() *event.TypeMux
 
-	// Send is to send pbft message to peers
-	Send([]byte) error
+	// Send is to send pbft message to specific peer
+	Send(payload []byte, target common.Address) error
+
+	// Broadcast is to send pbft message to all peers
+	Broadcast(payload []byte) error
 
 	// UpdateState is to update the current pbft state to backend
 	UpdateState(*State) error
