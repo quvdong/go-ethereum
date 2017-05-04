@@ -89,7 +89,7 @@ func makeHeader(parent *types.Block) *types.Header {
 		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    new(big.Int),
 		Extra:      parent.Extra(),
-		Time:       big.NewInt(int64(time.Now().Second())),
+		Time:       big.NewInt(time.Now().Unix()),
 		Difficulty: defaultDifficulty,
 	}
 	return header
@@ -403,7 +403,7 @@ OUT2:
 				abort <- struct{}{}
 			}
 			// add some buffer here because we may not abort this channel immediately
-			if index > 5+3 {
+			if index > 5+5 {
 				t.Errorf("verifyheaders should be aborted")
 				break OUT2
 			}
