@@ -100,18 +100,19 @@ type core struct {
 func (c *core) broadcast(code uint64, msg interface{}) {
 	logger := c.logger.New("state", c.state)
 
-	m, err := pbft.Encode(code, msg)
+	// Encode message
+	m, err := pbft.Encode(code, msg, c.backend.Sign)
 	if err != nil {
 		logger.Error("Failed to encode message", "msg", msg, "error", err)
 		return
 	}
 
+	// Broadcast payload
 	payload, err := m.ToPayload()
 	if err != nil {
 		logger.Error("Failed to marshal message", "msg", msg, "error", err)
 		return
 	}
-
 	c.backend.Broadcast(payload)
 }
 

@@ -186,8 +186,7 @@ OUTER:
 				t.Error("should not complete")
 			}
 			// verify prepare messages
-			var decodedMsg pbft.Message
-			err := pbft.Decode(v.sentMsgs[0], &decodedMsg)
+			decodedMsg, err := pbft.Decode(v.sentMsgs[0], nil)
 			if err != nil {
 				t.Error("failed to parse")
 			}

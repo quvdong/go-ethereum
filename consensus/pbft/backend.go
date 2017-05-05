@@ -59,6 +59,9 @@ type Backend interface {
 	// CheckSignature is to verify the signature is signed from given peer
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
+	// CheckValidatorSignature verifies if the data is signed by one of the validators
+	CheckValidatorSignature(data []byte, sig []byte) (common.Address, error)
+
 	// FIXME: Hash, Encode, Decode and SetHandler are workaround functions for developing
 	Hash(b interface{}) common.Hash
 
