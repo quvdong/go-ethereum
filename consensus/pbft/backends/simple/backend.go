@@ -135,7 +135,7 @@ func (sb *simpleBackend) Commit(proposal *pbft.Proposal) error {
 	// step1: update validator set from extra data of block
 	// step2: insert chain
 	block := &types.Block{}
-	err := rlp.DecodeBytes(proposal.Payload, block)
+	err := rlp.DecodeBytes(proposal.BlockContext.Payload(), block)
 	if err != nil {
 		log.Warn("decode block error", "err", err)
 		return err

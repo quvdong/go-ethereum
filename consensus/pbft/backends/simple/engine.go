@@ -294,7 +294,7 @@ func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, s
 		return nil, e
 	}
 	go sb.EventMux().Post(pbft.RequestEvent{
-		Payload: b,
+		BlockContext: pbft.NewBlockContext(b, block.Number()),
 	})
 
 	for {
