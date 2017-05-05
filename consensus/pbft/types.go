@@ -144,7 +144,7 @@ func (b *BlockContext) Payload() []byte {
 }
 
 type Request struct {
-	Payload []byte
+	BlockContext BlockContexter
 }
 
 type View struct {
@@ -159,9 +159,9 @@ type ProposalHeader struct {
 }
 
 type Proposal struct {
-	Header     *ProposalHeader
-	Payload    []byte
-	Signatures [][]byte
+	Header       *ProposalHeader
+	BlockContext BlockContexter
+	Signatures   [][]byte
 }
 
 type Preprepare struct {

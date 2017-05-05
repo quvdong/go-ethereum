@@ -73,7 +73,7 @@ func (c *core) handleExternalEvent() {
 
 		case pbft.RequestEvent:
 			c.handleRequest(&pbft.Request{
-				Payload: ev.Payload,
+				BlockContext: ev.BlockContext,
 			}, c.backend.Validators().GetByAddress(c.address))
 		case pbft.MessageEvent:
 			c.handleMsg(ev.Payload, c.backend.Validators().GetByAddress(ev.Address))

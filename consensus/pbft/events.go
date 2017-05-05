@@ -36,7 +36,7 @@ type ConsensusCommitBlockEvent struct {
 }
 
 type RequestEvent struct {
-	Payload []byte
+	BlockContext BlockContexter
 }
 
 type ConnectionEvent struct {

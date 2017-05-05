@@ -111,8 +111,8 @@ func TestStoreBacklog(t *testing.T) {
 				ParentHash: common.HexToHash("0x1234567890"),
 				DataHash:   common.HexToHash("0x9876543210"),
 			},
-			Payload:    []byte("payload"),
-			Signatures: [][]byte{[]byte("sig1")},
+			BlockContext: pbft.NewBlockContext([]byte("payload"), big.NewInt(1)),
+			Signatures:   [][]byte{[]byte("sig1")},
 		},
 	}
 	m := &pbft.Message{
@@ -204,8 +204,8 @@ func TestProcessBacklog(t *testing.T) {
 				ParentHash: common.HexToHash("0x1234567890"),
 				DataHash:   common.HexToHash("0x9876543210"),
 			},
-			Payload:    []byte("payload"),
-			Signatures: [][]byte{[]byte("sig1")},
+			BlockContext: pbft.NewBlockContext([]byte("payload"), big.NewInt(1)),
+			Signatures:   [][]byte{[]byte("sig1")},
 		},
 	}
 	subject := &pbft.Subject{
