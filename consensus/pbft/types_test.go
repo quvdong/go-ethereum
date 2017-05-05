@@ -37,7 +37,7 @@ func testPreprepare(t *testing.T) {
 				ParentHash: common.HexToHash("0x1234567890"),
 				DataHash:   common.HexToHash("0x9876543210"),
 			},
-			Payload: []byte{0x02},
+			BlockContext: NewBlockContext([]byte{0x02}, big.NewInt(2)),
 			Signatures: [][]byte{
 				[]byte{0x01},
 				[]byte{0x02},

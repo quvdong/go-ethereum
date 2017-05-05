@@ -30,7 +30,7 @@ func TestHandlePreprepare(t *testing.T) {
 
 	testCases := []struct {
 		system          *testSystem
-		expectedRequest []byte
+		expectedRequest pbft.BlockContexter
 
 		expectedErr error
 	}{
@@ -48,7 +48,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			[]byte("normal case"),
+			pbft.NewBlockContext([]byte("normal case"), big.NewInt(1)),
 			nil,
 		},
 		{
@@ -75,7 +75,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			[]byte("future message"),
+			pbft.NewBlockContext([]byte("future message"), big.NewInt(1)),
 			errFutureMessage,
 		},
 		{
@@ -96,7 +96,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			[]byte("not from proposer"),
+			pbft.NewBlockContext([]byte("not from proposer"), big.NewInt(1)),
 			pbft.ErrNotFromProposer,
 		},
 		{
@@ -115,7 +115,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			[]byte("invalid message"),
+			pbft.NewBlockContext([]byte("invalid message"), big.NewInt(1)),
 			pbft.ErrInvalidMessage,
 		},
 		{
@@ -134,7 +134,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			[]byte("nil proposal"),
+			pbft.NewBlockContext([]byte("nil proposal"), big.NewInt(1)),
 			pbft.ErrNilProposal,
 		},
 	}
@@ -150,7 +150,7 @@ OUTER:
 
 		preprepare := &pbft.Preprepare{
 			View:     nextSeqView,
-			Proposal: r0.makeProposal(nextSeqView.Sequence, &pbft.Request{Payload: test.expectedRequest}),
+			Proposal: r0.makeProposal(nextSeqView.Sequence, &pbft.Request{BlockContext: test.expectedRequest}),
 		}
 
 		for i, v := range test.system.backends {
