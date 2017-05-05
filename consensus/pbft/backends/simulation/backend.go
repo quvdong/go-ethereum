@@ -192,7 +192,7 @@ func (pm *ProtocolManager) newRequest(lastBlock *types.Block) {
 	// non-proposer validators get new block by receiving ConsensusCommitBlockEvent
 	newBlock, err := pm.backend.Seal(pm.chain, block, nil)
 	if newBlock != nil && err == nil {
-		pm.commitBlock(block)
+		pm.commitBlock(newBlock)
 	}
 }
 
@@ -203,7 +203,7 @@ func (pm *ProtocolManager) makeBlock(parent *types.Block) *types.Block {
 		GasLimit:   core.CalcGasLimit(parent),
 		GasUsed:    new(big.Int),
 		Extra:      parent.Extra(),
-		Time:       big.NewInt(int64(time.Now().Nanosecond())),
+		Time:       big.NewInt(time.Now().Unix()),
 	}
 
 	if err := pm.backend.Prepare(pm.chain, header); err != nil {
