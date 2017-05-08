@@ -199,6 +199,35 @@ type Checkpoint struct {
 	Signature []byte
 }
 
+// NewCheckpoint uses signFn, if given, to sign sequence+digest and returns a checkpoint with the signature
+// Signature will be nil if signFn is not given
+// The returning Checkpoint won't be nil even there is error in signing
+func NewCheckpoint(sequence *big.Int, digest []byte, signFn func([]byte) ([]byte, error)) (*Checkpoint, error) {
+	var result = &Checkpoint{
+		Sequence: sequence,
+		Digest:   digest,
+	}
+	if signFn != nil {
+		data := append(sequence.Bytes(), digest...)
+		sig, err := signFn(data)
+		if err != nil {
+			return result, err
+		}
+		result.Signature = sig
+	}
+	return result, nil
+}
+
+// Validate uses validateFn to validate checkpoint if validateFn is given
+func (c *Checkpoint) Validate(validateFn func([]byte, []byte) (common.Address, error)) error {
+	if validateFn == nil {
+		return nil
+	}
+	data := append(c.Sequence.Bytes(), c.Digest...)
+	_, err := validateFn(data, c.Signature)
+	return err
+}
+
 func init() {
 	gob.Register(&Preprepare{})
 	gob.Register(&Subject{})

@@ -41,6 +41,14 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 	c.snapshotsMu.Lock()
 	defer c.snapshotsMu.Unlock()
 
+	// Verify checkpoint
+	err := cp.Validate(c.backend.CheckValidatorSignature)
+	if err != nil {
+		logger.Error("Checkpoint validation failed", "checkpoint", cp, "error", err)
+		return err
+	}
+
+	// Look for matching snapshot
 	if cp.Sequence.Cmp(c.current.Sequence) == 0 { // current
 		snapshot = c.current
 	} else if cp.Sequence.Cmp(c.current.Sequence) < 0 { // old checkpoint
@@ -62,6 +70,7 @@ func (c *core) handleCheckpoint(cp *pbft.Checkpoint, src pbft.Validator) error {
 		return pbft.ErrInvalidMessage
 	}
 
+	// Save to snapshot
 	if _, err := snapshot.Checkpoints.Add(cp, src); err != nil {
 		logger.Error("Failed to add checkpoint", "error", err)
 		return err
