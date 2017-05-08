@@ -32,7 +32,7 @@ func TestNewRequest(t *testing.T) {
 
 	sys := NewTestSystemWithBackend(N, F)
 
-	close := sys.Run(true, true)
+	close := sys.Run(true)
 	defer close()
 
 	request1 := []byte("request 1")

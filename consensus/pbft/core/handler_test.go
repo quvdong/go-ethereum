@@ -13,7 +13,7 @@ func TestHandleMsg(t *testing.T) {
 	F := uint64(1)
 	sys := NewTestSystemWithBackend(N, F)
 
-	closer := sys.Run(true, true)
+	closer := sys.Run(true)
 	defer closer()
 
 	v0 := sys.backends[0]

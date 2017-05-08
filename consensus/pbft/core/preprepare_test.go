@@ -141,7 +141,7 @@ func TestHandlePreprepare(t *testing.T) {
 
 OUTER:
 	for _, test := range testCases {
-		test.system.Run(true, false)
+		test.system.Run(false)
 
 		v0 := test.system.backends[0]
 		r0 := v0.engine.(*core)

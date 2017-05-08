@@ -20,7 +20,6 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/consensus/pbft/validator"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -141,38 +140,6 @@ func (self *testSystemBackend) NewRequest(request []byte) {
 
 // ==============================================
 //
-// define the functions that need to be provided for PBFT protocol manager.
-
-func (self *testSystemBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
-	testLogger.Warn("nothing to happen")
-	return nil
-}
-
-// Remove a peer
-func (self *testSystemBackend) RemovePeer(peerPublicKey string) error {
-	testLogger.Warn("nothing to happen")
-	return nil
-}
-
-// Handle a message from peer
-func (self *testSystemBackend) HandleMsg(peerPublicKey string, data []byte) error {
-	testLogger.Warn("nothing to happen")
-	return nil
-}
-
-// Start is initialized peers
-func (self *testSystemBackend) Start(chain consensus.ChainReader) error {
-	return nil
-}
-
-// Stop the engine
-func (self *testSystemBackend) Stop() error {
-	testLogger.Warn("nothing to happen")
-	return nil
-}
-
-// ==============================================
-//
 // define the struct that need to be provided for DB manager.
 
 // Save an object into db
@@ -268,32 +235,25 @@ func (t *testSystem) listen() {
 // Run will start system components based on given flag, and returns a closer
 // function that caller can control lifecycle
 //
-// Given a true for backend if you want to initialize backend validators.
 // Given a true for core if you want to initialize core engine.
-func (t *testSystem) Run(backend, core bool) func() {
+func (t *testSystem) Run(core bool) func() {
 	for _, b := range t.backends {
-		if backend {
-			b.Start(nil)
-		}
 		if core {
 			b.engine.Start() // start PBFT core
 		}
 	}
 
 	go t.listen()
-	closer := func() { t.stop(backend, core) }
+	closer := func() { t.stop(core) }
 	return closer
 }
 
-func (t *testSystem) stop(backend, core bool) {
+func (t *testSystem) stop(core bool) {
 	close(t.quit)
 
 	for _, b := range t.backends {
 		if core {
 			b.engine.Stop()
-		}
-		if backend {
-			b.Stop()
 		}
 	}
 }
