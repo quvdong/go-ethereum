@@ -115,6 +115,9 @@ type PBFT interface {
 	// Handle a message from peer
 	HandleMsg(peerID string, data []byte) error
 
+	// Receive new chain head block
+	NewChainHead(block *types.Block)
+
 	// Start the engine
 	Start(chain ChainReader) error
 

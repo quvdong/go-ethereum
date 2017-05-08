@@ -157,10 +157,7 @@ func (pm *ProtocolManager) consensusEventLoop() {
 			pm.commitBlock(ev.Block)
 		// After block insertion, we post a CheckpointEvent and make a new request
 		case core.ChainHeadEvent:
-			go pm.backend.(pbft.Backend).EventMux().Post(pbft.CheckpointEvent{
-				BlockNumber: ev.Block.Number(),
-				BlockHash:   ev.Block.Hash(),
-			})
+			go pm.backend.NewChainHead(ev.Block)
 			go pm.newRequest(pm.chain.CurrentBlock())
 		}
 	}

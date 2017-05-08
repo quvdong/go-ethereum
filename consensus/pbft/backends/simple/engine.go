@@ -369,6 +369,14 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 	return nil
 }
 
+// NewChainHead implements consensus.PBFT.NewChainHead
+func (sb *simpleBackend) NewChainHead(block *types.Block) {
+	go sb.pbftEventMux.Post(pbft.CheckpointEvent{
+		BlockNumber: block.Number(),
+		BlockHash:   block.Hash(),
+	})
+}
+
 // Start implements consensus.PBFT.Start
 func (sb *simpleBackend) Start(chain consensus.ChainReader) error {
 	if err := sb.initValidatorSet(chain); err != nil {

@@ -151,7 +151,7 @@ func newPBFTProtocolManager(config *params.ChainConfig, mode downloader.SyncMode
 
 func (pm *pbftProtocolManager) Start() {
 	// receive the PBFT event
-	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{}, pbft.ConsensusCommitBlockEvent{})
+	pm.eventSub = pm.eventMux.Subscribe(pbft.ConsensusDataEvent{}, pbft.ConsensusCommitBlockEvent{}, core.ChainHeadEvent{})
 	go pm.eventLoop()
 	pm.protocolManager.Start()
 	pm.engine.Start(pm.protocolManager.blockchain)
@@ -611,6 +611,8 @@ func (pm *pbftProtocolManager) eventLoop() {
 			pm.sendEvent(ev)
 		case pbft.ConsensusCommitBlockEvent:
 			pm.commitBlock(ev)
+		case core.ChainHeadEvent:
+			pm.newHead(ev)
 		}
 	}
 }
@@ -634,6 +636,13 @@ func (pm *pbftProtocolManager) commitBlock(event pbft.ConsensusCommitBlockEvent)
 	}
 	// Only announce the block, not broadcast it
 	pm.BroadcastBlock(event.Block, false)
+}
+
+func (pm *pbftProtocolManager) newHead(event core.ChainHeadEvent) {
+	block := event.Block
+	if block != nil {
+		pm.engine.NewChainHead(block)
+	}
 }
 
 func (pm *pbftProtocolManager) removePeer(id string) {
