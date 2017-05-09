@@ -17,10 +17,12 @@
 package core
 
 import (
+	"math/big"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 	elog "github.com/ethereum/go-ethereum/log"
 )
 
@@ -36,14 +38,14 @@ func TestNewRequest(t *testing.T) {
 	defer close()
 
 	request1 := []byte("request 1")
-	sys.backends[0].NewRequest(request1)
+	sys.backends[0].NewRequest(pbft.NewBlockContext(request1, big.NewInt(1)))
 
 	select {
 	case <-time.After(1 * time.Second):
 	}
 
 	request2 := []byte("request 2")
-	sys.backends[0].NewRequest(request2)
+	sys.backends[0].NewRequest(pbft.NewBlockContext(request2, big.NewInt(1)))
 
 	select {
 	case <-time.After(1 * time.Second):
@@ -53,10 +55,10 @@ func TestNewRequest(t *testing.T) {
 		if len(backend.commitMsgs) != 2 {
 			t.Error("expected execution of requests should be 2")
 		}
-		if !reflect.DeepEqual(request1, backend.commitMsgs[0].Payload) {
+		if !reflect.DeepEqual(request1, backend.commitMsgs[0].BlockContext.Payload()) {
 			t.Error("payload is not the same (1)")
 		}
-		if !reflect.DeepEqual(request2, backend.commitMsgs[1].Payload) {
+		if !reflect.DeepEqual(request2, backend.commitMsgs[1].BlockContext.Payload()) {
 			t.Error("payload is not the same (2)")
 		}
 	}

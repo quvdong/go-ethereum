@@ -107,8 +107,44 @@ func Encode(code uint64, val interface{}, signFn func([]byte) ([]byte, error)) (
 	}, nil
 }
 
+// BlockContexter supports retrieving height and serialized block to be used during PBFT consensus.
+type BlockContexter interface {
+	// Number retrieves block height.
+	Height() *big.Int
+
+	// Payload returns a serialized block
+	Payload() []byte
+}
+
+// NewBlockContext returns a BlockContext using the given payload and number.
+// payload is serialized block, number is block height.
+//
+// TODO: Wrapper is not needed.
+// We wrap the block by BlockContext struct since the gob cannot encode/decode private fields (like types.Block.header).
+// So a custom encoder/decoder is needed. The go-ethereum rlp encoder/decoder is recommended here.
+func NewBlockContext(payload []byte, number *big.Int) *BlockContext {
+	return &BlockContext{
+		RawData: payload,
+		Number:  number,
+	}
+}
+
+// BlockContext expose their members which allow the struct can be marshal/unmarshal by gob.
+type BlockContext struct {
+	RawData []byte
+	Number  *big.Int
+}
+
+func (b *BlockContext) Height() *big.Int {
+	return b.Number
+}
+
+func (b *BlockContext) Payload() []byte {
+	return b.RawData
+}
+
 type Request struct {
-	Payload []byte
+	BlockContext BlockContexter
 }
 
 type View struct {
@@ -123,9 +159,9 @@ type ProposalHeader struct {
 }
 
 type Proposal struct {
-	Header     *ProposalHeader
-	Payload    []byte
-	Signatures [][]byte
+	Header       *ProposalHeader
+	BlockContext BlockContexter
+	Signatures   [][]byte
 }
 
 type Preprepare struct {
@@ -167,4 +203,5 @@ func init() {
 	gob.Register(&Preprepare{})
 	gob.Register(&Subject{})
 	gob.Register(&Checkpoint{})
+	gob.Register(&BlockContext{})
 }

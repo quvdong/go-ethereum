@@ -132,9 +132,9 @@ func (self *testSystemBackend) Decode([]byte, interface{}) error {
 	return nil
 }
 
-func (self *testSystemBackend) NewRequest(request []byte) {
+func (self *testSystemBackend) NewRequest(request pbft.BlockContexter) {
 	go self.events.Post(pbft.RequestEvent{
-		Payload: request,
+		BlockContext: request,
 	})
 }
 
