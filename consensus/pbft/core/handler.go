@@ -77,12 +77,15 @@ func (c *core) handleExternalEvent() {
 		switch ev := event.Data.(type) {
 		case pbft.CheckpointEvent:
 			// TODO: we only implement sequence and digest now
-			// TODO: might have to handle error
-			cp, _ := c.makeCheckpoint(ev.BlockNumber, ev.BlockHash)
-			c.sendCheckpoint(cp)
-
+			if c.state == StateSync {
+				c.trySwitchToConsensus(ev.BlockNumber, ev.BlockHash.Bytes())
+			} else {
+				// TODO: might have to handle error
+				cp, _ := c.makeCheckpoint(ev.BlockNumber, ev.BlockHash)
+				c.sendCheckpoint(cp)
+			}
 		case pbft.ConnectionEvent:
-
+			c.handleConnection(ev.Address)
 		case pbft.RequestEvent:
 			c.handleRequest(&pbft.Request{
 				BlockContext: ev.BlockContext,

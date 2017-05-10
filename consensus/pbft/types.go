@@ -31,6 +31,7 @@ const (
 	MsgCheckpoint
 	MsgViewChange
 	MsgNewView
+	MsgHello
 	MsgInvalid
 )
 
@@ -228,9 +229,14 @@ func (c *Checkpoint) Validate(validateFn func([]byte, []byte) (common.Address, e
 	return err
 }
 
+type Hello struct {
+	Preprepare *Preprepare
+}
+
 func init() {
 	gob.Register(&Preprepare{})
 	gob.Register(&Subject{})
 	gob.Register(&Checkpoint{})
 	gob.Register(&BlockContext{})
+	gob.Register(&Hello{})
 }

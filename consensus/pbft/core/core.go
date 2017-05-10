@@ -17,6 +17,7 @@
 package core
 
 import (
+	"bytes"
 	"math"
 	"math/big"
 	"sync"
@@ -30,7 +31,8 @@ import (
 )
 
 const (
-	StateAcceptRequest State = iota
+	StateSync State = iota
+	StateAcceptRequest
 	StatePreprepared
 	StatePrepared
 	StateCommitted
@@ -52,19 +54,40 @@ func New(backend pbft.Backend) Engine {
 	// update n and f
 	n := int64(backend.Validators().Size())
 	f := int64(math.Ceil(float64(n)/3) - 1)
+
+	logger := log.New("address", backend.Address().Hex())
+
+	// Restore latest stable snapshot
+	snap := &snapshot{}
+	if err := backend.Restore(keyStableCheckpoint, snap); err != nil {
+		snap = nil
+	}
+
+	// update latest view number and sequence
+	viewNumber := new(big.Int)
+	sequence := new(big.Int)
+	snapshots := make([]*snapshot, 0)
+	if snap != nil {
+		viewNumber = viewNumber.Set(snap.ViewNumber)
+		sequence = sequence.Set(snap.Sequence)
+		snapshots = append(snapshots, snap)
+	}
+
 	return &core{
 		address:     backend.Address(),
 		N:           n,
 		F:           f,
-		state:       StateAcceptRequest,
-		logger:      log.New("address", backend.Address().Hex()),
+		state:       StateSync,
+		logger:      logger,
 		backend:     backend,
-		sequence:    new(big.Int),
-		viewNumber:  new(big.Int),
+		sequence:    sequence,
+		viewNumber:  viewNumber,
 		internalMux: new(event.TypeMux),
 		backlogs:    make(map[pbft.Validator]*prque.Prque),
 		backlogsMu:  new(sync.Mutex),
+		snapshots:   snapshots,
 		snapshotsMu: new(sync.RWMutex),
+		syncs:       newSyncState(backend.Validators()),
 	}
 }
 
@@ -95,25 +118,37 @@ type core struct {
 	current     *snapshot
 	snapshots   []*snapshot
 	snapshotsMu *sync.RWMutex
+
+	// FIXME: for workaround
+	syncs *syncState
 }
 
 func (c *core) broadcast(code uint64, msg interface{}) {
 	logger := c.logger.New("state", c.state)
 
-	// Encode message
-	m, err := pbft.Encode(code, msg, c.backend.Sign)
+	// Encode message to payload
+	payload, err := signMessage(code, msg, c.backend.Sign)
 	if err != nil {
-		logger.Error("Failed to encode message", "msg", msg, "error", err)
+		logger.Error("Failed to get signed payload", "msg", msg, "error", err)
 		return
 	}
 
 	// Broadcast payload
-	payload, err := m.ToPayload()
+	c.backend.Broadcast(payload)
+}
+
+func (c *core) send(code uint64, msg interface{}, target common.Address) {
+	logger := c.logger.New("state", c.state)
+
+	// Encode message to payload
+	payload, err := signMessage(code, msg, c.backend.Sign)
 	if err != nil {
-		logger.Error("Failed to marshal message", "msg", msg, "error", err)
+		logger.Error("Failed to get signed payload", "msg", msg, "error", err)
 		return
 	}
-	c.backend.Broadcast(payload)
+
+	// Send message to target peer
+	c.backend.Send(payload, target)
 }
 
 func (c *core) nextSequence() *pbft.View {
@@ -158,8 +193,8 @@ func (c *core) commit() {
 	c.snapshots = append(c.snapshots, c.current)
 	c.snapshotsMu.Unlock()
 
-	c.viewNumber = c.current.ViewNumber
-	c.sequence = c.current.Sequence
+	c.viewNumber = new(big.Int).Set(c.current.ViewNumber)
+	c.sequence = new(big.Int).Set(c.current.Sequence)
 	c.completed = true
 	c.setState(StateAcceptRequest)
 
@@ -177,6 +212,38 @@ func (c *core) setState(state State) {
 	}
 }
 
+func (c *core) trySwitchToConsensus(seq *big.Int, digest []byte) {
+	// check > f+1 state message
+	cp := c.syncs.OneThirdCheckPoints()
+	if cp == nil {
+		return
+	}
+	// compare with given seq and digest
+	if cp.View.Sequence.Cmp(seq) < 0 || bytes.Compare(cp.Proposal.Header.DataHash.Bytes(), digest) != 0 {
+		return
+	}
+	// update view number and sequence
+	c.viewNumber = new(big.Int).Set(cp.View.ViewNumber)
+	c.sequence = new(big.Int).Set(cp.View.Sequence)
+	// update state
+	c.setState(StateAcceptRequest)
+}
+
 func (c *core) Address() common.Address {
 	return c.address
+}
+
+func signMessage(code uint64, msg interface{}, signFn func([]byte) ([]byte, error)) ([]byte, error) {
+	// Encode message
+	m, err := pbft.Encode(code, msg, signFn)
+	if err != nil {
+		return nil, err
+	}
+
+	payload, err := m.ToPayload()
+	if err != nil {
+		return nil, err
+	}
+
+	return payload, nil
 }

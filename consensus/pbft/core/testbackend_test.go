@@ -18,6 +18,7 @@ package core
 
 import (
 	"crypto/ecdsa"
+	"errors"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
@@ -150,8 +151,7 @@ func (self *testSystemBackend) Save(key string, val interface{}) error {
 
 // Restore an object to val from db
 func (self *testSystemBackend) Restore(key string, val interface{}) error {
-	testLogger.Warn("nothing to happen")
-	return nil
+	return errors.New("fake db")
 }
 
 // ==============================================
