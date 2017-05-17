@@ -25,6 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -49,6 +50,8 @@ var DefaultConfig = Config{
 		Blocks:     10,
 		Percentile: 50,
 	},
+
+	PBFT: pbft.DefaultConfig,
 }
 
 func init() {
@@ -109,8 +112,8 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
-	//The timeout for each PBFT round in millisecond
-	PBFTTimeout int
+	// PBFT options
+	PBFT *pbft.Config
 
 	// Miscellaneous options
 	DocRoot   string `toml:"-"`
