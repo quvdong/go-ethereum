@@ -49,6 +49,23 @@ type snapshot struct {
 	mu *sync.RWMutex
 }
 
+func (s *snapshot) Subject() *pbft.Subject {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if s.Preprepare == nil {
+		return nil
+	}
+
+	return &pbft.Subject{
+		View: &pbft.View{
+			Round:    new(big.Int).Set(s.round),
+			Sequence: new(big.Int).Set(s.sequence),
+		},
+		Digest: s.Preprepare.Proposal.Hash(),
+	}
+}
+
 func (s *snapshot) SetPreprepare(preprepare *pbft.Preprepare) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

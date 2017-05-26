@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/core/types"
 	elog "github.com/ethereum/go-ethereum/log"
 )
@@ -36,6 +37,10 @@ func makeBlock(number int64) *types.Block {
 	}
 	block := &types.Block{}
 	return block.WithSeal(header)
+}
+
+func newTestProposal() pbft.Proposal {
+	return makeBlock(1)
 }
 
 func TestNewRequest(t *testing.T) {

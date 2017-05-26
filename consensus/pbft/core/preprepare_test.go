@@ -21,9 +21,15 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
+
+func newTestPreprepare(v *pbft.View) *pbft.Preprepare {
+	return &pbft.Preprepare{
+		View:     v,
+		Proposal: newTestProposal(),
+	}
+}
 
 func TestHandlePreprepare(t *testing.T) {
 	N := uint64(4) // replica 0 is primary, it will send messages to others
@@ -49,7 +55,7 @@ func TestHandlePreprepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			makeBlock(1),
+			newTestProposal(),
 			nil,
 		},
 		{
@@ -63,13 +69,14 @@ func TestHandlePreprepare(t *testing.T) {
 					if i != 0 {
 						c.state = StateAcceptRequest
 						// hack: force set subject that future message can be simulated
-						c.subject = &pbft.Subject{
-							View: &pbft.View{
-								Sequence: big.NewInt(0),
+						c.current = newTestSnapshot(
+							&pbft.View{
 								Round:    big.NewInt(0),
+								Sequence: big.NewInt(0),
 							},
-							Digest: common.StringToHash("1234567890"),
-						}
+							backend.Validators(),
+						)
+
 					} else {
 						c.current.SetSequence(big.NewInt(10))
 					}
@@ -186,7 +193,7 @@ OUTER:
 				t.Error("state should be preprepared")
 			}
 
-			if !reflect.DeepEqual(c.subject.View, curView) {
+			if !reflect.DeepEqual(c.current.Subject().View, curView) {
 				t.Error("view should be the same")
 			}
 
@@ -205,7 +212,7 @@ OUTER:
 			if err != nil {
 				t.Error("failed to decode Prepare")
 			}
-			if !reflect.DeepEqual(subject, c.subject) {
+			if !reflect.DeepEqual(subject, c.current.Subject()) {
 				t.Error("subject should be the same")
 			}
 		}

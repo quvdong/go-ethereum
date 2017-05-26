@@ -25,9 +25,11 @@ import (
 
 func (c *core) handleFinalCommitted(ev pbft.FinalCommittedEvent, p pbft.Validator) error {
 	logger := c.logger.New("state", c.state, "number", ev.Proposal.Number(), "hash", ev.Proposal.Hash())
+
 	// this block is from consensus
-	if c.subject != nil &&
-		ev.Proposal.Hash() == c.subject.Digest &&
+	sub := c.current.Subject()
+	if sub != nil &&
+		ev.Proposal.Hash() == sub.Digest &&
 		c.state == StateCommitted {
 		logger.Trace("New block from consensus")
 
