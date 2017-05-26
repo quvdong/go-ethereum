@@ -45,8 +45,6 @@ var (
 	errNotInValidatorSet = errors.New("not in validator set")
 	// errInvalidDifficulty is returned if the difficulty of a block is not 1
 	errInvalidDifficulty = errors.New("invalid difficulty")
-	// errNotProposer is returned when I'm not a proposer
-	errNotProposer = errors.New("not a proposer")
 	// errInvalidPeer is returned when a message from invalid peer comes
 	errInvalidPeer = errors.New("invalid peer")
 	// errInvalidExtraDataFormat is returned when the extra data format is incorrect
@@ -289,10 +287,6 @@ func (sb *simpleBackend) Seal(chain consensus.ChainReader, block *types.Block, s
 	case <-time.After(delay):
 	case <-stop:
 		return nil, nil
-	}
-	// check whether a proposer
-	if !sb.IsProposer() {
-		return nil, errNotProposer
 	}
 
 	// get the proposed block hash and clear it if the seal() is completed.

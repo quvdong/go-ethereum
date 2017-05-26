@@ -152,7 +152,11 @@ func (c *core) nextRound() *pbft.View {
 }
 
 func (c *core) isPrimary() bool {
-	return c.backend.IsProposer()
+	v := c.backend.Validators()
+	if v == nil {
+		return false
+	}
+	return v.IsProposer(c.backend.Address())
 }
 
 func (c *core) commit() {
