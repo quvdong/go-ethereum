@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package pbft
 
 import (
 	"github.com/ethereum/go-ethereum/common"
@@ -22,10 +22,9 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func hash(v interface{}) (h common.Hash) {
+func RLPHash(v interface{}) (h common.Hash) {
 	hw := sha3.NewKeccak256()
 	rlp.Encode(hw, v)
 	hw.Sum(h[:0])
-
-	return
+	return h
 }

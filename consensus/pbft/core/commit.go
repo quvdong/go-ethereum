@@ -46,6 +46,7 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 		return pbft.ErrIgnored
 	}
 
+	// Decode commit message
 	var commit *pbft.Subject
 	err := msg.Decode(&commit)
 	if err != nil {
@@ -62,8 +63,10 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 
 	c.acceptCommit(msg, src)
 
-	// if has proposal and receives enough commit messages,
-	// it can change to StateCommitted directly to speed up the consensus process
+	// Commit the proposal once we have enough commit messages and we are not in StateCommitted.
+	//
+	// If we already have a proposal, we may have chance to speed up the consensus process
+	// by committing the proposal without prepare messages.
 	if int64(c.current.Commits.Size()) > 2*c.F && c.state.Cmp(StateCommitted) < 0 {
 		c.commit()
 	}
@@ -71,6 +74,7 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 	return nil
 }
 
+// verifyCommit verifies if the received commit message is equivalent to our subject
 func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
@@ -82,11 +86,14 @@ func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
 	return nil
 }
 
-func (c *core) acceptCommit(msg *message, src pbft.Validator) {
+func (c *core) acceptCommit(msg *message, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
-	// We check signature in Add
+	// Add the commit message to current snapshot
 	if err := c.current.Commits.Add(msg); err != nil {
 		logger.Error("Failed to record commit message", "msg", msg, "error", err)
+		return err
 	}
+
+	return nil
 }
