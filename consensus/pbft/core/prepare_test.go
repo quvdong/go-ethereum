@@ -31,11 +31,13 @@ func TestHandlePrepare(t *testing.T) {
 	N := uint64(4)
 	F := uint64(1)
 
+	proposal := newTestProposal()
 	expectedSubject := &pbft.Subject{
 		View: &pbft.View{
 			Round:    big.NewInt(0),
-			Sequence: big.NewInt(1)},
-		Digest: common.StringToHash("1234567890"),
+			Sequence: proposal.Number(),
+		},
+		Digest: proposal.Hash(),
 	}
 
 	testCases := []struct {
@@ -49,7 +51,13 @@ func TestHandlePrepare(t *testing.T) {
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
-					c.subject = expectedSubject
+					c.current = newTestSnapshot(
+						&pbft.View{
+							Round:    big.NewInt(0),
+							Sequence: big.NewInt(1),
+						},
+						backend.Validators(),
+					)
 
 					if i == 0 {
 						// replica 0 is primary
@@ -70,15 +78,19 @@ func TestHandlePrepare(t *testing.T) {
 
 					if i == 0 {
 						// replica 0 is primary
-						c.subject = expectedSubject
+						c.current = newTestSnapshot(
+							expectedSubject.View,
+							backend.Validators(),
+						)
 						c.state = StatePreprepared
 					} else {
-						c.subject = &pbft.Subject{
-							View: &pbft.View{
+						c.current = newTestSnapshot(
+							&pbft.View{
 								Round:    big.NewInt(2),
-								Sequence: big.NewInt(3)},
-							Digest: common.StringToHash("1234567890"),
-						}
+								Sequence: big.NewInt(3),
+							},
+							backend.Validators(),
+						)
 					}
 				}
 				return sys
@@ -95,15 +107,19 @@ func TestHandlePrepare(t *testing.T) {
 
 					if i == 0 {
 						// replica 0 is primary
-						c.subject = expectedSubject
+						c.current = newTestSnapshot(
+							expectedSubject.View,
+							backend.Validators(),
+						)
 						c.state = StatePreprepared
 					} else {
-						c.subject = &pbft.Subject{
-							View: &pbft.View{
+						c.current = newTestSnapshot(
+							&pbft.View{
 								Round:    big.NewInt(0),
-								Sequence: big.NewInt(0)},
-							Digest: common.StringToHash("1234567890"),
-						}
+								Sequence: big.NewInt(0),
+							},
+							backend.Validators(),
+						)
 					}
 				}
 				return sys
@@ -120,15 +136,18 @@ func TestHandlePrepare(t *testing.T) {
 
 					if i == 0 {
 						// replica 0 is primary
-						c.subject = expectedSubject
+						c.current = newTestSnapshot(
+							expectedSubject.View,
+							backend.Validators(),
+						)
 						c.state = StatePreprepared
 					} else {
-						c.subject = &pbft.Subject{
-							View: &pbft.View{
+						c.current = newTestSnapshot(
+							&pbft.View{
 								Round:    big.NewInt(0),
 								Sequence: big.NewInt(1)},
-							Digest: common.StringToHash("unexpected subjects"),
-						}
+							backend.Validators(),
+						)
 					}
 				}
 				return sys
@@ -145,7 +164,10 @@ func TestHandlePrepare(t *testing.T) {
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
-					c.subject = expectedSubject
+					c.current = newTestSnapshot(
+						expectedSubject.View,
+						backend.Validators(),
+					)
 
 					if i == 0 {
 						// replica 0 is primary
@@ -168,7 +190,7 @@ OUTER:
 
 		for i, v := range test.system.backends {
 			validator := v.Validators().GetByIndex(uint64(i))
-			m, _ := Encode(v.engine.(*core).subject)
+			m, _ := Encode(v.engine.(*core).current.Subject())
 			if err := r0.handlePrepare(&message{
 				Code:    msgPrepare,
 				Msg:     m,
@@ -230,38 +252,39 @@ func TestVerifyPrepare(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
 	peer := validator.New(getPublicKeyAddress(privateKey))
+	valSet := validator.NewSet([]common.Address{peer.Address()})
 
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 
 	testCases := []struct {
 		expected error
 
-		prepare *pbft.Subject
-		self    *pbft.Subject
+		prepare  *pbft.Subject
+		snapshot *snapshot
 	}{
 		{
 			// normal case
 			expected: nil,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
 		},
 		{
 			// old message
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
 		},
 		{
 			// different digest
@@ -270,51 +293,51 @@ func TestVerifyPrepare(t *testing.T) {
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: common.StringToHash("1234567890"),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567888"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
 		},
 		{
 			// malicious package(lack of sequence)
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: nil},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
 		},
 		{
 			// wrong prepare message with same sequence but different round
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
 		},
 		{
 			// wrong prepare message with same round but different sequence
 			expected: pbft.ErrSubjectNotMatched,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
 		},
 	}
 	for i, test := range testCases {
 		c := sys.backends[0].engine.(*core)
-		c.subject = test.self
+		c.current = test.snapshot
 
 		if err := c.verifyPrepare(test.prepare, peer); err != nil {
 			if err != test.expected {

@@ -4,8 +4,8 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
 // notice: the normal case have been tested in integration tests.
@@ -35,7 +35,7 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val := v0.Validators().GetByAddress(v0.Address())
-	if err := r0.handle(msg, val); err != errFailedDecodePreprepare {
+	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePreprepare {
 		t.Error("message should decode failed")
 	}
 
@@ -54,7 +54,7 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
-	if err := r0.handle(msg, val); err != errFailedDecodePrepare {
+	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePrepare {
 		t.Error("message should decode failed")
 	}
 
@@ -73,7 +73,7 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
-	if err := r0.handle(msg, val); err != errFailedDecodeCommit {
+	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodeCommit {
 		t.Error("message should decode failed")
 	}
 
@@ -92,7 +92,7 @@ func TestHandleMsg(t *testing.T) {
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
-	if err := r0.handle(msg, val); err != nil {
+	if err := r0.handleCheckedMsg(msg, val); err != nil {
 		t.Error("should not return failed message, but:", err)
 	}
 
