@@ -19,8 +19,11 @@ package pbft
 import "github.com/ethereum/go-ethereum/common"
 
 type Validator interface {
-	// Return address
+	// Address returns address
 	Address() common.Address
+
+	// String representation of Validator
+	String() string
 }
 
 type ValidatorSet interface {
@@ -32,10 +35,10 @@ type ValidatorSet interface {
 	List() []Validator
 	// Get validator by index
 	GetByIndex(i uint64) Validator
-	// Get validator by address
+	// Get validator by given address
 	GetByAddress(addr common.Address) (int, Validator)
 	// Get current proposer
 	GetProposer() Validator
-	// Check whether the validator with address is a proposer
+	// Check whether the validator with given address is a proposer
 	IsProposer(address common.Address) bool
 }

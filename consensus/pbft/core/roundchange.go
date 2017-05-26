@@ -22,15 +22,15 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/pbft"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func (c *core) sendRoundChange() {
 	logger := c.logger.New("state", c.state)
+	logger.Trace("sendRoundChange")
 
 	cv := c.currentView()
 	c.catchUpRound(&pbft.View{
-		// The round number we'd like to transfer to
+		// The round number we'd like to transfer to.
 		Round:    new(big.Int).Add(cv.Round, common.Big1),
 		Sequence: new(big.Int).Set(cv.Sequence),
 	})
@@ -43,9 +43,9 @@ func (c *core) sendRoundChange() {
 		Digest:   common.Hash{},
 	}
 
-	payload, err := rlp.EncodeToBytes(rc)
+	payload, err := Encode(rc)
 	if err != nil {
-		logger.Error("Failed to encode RoundChange", "rc", rc)
+		logger.Error("Failed to encode round change", "rc", rc, "error", err)
 		return
 	}
 
@@ -53,55 +53,58 @@ func (c *core) sendRoundChange() {
 		Code: msgRoundChange,
 		Msg:  payload,
 	})
-
-	logger.Debug("sendRoundChange")
 }
 
 func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 	logger := c.logger.New("state", c.state)
-	logger.Debug("handleRoundChange")
+	logger.Trace("handleRoundChange")
 
+	// Decode round change message
 	var rc *roundChange
 	if err := msg.Decode(&rc); err != nil {
-		logger.Error("Failed to decode RoundChange")
+		logger.Error("Failed to decode round change", "error", err)
 		return errInvalidMessage
 	}
 
-	cv := c.current
+	cv := c.currentView()
 
-	if rc.Sequence.Cmp(cv.Sequence()) != 0 {
-		logger.Warn("Wrong sequence number", "expected", cv.Sequence(), "got", rc.Sequence)
+	// We never accept round change message with different sequence number
+	if rc.Sequence.Cmp(cv.Sequence) != 0 {
+		logger.Warn("Inconsistent sequence number", "expected", cv.Sequence, "got", rc.Sequence)
 		return errInvalidMessage
 	}
 
-	if rc.Round.Cmp(cv.Round()) < 0 {
-		logger.Warn("Old RoundChange", "from", src.Address().Hex(), "expected", cv.Round().Uint64(), "got", rc.Round.Uint64())
+	// We never accept round change message with smaller round number
+	if rc.Round.Cmp(cv.Round) < 0 {
+		logger.Warn("Old round change", "from", src.Address().Hex(), "expected", cv.Round, "got", rc.Round)
 		return errOldMessage
 	}
 
+	// Add the round change message to its message set and return how many
+	// messages we've got with the same round number and sequence number.
 	num, err := c.roundChangeSet.Add(&pbft.View{
 		Round:    new(big.Int).Set(rc.Round),
 		Sequence: new(big.Int).Set(rc.Sequence),
 	}, msg)
 	if err != nil {
-		logger.Warn("Failed to add RoundChange", "from", src.Address().Hex(), "msg", msg)
+		logger.Warn("Failed to add round change message", "from", src.Address().Hex(), "msg", msg, "error", err)
 		return err
 	}
 
-	// If we've received f+1 RoundChange messages
-	// catch up the round number
+	// Once we received f+1 round change messages, those messages form a weak certificate.
+	// If our round number is smaller than the certificate's round number, we would
+	// try to catch up the round number.
 	if num == int(c.F+1) {
-		if cv.Round().Cmp(rc.Round) < 0 {
+		if cv.Round.Cmp(rc.Round) < 0 {
 			c.catchUpRound(&pbft.View{
 				Round:    new(big.Int).Sub(rc.Round, common.Big1),
-				Sequence: rc.Sequence,
+				Sequence: new(big.Int).Set(rc.Sequence),
 			})
 			c.sendRoundChange()
 		}
 	}
 
-	// We've received 2f+1 RoundChange messages
-	// enter new view
+	// We've received 2f+1 round change messages, start a new round immediately.
 	if num == int(2*c.F+1) {
 		c.startNewRound(&pbft.View{
 			Round:    new(big.Int).Set(rc.Round),
@@ -132,7 +135,7 @@ func (rcs *roundChangeSet) Add(v *pbft.View, msg *message) (int, error) {
 	rcs.mu.Lock()
 	defer rcs.mu.Unlock()
 
-	h := hash(v)
+	h := pbft.RLPHash(v)
 	if rcs.roundChanges[h] == nil {
 		rcs.roundChanges[h] = newMessageSet(rcs.validatorSet)
 	}

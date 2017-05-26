@@ -18,6 +18,7 @@ package simple
 
 import (
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -30,11 +31,11 @@ func (sb *simpleBackend) Save(key string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	return sb.db.Put(toDatabaseKey(sb.Hash, key), blob)
+	return sb.db.Put(toDatabaseKey(pbft.RLPHash, key), blob)
 }
 
 func (sb *simpleBackend) Restore(key string, val interface{}) error {
-	blob, err := sb.db.Get(toDatabaseKey(sb.Hash, key))
+	blob, err := sb.db.Get(toDatabaseKey(pbft.RLPHash, key))
 	if err != nil {
 		return err
 	}

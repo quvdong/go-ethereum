@@ -41,21 +41,22 @@ func (c *core) sendCheckpoint(cp *pbft.Subject) {
 func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
+	// Decode checkpoint message
 	var cp *pbft.Subject
 	err := msg.Decode(&cp)
 	if err != nil {
 		logger.Error("Invalid checkpoint message", "msg", msg)
 		return errInvalidMessage
 	}
+
 	if c.current == nil {
 		logger.Warn("Ignore checkpoint messsages if we don't have current snapshot")
 		return pbft.ErrIgnored
 	}
 
-	var snapshot *snapshot
-
 	logger.Trace("handleCheckpoint")
 
+	var snapshot *snapshot
 	c.snapshotsMu.Lock()
 	defer c.snapshotsMu.Unlock()
 
@@ -77,7 +78,7 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 		if snapshotIndex < len(c.snapshots) && c.snapshots[snapshotIndex].Sequence().Cmp(cp.View.Sequence) == 0 {
 			snapshot = c.snapshots[snapshotIndex]
 		} else {
-			logger.Warn("Failed to find snapshot entry", "seq", cp.View.Sequence, "current", c.current.Sequence)
+			logger.Warn("Failed to find snapshot entry", "seq", cp.View.Sequence, "current", c.current.Sequence())
 			return errInvalidMessage
 		}
 	} else { // future checkpoint

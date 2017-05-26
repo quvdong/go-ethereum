@@ -27,11 +27,9 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 func New(config *pbft.Config, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
@@ -148,17 +146,8 @@ func (sb *simpleBackend) NextRound() error {
 	return nil
 }
 
-// Hash implements pbft.Backend.Hash
-func (sb *simpleBackend) Hash(x interface{}) (h common.Hash) {
-	hw := sha3.NewKeccak256()
-	rlp.Encode(hw, x)
-	hw.Sum(h[:0])
-	return h
-}
-
 // EventMux implements pbft.Backend.EventMux
 func (sb *simpleBackend) EventMux() *event.TypeMux {
-	// not implemented
 	return sb.pbftEventMux
 }
 
@@ -168,7 +157,7 @@ func (sb *simpleBackend) Verify(proposal pbft.Proposal) error {
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("Failed to commit proposal since RequestContext cannot cast to *types.Block")
+		sb.logger.Error("Invalid proposal, %v", proposal)
 		return errCastingRequest
 	}
 	// verify the header of proposed block

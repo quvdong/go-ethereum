@@ -34,8 +34,8 @@ func (c *core) handleFinalCommitted(ev pbft.FinalCommittedEvent, p pbft.Validato
 		// send out the checkpoint
 		c.sendCheckpoint(&pbft.Subject{
 			View: &pbft.View{
-				Sequence: ev.Proposal.Number(),
-				Round:    c.current.Round(),
+				Sequence: new(big.Int).Set(ev.Proposal.Number()),
+				Round:    new(big.Int).Set(c.current.Round()),
 			},
 			Digest: ev.Proposal.Hash(),
 		})
@@ -49,8 +49,7 @@ func (c *core) handleFinalCommitted(ev pbft.FinalCommittedEvent, p pbft.Validato
 	}
 
 	if ev.Proposal.Number().Cmp(c.current.Sequence()) >= 0 {
-		// We build stable checkpoint every 100 blocks
-		// FIXME: this should be passed by configuration
+		// We build a stable checkpoint every 'CheckPointPeriod' proposal
 		if new(big.Int).Mod(c.current.Sequence(), big.NewInt(int64(c.config.CheckPointPeriod))).Int64() == 0 {
 			go c.sendEvent(buildCheckpointEvent{})
 		}
@@ -58,7 +57,7 @@ func (c *core) handleFinalCommitted(ev pbft.FinalCommittedEvent, p pbft.Validato
 		c.lastProposer = ev.Proposer
 		c.startNewRound(&pbft.View{
 			Sequence: new(big.Int).Add(ev.Proposal.Number(), common.Big1),
-			Round:    common.Big0,
+			Round:    new(big.Int).Set(common.Big0),
 		}, false)
 	}
 

@@ -168,7 +168,7 @@ func (ms *messageSet) verify(msg *message) error {
 }
 
 func (ms *messageSet) addVerifiedMessage(msg *message) error {
-	ms.messages[hash(msg)] = msg
+	ms.messages[pbft.RLPHash(msg)] = msg
 	return nil
 }
 

@@ -365,10 +365,6 @@ func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) erro
 	if _, val := sb.valSet.GetByAddress(peer.Address()); val != nil {
 		// add to peer set
 		sb.peerSet.Add(peer)
-		// post connection event to pbft core
-		go sb.pbftEventMux.Post(pbft.ConnectionEvent{
-			Address: val.Address(),
-		})
 	}
 	return nil
 }

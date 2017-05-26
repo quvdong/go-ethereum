@@ -31,10 +31,6 @@ type RequestEvent struct {
 	Proposal Proposal
 }
 
-type ConnectionEvent struct {
-	Address common.Address
-}
-
 type MessageEvent struct {
 	Payload []byte
 }
