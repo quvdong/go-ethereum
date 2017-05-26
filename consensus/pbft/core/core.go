@@ -188,8 +188,8 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	c.backend.Validators().CalcProposer(c.proposerSeed())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
-	if roundChange {
-		c.backend.RoundChanged(true)
+	if roundChange && c.isPrimary() {
+		c.backend.NextSeal()
 	}
 	c.newRoundChangeTimer()
 
