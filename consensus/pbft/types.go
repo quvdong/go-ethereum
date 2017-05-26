@@ -37,10 +37,10 @@ type State struct {
 
 // Proposal supports retrieving height and serialized block to be used during PBFT consensus.
 type Proposal interface {
-	// Number retrieves number of sequence.
+	// Number retrieves the sequence number of this proposal.
 	Number() *big.Int
 
-	// Hash retrieves hash of request.
+	// Hash retrieves the hash of this proposal.
 	Hash() common.Hash
 
 	EncodeRLP(w io.Writer) error

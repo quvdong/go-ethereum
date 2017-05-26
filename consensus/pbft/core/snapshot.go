@@ -37,6 +37,7 @@ func newSnapshot(view *pbft.View, validatorSet pbft.ValidatorSet) *snapshot {
 	}
 }
 
+// snapshot stores the consensus state
 type snapshot struct {
 	round       *big.Int
 	sequence    *big.Int
@@ -46,6 +47,13 @@ type snapshot struct {
 	Checkpoints *messageSet
 
 	mu *sync.RWMutex
+}
+
+func (s *snapshot) SetPreprepare(preprepare *pbft.Preprepare) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.Preprepare = preprepare
 }
 
 func (s *snapshot) Proposal() pbft.Proposal {

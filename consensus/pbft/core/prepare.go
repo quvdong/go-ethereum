@@ -46,6 +46,7 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 		return pbft.ErrIgnored
 	}
 
+	// Decode prepare message
 	var prepare *pbft.Subject
 	err := msg.Decode(&prepare)
 	if err != nil {
@@ -62,8 +63,8 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 
 	c.acceptPrepare(msg, src)
 
-	// change to StatePrepared if receving enough prepare messages
-	// and the current state is at previous state
+	// Change to StatePrepared if we've received enough prepare messages
+	// and we are in earlier state before StatePrepared
 	if int64(c.current.Prepares.Size()) > 2*c.F && c.state.Cmp(StatePrepared) < 0 {
 		c.setState(StatePrepared)
 		c.sendCommit()
@@ -72,6 +73,7 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 	return nil
 }
 
+// verifyPrepare verifies if the received prepare message is equivalent to our subject
 func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
@@ -83,11 +85,14 @@ func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
 	return nil
 }
 
-func (c *core) acceptPrepare(msg *message, src pbft.Validator) {
+func (c *core) acceptPrepare(msg *message, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
-	// we check signature in Add
+	// Add the prepare message to current snapshot
 	if err := c.current.Prepares.Add(msg); err != nil {
-		logger.Error("Failed to record prepare message", "msg", msg, "error", err)
+		logger.Error("Failed to add prepare message to snapshot", "msg", msg, "error", err)
+		return err
 	}
+
+	return nil
 }

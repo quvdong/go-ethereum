@@ -21,50 +21,51 @@ import (
 	"github.com/ethereum/go-ethereum/event"
 )
 
-// Backend provides callbacks for PBFT consensus core
+// Backend provides application specific functions for PBFT core
 type Backend interface {
 	// Address returns self address
 	Address() common.Address
 
-	// Validators returns validator set
+	// Validators returns the validator set
 	Validators() ValidatorSet
 
-	// EventMux is defined to handle request event and pbft message event
+	// EventMux returns the event mux in backend
 	EventMux() *event.TypeMux
 
-	// Send is to send pbft message to specific peer
+	// Send sends a message to specific peer
 	Send(payload []byte, target common.Address) error
 
-	// Broadcast is to send pbft message to all peers
+	// Broadcast sends a message to all peers
 	Broadcast(payload []byte) error
 
-	// Commit is to deliver a final result to write into blockchain
+	// Commit delivers a approved proposal to backend.
+	// The delivered proposal will be put into blockchain.
 	Commit(Proposal) error
 
 	// NextRound is called when we want to trigger next Seal()
 	NextRound() error
 
-	// Verify is to verify the proposal request
+	// Verify verifies the proposal.
 	Verify(Proposal) error
 
-	// Sign is to sign the data
+	// Sign signs input data with the backend's private key
 	Sign([]byte) ([]byte, error)
 
-	// CheckSignature is to verify the signature is signed from given peer
+	// CheckSignature verifies the signature by checking if it's signed by given peer
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
 	// CheckValidatorSignature verifies if the data is signed by one of the validators
+	// If the verification success, the signer's address is returned, otherwise
+	// an empty address and an error are returned.
 	CheckValidatorSignature(data []byte, sig []byte) (common.Address, error)
-
-	// FIXME: Hash, Encode, Decode and SetHandler are workaround functions for developing
-	Hash(b interface{}) common.Hash
 
 	Persistence
 }
 
+// Persistence provides persistence data storage for PBFT core
 type Persistence interface {
-	// Save an object into db
+	// Save an object into database
 	Save(key string, val interface{}) error
-	// Restore an object to val from db
+	// Restore an object to val from database
 	Restore(key string, val interface{}) error
 }
