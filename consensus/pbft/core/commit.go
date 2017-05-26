@@ -63,7 +63,7 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 	c.acceptCommit(msg, src)
 
 	// if has proposal and receives enough commit messages,
-	// it can chnage to StateCommitted directly to speed up the consensus process
+	// it can change to StateCommitted directly to speed up the consensus process
 	if int64(c.current.Commits.Size()) > 2*c.F && c.state.Cmp(StateCommitted) < 0 {
 		c.commit()
 	}
