@@ -145,15 +145,15 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 	return sb.inserter(block)
 }
 
-// RoundChanged implements pbft.Backend.RoundChanged
-func (sb *simpleBackend) RoundChanged(needNewProposal bool) error {
-	if needNewProposal {
-		// if I proposed a block before, fire a ChainHeadEvent to trigger next Seal()
-		// and the previous Seal() will be stopped.
-		if !common.EmptyHash(sb.proposedBlockHash) {
-			go sb.eventMux.Post(core.ChainHeadEvent{})
-		}
+// NextSeal will broadcast ChainHeadEvent to trigger next seal()
+func (sb *simpleBackend) NextSeal() error {
+	if sb.chain == nil {
+		sb.logger.Info("NextSeal", "address", sb.Address().Hex())
+	} else {
+		header := sb.chain.CurrentHeader()
+		sb.logger.Info("NextSeal", "address", sb.Address().Hex(), "current_hash", header.Hash(), "current_number", header.Number)
 	}
+	go sb.eventMux.Post(core.ChainHeadEvent{})
 	return nil
 }
 
