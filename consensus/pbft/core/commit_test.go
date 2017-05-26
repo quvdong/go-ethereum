@@ -30,14 +30,13 @@ func TestHandleCommit(t *testing.T) {
 	N := uint64(4)
 	F := uint64(1)
 
-	toPreprepare := func(c *core) {
-		curView := c.currentView()
-		preprepare := &pbft.Preprepare{
-			View:     curView,
-			Proposal: makeBlock(1),
-		}
-		c.acceptPreprepare(preprepare)
-		c.state = StatePreprepared
+	proposal := newTestProposal()
+	expectedSubject := &pbft.Subject{
+		View: &pbft.View{
+			Round:    big.NewInt(0),
+			Sequence: proposal.Number(),
+		},
+		Digest: proposal.Hash(),
 	}
 
 	testCases := []struct {
@@ -50,13 +49,20 @@ func TestHandleCommit(t *testing.T) {
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
-				for _, backend := range sys.backends {
+				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
+					c.current = newTestSnapshot(
+						&pbft.View{
+							Round:    big.NewInt(0),
+							Sequence: big.NewInt(1),
+						},
+						backend.Validators(),
+					)
 
-					toPreprepare(c)
-
-					// change to prepared
-					c.state = StatePrepared
+					if i == 0 {
+						// replica 0 is primary
+						c.state = StatePrepared
+					}
 				}
 				return sys
 			}(),
@@ -70,34 +76,21 @@ func TestHandleCommit(t *testing.T) {
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
 
-					toPreprepare(c)
-
-					// change to prepared
-					c.state = StatePrepared
-
-					if i != 0 {
-						c.subject.View.Round = big.NewInt(2)
-						c.subject.View.Sequence = big.NewInt(3)
-					}
-				}
-				return sys
-			}(),
-			errFutureMessage,
-		},
-		{
-			// future message because still at StateAcceptRequest
-			func() *testSystem {
-				sys := NewTestSystemWithBackend(N, F)
-
-				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
-
-					// replica0 is still waiting for preprepare message
-					// other replicas are at StatePrepared
-					if i != 0 {
-						toPreprepare(c)
-						// change to prepared
-						c.state = StatePrepared
+					if i == 0 {
+						// replica 0 is primary
+						c.current = newTestSnapshot(
+							expectedSubject.View,
+							backend.Validators(),
+						)
+						c.state = StatePreprepared
+					} else {
+						c.current = newTestSnapshot(
+							&pbft.View{
+								Round:    big.NewInt(2),
+								Sequence: big.NewInt(3),
+							},
+							backend.Validators(),
+						)
 					}
 				}
 				return sys
@@ -112,18 +105,26 @@ func TestHandleCommit(t *testing.T) {
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
 
-					toPreprepare(c)
-
-					// change to prepared
-					c.state = StatePrepared
-
-					if i != 0 {
-						c.subject.Digest = common.StringToHash("1234567890")
+					if i == 0 {
+						// replica 0 is primary
+						c.current = newTestSnapshot(
+							expectedSubject.View,
+							backend.Validators(),
+						)
+						c.state = StatePreprepared
+					} else {
+						c.current = newTestSnapshot(
+							&pbft.View{
+								Round:    big.NewInt(0),
+								Sequence: big.NewInt(0),
+							},
+							backend.Validators(),
+						)
 					}
 				}
 				return sys
 			}(),
-			pbft.ErrSubjectNotMatched,
+			errOldMessage,
 		},
 		{
 			// less than 2F+1
@@ -133,13 +134,17 @@ func TestHandleCommit(t *testing.T) {
 				// save less than 2*F+1 replica
 				sys.backends = sys.backends[2*int(F)+1:]
 
-				for _, backend := range sys.backends {
+				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
+					c.current = newTestSnapshot(
+						expectedSubject.View,
+						backend.Validators(),
+					)
 
-					toPreprepare(c)
-
-					// change to prepared
-					c.state = StatePrepared
+					if i == 0 {
+						// replica 0 is primary
+						c.state = StatePrepared
+					}
 				}
 				return sys
 			}(),
@@ -152,13 +157,20 @@ func TestHandleCommit(t *testing.T) {
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
-					// should have subject for each backend
-					toPreprepare(c)
+					c.current = newTestSnapshot(
+						&pbft.View{
+							Round:    big.NewInt(0),
+							Sequence: proposal.Number(),
+						},
+						backend.Validators(),
+					)
 
 					// only replica0 stays at StatePreprepared
 					// other replicas are at StatePrepared
 					if i != 0 {
 						c.state = StatePrepared
+					} else {
+						c.state = StatePreprepared
 					}
 				}
 				return sys
@@ -176,26 +188,23 @@ OUTER:
 		r0 := v0.engine.(*core)
 
 		for i, v := range test.system.backends {
-			// send commit message to replica0 if has subject
-			if v.engine.(*core).subject != nil {
-				validator := v.Validators().GetByIndex(uint64(i))
-				m, _ := Encode(v.engine.(*core).subject)
-				if err := r0.handleCommit(&message{
-					Code:    msgCommit,
-					Msg:     m,
-					Address: validator.Address(),
-				}, validator); err != nil {
-					if err != test.expectedErr {
-						t.Error("unexpected error: ", err)
-					}
-					continue OUTER
+			validator := v.Validators().GetByIndex(uint64(i))
+			m, _ := Encode(v.engine.(*core).current.Subject())
+			if err := r0.handleCommit(&message{
+				Code:    msgPrepare,
+				Msg:     m,
+				Address: validator.Address(),
+			}, validator); err != nil {
+				if err != test.expectedErr {
+					t.Error("unexpected error: ", err)
 				}
+				continue OUTER
 			}
 		}
 
-		// StateAcceptRequest is normal case
+		// prepared is normal case
 		if r0.state != StateCommitted {
-			// There are not enough prepared messages in core
+			// There are not enough commit messages in core
 			if r0.state != StatePrepared {
 				t.Error("state should be prepared")
 			}
@@ -208,11 +217,7 @@ OUTER:
 
 		// core should have 2F+1 prepare messages
 		if int64(r0.current.Commits.Size()) <= 2*r0.F {
-			t.Error("prepare messages size should greater than 2F+1, size:", r0.current.Prepares.Size())
-		}
-
-		if len(v0.commitMsgs) != 1 {
-			t.Error("backend Commit() function should be called once, but got:", len(v0.commitMsgs))
+			t.Error("commit messages size should greater than 2F+1, size:", r0.current.Commits.Size())
 		}
 	}
 }
@@ -222,71 +227,96 @@ func TestVerifyCommit(t *testing.T) {
 	// for log purpose
 	privateKey, _ := crypto.GenerateKey()
 	peer := validator.New(getPublicKeyAddress(privateKey))
+	valSet := validator.NewSet([]common.Address{peer.Address()})
 
 	sys := NewTestSystemWithBackend(uint64(1), uint64(0))
 
 	testCases := []struct {
 		expected error
 
-		commit *pbft.Subject
-		self   *pbft.Subject
+		commit   *pbft.Subject
+		snapshot *snapshot
 	}{
 		{
 			// normal case
 			expected: nil,
 			commit: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
+		},
+		{
+			// old message
+			expected: pbft.ErrSubjectNotMatched,
+			commit: &pbft.Subject{
+				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				Digest: newTestProposal().Hash(),
+			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
+		},
+		{
+			// different digest
+			expected: pbft.ErrSubjectNotMatched,
+			commit: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: common.StringToHash("1234567890"),
 			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
 		},
 		{
 			// malicious package(lack of sequence)
 			expected: pbft.ErrSubjectNotMatched,
 			commit: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: nil},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(1)},
+				valSet,
+			),
 		},
 		{
-			// wrong commit message with same sequence but different round
+			// wrong prepare message with same sequence but different round
 			expected: pbft.ErrSubjectNotMatched,
 			commit: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
 		},
 		{
-			// wrong commit message with same round but different sequence
+			// wrong prepare message with same round but different sequence
 			expected: pbft.ErrSubjectNotMatched,
 			commit: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
-				Digest: common.StringToHash("1234567890"),
+				Digest: newTestProposal().Hash(),
 			},
-			self: &pbft.Subject{
-				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
-				Digest: common.StringToHash("1234567890"),
-			},
+			snapshot: newTestSnapshot(
+				&pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
+				valSet,
+			),
 		},
 	}
 	for i, test := range testCases {
 		c := sys.backends[0].engine.(*core)
-		c.subject = test.self
+		c.current = test.snapshot
 
 		if err := c.verifyCommit(test.commit, peer); err != nil {
 			if err != test.expected {
-				t.Errorf("expected result is not the same (%d), err:%v", i, err)
+				t.Errorf("Results %d are different, err:%v", i, err)
 			}
 		}
 	}

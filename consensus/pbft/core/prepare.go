@@ -26,14 +26,15 @@ func (c *core) sendPrepare() {
 	logger := c.logger.New("state", c.state)
 	logger.Trace("sendPrepare")
 
-	subject, err := Encode(c.subject)
+	sub := c.current.Subject()
+	encodedSubject, err := Encode(sub)
 	if err != nil {
-		logger.Error("Failed to encode", "subject", c.subject)
+		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
 	c.broadcast(&message{
 		Code: msgPrepare,
-		Msg:  subject,
+		Msg:  encodedSubject,
 	})
 }
 
@@ -77,8 +78,9 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
 	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
 
-	if !reflect.DeepEqual(prepare, c.subject) {
-		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", c.subject, "got", prepare)
+	sub := c.current.Subject()
+	if !reflect.DeepEqual(prepare, sub) {
+		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", sub, "got", prepare)
 		return pbft.ErrSubjectNotMatched
 	}
 
