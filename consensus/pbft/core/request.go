@@ -22,7 +22,7 @@ import (
 
 func (c *core) handleRequest(request *pbft.Request, p pbft.Validator) error {
 	logger := c.logger.New("state", c.state)
-	logger.Trace("handleRequest")
+	logger.Trace("handleRequest", "request", request.Proposal.Number())
 
 	if c.state == StateAcceptRequest {
 		c.sendPreprepare(request)

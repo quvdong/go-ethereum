@@ -183,7 +183,8 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	c.roundChangeSet.Clear(newView)
 	// New snapshot for new round
 	c.current = newSnapshot(newView, c.backend.Validators())
-
+	// Clear subject
+	c.subject = nil
 	// Calculate new proposer
 	c.backend.Validators().CalcProposer(c.proposerSeed())
 	c.waitingForRoundChange = false
