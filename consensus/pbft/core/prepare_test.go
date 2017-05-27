@@ -34,13 +34,12 @@ func TestHandlePrepare(t *testing.T) {
 	expectedSubject := &pbft.Subject{
 		View: &pbft.View{
 			Round:    big.NewInt(0),
-			Sequence: big.NewInt(0)},
+			Sequence: big.NewInt(1)},
 		Digest: common.StringToHash("1234567890"),
 	}
 
 	testCases := []struct {
-		system *testSystem
-
+		system      *testSystem
 		expectedErr error
 	}{
 		{
@@ -109,6 +108,31 @@ func TestHandlePrepare(t *testing.T) {
 				}
 				return sys
 			}(),
+			errOldMessage,
+		},
+		{
+			// subject not match
+			func() *testSystem {
+				sys := NewTestSystemWithBackend(N, F)
+
+				for i, backend := range sys.backends {
+					c := backend.engine.(*core)
+
+					if i == 0 {
+						// replica 0 is primary
+						c.subject = expectedSubject
+						c.state = StatePreprepared
+					} else {
+						c.subject = &pbft.Subject{
+							View: &pbft.View{
+								Round:    big.NewInt(0),
+								Sequence: big.NewInt(1)},
+							Digest: common.StringToHash("unexpected subjects"),
+						}
+					}
+				}
+				return sys
+			}(),
 			pbft.ErrSubjectNotMatched,
 		},
 		{
@@ -151,7 +175,7 @@ OUTER:
 				Address: validator.Address(),
 			}, validator); err != nil {
 				if err != test.expectedErr {
-					t.Error("unexpected error: ", err)
+					t.Errorf("unexpected error, got: %v, expected: %v", err, test.expectedErr)
 				}
 				continue OUTER
 			}

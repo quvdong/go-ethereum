@@ -31,7 +31,7 @@ import (
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
-func TestIsFutureMessage(t *testing.T) {
+func TestCheckMessage(t *testing.T) {
 	c := &core{
 		state: StateAcceptRequest,
 		current: newSnapshot(&pbft.View{
@@ -41,9 +41,9 @@ func TestIsFutureMessage(t *testing.T) {
 	}
 
 	// invalid view format
-	r := c.isFutureMessage(msgPreprepare, nil)
-	if r {
-		t.Error("Should return false if nil view")
+	err := c.checkMessage(msgPreprepare, nil)
+	if err != errInvalidMessage {
+		t.Error("Should return errInvalidMessage if nil view")
 	}
 
 	testStates := []State{StateAcceptRequest, StatePreprepared, StatePrepared, StateCommitted}
@@ -57,9 +57,9 @@ func TestIsFutureMessage(t *testing.T) {
 	for i := 0; i < len(testStates); i++ {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
-			r = c.isFutureMessage(testCode[j], v)
-			if !r {
-				t.Error("Should return true because it's a future sequence")
+			err := c.checkMessage(testCode[j], v)
+			if err != errFutureMessage {
+				t.Error("Should return errFutureMessage because it's a future sequence")
 			}
 		}
 	}
@@ -72,9 +72,9 @@ func TestIsFutureMessage(t *testing.T) {
 	for i := 0; i < len(testStates); i++ {
 		c.state = testStates[i]
 		for j := 0; j < len(testCode); j++ {
-			r = c.isFutureMessage(testCode[j], v)
-			if !r {
-				t.Error("Should return true because it's a future round")
+			err := c.checkMessage(testCode[j], v)
+			if err != errFutureMessage {
+				t.Error("Should return errFutureMessage because it's a future round")
 			}
 		}
 	}
@@ -83,14 +83,14 @@ func TestIsFutureMessage(t *testing.T) {
 	// current view, state = StateAcceptRequest
 	c.state = StateAcceptRequest
 	for i := 0; i < len(testCode); i++ {
-		r = c.isFutureMessage(testCode[i], v)
+		err = c.checkMessage(testCode[i], v)
 		if testCode[i] == msgPreprepare {
-			if r {
-				t.Error("Should return false because we can execute it now")
+			if err != nil {
+				t.Error("Should return nil because we can execute it now")
 			}
 		} else {
-			if !r {
-				t.Error("Should return true because it's a future round")
+			if err != errFutureMessage {
+				t.Error("Should return errFutureMessage because it's a future round")
 			}
 		}
 	}
@@ -98,27 +98,27 @@ func TestIsFutureMessage(t *testing.T) {
 	// current view, state = StatePreprepared
 	c.state = StatePreprepared
 	for i := 0; i < len(testCode); i++ {
-		r = c.isFutureMessage(testCode[i], v)
-		if r {
-			t.Error("Should return false because we can execute it now")
+		err = c.checkMessage(testCode[i], v)
+		if err != nil {
+			t.Error("Should return nil because we can execute it now")
 		}
 	}
 
 	// current view, state = StatePrepared
 	c.state = StatePrepared
 	for i := 0; i < len(testCode); i++ {
-		r = c.isFutureMessage(testCode[i], v)
-		if r {
-			t.Error("Should return false because we can execute it now")
+		err = c.checkMessage(testCode[i], v)
+		if err != nil {
+			t.Error("Should return nil because we can execute it now")
 		}
 	}
 
 	// current view, state = StateCommitted
 	c.state = StateCommitted
 	for i := 0; i < len(testCode); i++ {
-		r = c.isFutureMessage(testCode[i], v)
-		if r {
-			t.Error("Should return false because we can execute it now")
+		err = c.checkMessage(testCode[i], v)
+		if err != nil {
+			t.Error("Should return nil because we can execute it now")
 		}
 	}
 

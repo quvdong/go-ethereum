@@ -117,7 +117,7 @@ func TestHandlePreprepare(t *testing.T) {
 				return sys
 			}(),
 			makeBlock(1),
-			pbft.ErrInvalidMessage,
+			errOldMessage,
 		},
 		{
 			// proposal is not included
