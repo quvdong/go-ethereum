@@ -31,30 +31,35 @@ var (
 	}
 )
 
-// check whether it's a future message
-// It's a future message if the message priority is smaller than current priority
-func (c *core) isFutureMessage(msgCode uint64, view *pbft.View) bool {
+// check the message state
+// return errInvalidMessage if the message is invalid
+// return errFutureMessage if the message priority is smaller than current priority
+// return errOldMessage if the message priority is larger than current priority
+func (c *core) checkMessage(msgCode uint64, view *pbft.View) error {
 	if view == nil || view.Sequence == nil || view.Round == nil {
-		return false
+		return errInvalidMessage
 	}
 
 	if view.Cmp(c.currentView()) > 0 {
-		return true
+		return errFutureMessage
 	}
 
 	if view.Cmp(c.currentView()) < 0 {
-		return false
+		return errOldMessage
 	}
 
 	// StateAcceptRequest only accepts msgPreprepare
 	// other messages are future messages
 	if c.state == StateAcceptRequest {
-		return msgCode > msgPreprepare
+		if msgCode > msgPreprepare {
+			return errFutureMessage
+		}
+		return nil
 	}
 
 	// For states(StatePreprepared, StatePrepared, StateCommitted),
 	// can accept all message types if processing with same view
-	return false
+	return nil
 }
 
 func (c *core) storeBacklog(msg *message, src pbft.Validator) {
@@ -131,13 +136,17 @@ func (c *core) processBacklog() {
 				continue
 			}
 			// Push back if it's a future message
-			if c.isFutureMessage(msg.Code, view) {
-				logger.Trace("Stop processing backlog", "msg", msg)
-				backlog.Push(msg, prio)
-				isFuture = true
-				break
+			err := c.checkMessage(msg.Code, view)
+			if err != nil {
+				if err == errFutureMessage {
+					logger.Trace("Stop processing backlog", "msg", msg)
+					backlog.Push(msg, prio)
+					isFuture = true
+					break
+				}
+				logger.Trace("Skip the backlog event", "msg", msg, "err", err)
+				continue
 			}
-
 			logger.Trace("Post backlog event", "msg", msg)
 
 			go c.sendEvent(backlogEvent{

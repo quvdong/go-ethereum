@@ -74,10 +74,13 @@ func (c *core) handleEvents() {
 		case pbft.ConnectionEvent:
 
 		case pbft.RequestEvent:
-			_, val := c.backend.Validators().GetByAddress(c.Address())
-			c.handleRequest(&pbft.Request{
+			r := &pbft.Request{
 				Proposal: ev.Proposal,
-			}, val)
+			}
+			err := c.handleRequest(r)
+			if err == errFutureMessage {
+				c.storeRequestMsg(r)
+			}
 		case pbft.MessageEvent:
 			c.handleMsg(ev.Payload)
 		case backlogEvent:

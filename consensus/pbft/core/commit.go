@@ -52,8 +52,8 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 		return errFailedDecodeCommit
 	}
 
-	if c.isFutureMessage(msgCommit, commit.View) {
-		return errFutureMessage
+	if err := c.checkMessage(msgCommit, commit.View); err != nil {
+		return err
 	}
 
 	if err := c.verifyCommit(commit, src); err != nil {
