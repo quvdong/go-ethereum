@@ -16,16 +16,78 @@
 
 package core
 
-import (
-	"github.com/ethereum/go-ethereum/consensus/pbft"
-)
+import "github.com/ethereum/go-ethereum/consensus/pbft"
 
-func (c *core) handleRequest(request *pbft.Request, p pbft.Validator) error {
-	logger := c.logger.New("state", c.state)
+func (c *core) handleRequest(request *pbft.Request) error {
+	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
 	logger.Trace("handleRequest", "request", request.Proposal.Number())
+
+	if err := c.checkRequestMsg(request); err != nil {
+		logger.Warn("unexpected requests", "err", err, "request", request)
+		return err
+	}
 
 	if c.state == StateAcceptRequest {
 		c.sendPreprepare(request)
 	}
 	return nil
+}
+
+// check request state
+// return errInvalidMessage if the message is invalid
+// return errFutureMessage if the message priority is smaller than current priority
+// return errOldMessage if the message priority is larger than current priority
+func (c *core) checkRequestMsg(request *pbft.Request) error {
+	if request == nil || request.Proposal == nil {
+		return errInvalidMessage
+	}
+
+	if c := c.current.sequence.Cmp(request.Proposal.Number()); c > 0 {
+		return errOldMessage
+	} else if c < 0 {
+		return errFutureMessage
+	} else {
+		return nil
+	}
+}
+
+func (c *core) storeRequestMsg(request *pbft.Request) {
+	logger := c.logger.New("state", c.state)
+
+	logger.Trace("Store future request message")
+
+	c.pendingRequestsMu.Lock()
+	defer c.pendingRequestsMu.Unlock()
+
+	c.pendingRequests.Push(request, float32(-request.Proposal.Number().Int64()))
+}
+
+func (c *core) processPendingRequests() {
+	c.pendingRequestsMu.Lock()
+	defer c.pendingRequestsMu.Unlock()
+
+	for !(c.pendingRequests.Empty()) {
+		m, prio := c.pendingRequests.Pop()
+		r, ok := m.(*pbft.Request)
+		if !ok {
+			c.logger.Debug("Cannot cast to Request")
+			continue
+		}
+		// Push back if it's a future message
+		err := c.checkRequestMsg(r)
+		if err != nil {
+			if err == errFutureMessage {
+				c.logger.Trace("Stop processing request", "request", r)
+				c.pendingRequests.Push(m, prio)
+				break
+			}
+			c.logger.Trace("Skip the pending request", "request", r, "err", err)
+			continue
+		}
+		c.logger.Trace("Post pending request", "request", r)
+
+		go c.sendEvent(pbft.RequestEvent{
+			Proposal: r.Proposal,
+		})
+	}
 }

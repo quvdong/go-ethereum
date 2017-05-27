@@ -39,17 +39,19 @@ func New(backend pbft.Backend, config *pbft.Config) Engine {
 	f := int64(math.Ceil(float64(n)/3) - 1)
 
 	return &core{
-		config:         config,
-		address:        backend.Address(),
-		N:              n,
-		F:              f,
-		state:          StateAcceptRequest,
-		logger:         log.New("address", backend.Address().Hex()),
-		backend:        backend,
-		backlogs:       make(map[pbft.Validator]*prque.Prque),
-		backlogsMu:     new(sync.Mutex),
-		snapshotsMu:    new(sync.RWMutex),
-		roundChangeSet: newRoundChangeSet(backend.Validators()),
+		config:            config,
+		address:           backend.Address(),
+		N:                 n,
+		F:                 f,
+		state:             StateAcceptRequest,
+		logger:            log.New("address", backend.Address().Hex()),
+		backend:           backend,
+		backlogs:          make(map[pbft.Validator]*prque.Prque),
+		backlogsMu:        new(sync.Mutex),
+		snapshotsMu:       new(sync.RWMutex),
+		roundChangeSet:    newRoundChangeSet(backend.Validators()),
+		pendingRequests:   prque.New(),
+		pendingRequestsMu: new(sync.Mutex),
 	}
 }
 
@@ -80,6 +82,9 @@ type core struct {
 
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
+
+	pendingRequests   *prque.Prque
+	pendingRequestsMu *sync.Mutex
 }
 
 func (c *core) finalizeMessage(msg *message) ([]byte, error) {
@@ -223,6 +228,9 @@ func (c *core) setState(state State) {
 		c.state = state
 	}
 	c.processBacklog()
+	if state == StateAcceptRequest {
+		c.processPendingRequests()
+	}
 }
 
 func (c *core) Address() common.Address {

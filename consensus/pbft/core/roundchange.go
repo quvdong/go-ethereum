@@ -64,19 +64,19 @@ func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 	var rc *roundChange
 	if err := msg.Decode(&rc); err != nil {
 		logger.Error("Failed to decode RoundChange")
-		return pbft.ErrInvalidMessage
+		return errInvalidMessage
 	}
 
 	cv := c.current
 
 	if rc.Sequence.Cmp(cv.Sequence()) != 0 {
 		logger.Warn("Wrong sequence number", "expected", cv.Sequence(), "got", rc.Sequence)
-		return pbft.ErrInvalidMessage
+		return errInvalidMessage
 	}
 
 	if rc.Round.Cmp(cv.Round()) < 0 {
 		logger.Warn("Old RoundChange", "from", src.Address().Hex(), "expected", cv.Round().Uint64(), "got", rc.Round.Uint64())
-		return pbft.ErrOldMessage
+		return errOldMessage
 	}
 
 	num, err := c.roundChangeSet.Add(&pbft.View{

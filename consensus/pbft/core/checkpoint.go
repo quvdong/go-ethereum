@@ -45,7 +45,7 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 	err := msg.Decode(&cp)
 	if err != nil {
 		logger.Error("Invalid checkpoint message", "msg", msg)
-		return pbft.ErrInvalidMessage
+		return errInvalidMessage
 	}
 	if c.current == nil {
 		logger.Warn("Ignore checkpoint messsages if we don't have current snapshot")
@@ -78,11 +78,11 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 			snapshot = c.snapshots[snapshotIndex]
 		} else {
 			logger.Warn("Failed to find snapshot entry", "seq", cp.View.Sequence, "current", c.current.Sequence)
-			return pbft.ErrInvalidMessage
+			return errInvalidMessage
 		}
 	} else { // future checkpoint
 		// TODO: Do we have to handle this?
-		return pbft.ErrInvalidMessage
+		return errInvalidMessage
 	}
 
 	// Save to snapshot

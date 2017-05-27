@@ -22,8 +22,6 @@ var (
 	ErrFromSelf          = errors.New("message comes from myself")
 	ErrNotFromProposer   = errors.New("message does not come from proposer")
 	ErrNilProposal       = errors.New("nil proposal")
-	ErrOldMessage        = errors.New("old message")
-	ErrInvalidMessage    = errors.New("invalid message")
 	ErrIgnored           = errors.New("message is ignored")
 	ErrSubjectNotMatched = errors.New("subjects are not matched")
 	ErrInvalidSignature  = errors.New("Invalid signature")

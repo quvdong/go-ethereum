@@ -16,11 +16,7 @@
 
 package core
 
-import (
-	"reflect"
-
-	"github.com/ethereum/go-ethereum/consensus/pbft"
-)
+import "github.com/ethereum/go-ethereum/consensus/pbft"
 
 func (c *core) sendPreprepare(request *pbft.Request) {
 	logger := c.logger.New("state", c.state)
@@ -59,8 +55,8 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 		return errFailedDecodePreprepare
 	}
 
-	if c.isFutureMessage(msgPreprepare, preprepare.View) {
-		return errFutureMessage
+	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
+		return err
 	}
 
 	if !c.backend.Validators().IsProposer(src.Address()) {
@@ -69,14 +65,8 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 	}
 
 	if err := c.backend.Verify(preprepare.Proposal); err != nil {
-		logger.Warn("Verify proposal failed")
+		logger.Warn("Verify proposal failed", "err", err)
 		return err
-	}
-
-	view := c.currentView()
-	if !reflect.DeepEqual(preprepare.View, view) {
-		logger.Warn("Preprepare does not match", "expected", view, "got", preprepare.View)
-		return pbft.ErrInvalidMessage
 	}
 
 	if preprepare.Proposal == nil {

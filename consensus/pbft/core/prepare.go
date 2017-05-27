@@ -52,8 +52,8 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 		return errFailedDecodePrepare
 	}
 
-	if c.isFutureMessage(msgPrepare, prepare.View) {
-		return errFutureMessage
+	if err := c.checkMessage(msgPrepare, prepare.View); err != nil {
+		return err
 	}
 
 	if err := c.verifyPrepare(prepare, src); err != nil {
