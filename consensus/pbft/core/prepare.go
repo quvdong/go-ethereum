@@ -39,7 +39,7 @@ func (c *core) sendPrepare() {
 }
 
 func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handlePrepare")
 
 	if c.waitingForRoundChange {
@@ -76,7 +76,7 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 
 // verifyPrepare verifies if the received prepare message is equivalent to our subject
 func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(prepare, sub) {
@@ -88,7 +88,7 @@ func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
 }
 
 func (c *core) acceptPrepare(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
 	// Add the prepare message to current snapshot
 	if err := c.current.Prepares.Add(msg); err != nil {
