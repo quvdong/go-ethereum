@@ -195,7 +195,7 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isPrimary() {
-		c.backend.NextSeal()
+		c.backend.NextRound()
 	}
 	c.newRoundChangeTimer()
 
@@ -227,10 +227,10 @@ func (c *core) setState(state State) {
 	if c.state != state {
 		c.state = state
 	}
-	c.processBacklog()
 	if state == StateAcceptRequest {
 		c.processPendingRequests()
 	}
+	c.processBacklog()
 }
 
 func (c *core) Address() common.Address {
