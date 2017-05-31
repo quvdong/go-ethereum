@@ -113,13 +113,13 @@ func (c *core) send(msg *message, target common.Address) {
 
 	payload, err := c.finalizeMessage(msg)
 	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "error", err)
+		logger.Error("Failed to finalize message", "msg", msg, "err", err)
 		return
 	}
 
 	// send payload
 	if err = c.backend.Send(payload, target); err != nil {
-		logger.Error("Failed to send message", "msg", msg, "error", err)
+		logger.Error("Failed to send message", "msg", msg, "err", err)
 		return
 	}
 }
@@ -129,13 +129,13 @@ func (c *core) broadcast(msg *message) {
 
 	payload, err := c.finalizeMessage(msg)
 	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "error", err)
+		logger.Error("Failed to finalize message", "msg", msg, "err", err)
 		return
 	}
 
 	// Broadcast payload
 	if err = c.backend.Broadcast(payload); err != nil {
-		logger.Error("Failed to broadcast message", "msg", msg, "error", err)
+		logger.Error("Failed to broadcast message", "msg", msg, "err", err)
 		return
 	}
 }
