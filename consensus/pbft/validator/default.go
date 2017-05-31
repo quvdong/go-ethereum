@@ -32,7 +32,7 @@ func (slice Validators) Len() int {
 }
 
 func (slice Validators) Less(i, j int) bool {
-	return strings.Compare(slice[i].Address().Hex(), slice[j].Address().Hex()) < 0
+	return strings.Compare(slice[i].String(), slice[j].String()) < 0
 }
 
 func (slice Validators) Swap(i, j int) {

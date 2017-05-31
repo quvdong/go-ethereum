@@ -76,7 +76,7 @@ func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 
 	// We never accept round change message with smaller round number
 	if rc.Round.Cmp(cv.Round) < 0 {
-		logger.Warn("Old round change", "from", src.Address().Hex(), "expected", cv.Round, "got", rc.Round)
+		logger.Warn("Old round change", "from", src, "expected", cv.Round, "got", rc.Round)
 		return errOldMessage
 	}
 
@@ -87,7 +87,7 @@ func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 		Sequence: new(big.Int).Set(rc.Sequence),
 	}, msg)
 	if err != nil {
-		logger.Warn("Failed to add round change message", "from", src.Address().Hex(), "msg", msg, "error", err)
+		logger.Warn("Failed to add round change message", "from", src, "msg", msg, "error", err)
 		return err
 	}
 
