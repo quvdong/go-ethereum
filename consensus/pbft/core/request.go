@@ -35,8 +35,8 @@ func (c *core) handleRequest(request *pbft.Request) error {
 
 // check request state
 // return errInvalidMessage if the message is invalid
-// return errFutureMessage if the message priority is smaller than current priority
-// return errOldMessage if the message priority is larger than current priority
+// return errFutureMessage if the sequence of proposal is larger than current sequence
+// return errOldMessage if the sequence of proposal is smaller than current sequence
 func (c *core) checkRequestMsg(request *pbft.Request) error {
 	if request == nil || request.Proposal == nil {
 		return errInvalidMessage
@@ -54,7 +54,7 @@ func (c *core) checkRequestMsg(request *pbft.Request) error {
 func (c *core) storeRequestMsg(request *pbft.Request) {
 	logger := c.logger.New("state", c.state)
 
-	logger.Trace("Store future request message")
+	logger.Trace("Store future requests", "request", request)
 
 	c.pendingRequestsMu.Lock()
 	defer c.pendingRequestsMu.Unlock()
@@ -70,7 +70,7 @@ func (c *core) processPendingRequests() {
 		m, prio := c.pendingRequests.Pop()
 		r, ok := m.(*pbft.Request)
 		if !ok {
-			c.logger.Debug("Cannot cast to Request")
+			c.logger.Debug("Cannot cast to request")
 			continue
 		}
 		// Push back if it's a future message

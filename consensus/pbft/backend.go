@@ -41,8 +41,8 @@ type Backend interface {
 	// Commit is to deliver a final result to write into blockchain
 	Commit(Proposal) error
 
-	// NextSeal is called when we want to trigger next Seal()
-	NextSeal() error
+	// NextRound is called when we want to trigger next Seal()
+	NextRound() error
 
 	// Verify is to verify the proposal request
 	Verify(Proposal) error
