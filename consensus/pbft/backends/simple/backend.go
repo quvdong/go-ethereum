@@ -133,9 +133,9 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
 	// - otherwise, we try to insert the block.
-	// -- if success, the ChainHeadEvent event will be broadcasted and try to build
-	//    the next block. If it's a proposer, the previous Seal() will be stopped.
-	// -- otherwise, a error will be returned and a view change event will be fired.
+	// -- if success, the ChainHeadEvent event will be broadcasted, try to build
+	//    the next block and the previous Seal() will be stopped.
+	// -- otherwise, a error will be returned and a round change event will be fired.
 	if sb.proposedBlockHash == block.Hash() {
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block.Hash()
@@ -145,14 +145,11 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 	return sb.inserter(block)
 }
 
-// RoundChanged implements pbft.Backend.RoundChanged
-func (sb *simpleBackend) RoundChanged(needNewProposal bool) error {
-	if needNewProposal {
-		// if I was or I'm a proposer now, fire a ChainHeadEvent to trigger next Seal()
-		if !common.EmptyHash(sb.proposedBlockHash) || sb.IsProposer() {
-			go sb.eventMux.Post(core.ChainHeadEvent{})
-		}
-	}
+// NextRound will broadcast ChainHeadEvent to trigger next seal()
+func (sb *simpleBackend) NextRound() error {
+	header := sb.chain.CurrentHeader()
+	sb.logger.Debug("NextRound", "address", sb.Address().Hex(), "current_hash", header.Hash(), "current_number", header.Number)
+	go sb.eventMux.Post(core.ChainHeadEvent{})
 	return nil
 }
 
@@ -230,11 +227,4 @@ func (sb *simpleBackend) getSignatureAddress(data []byte, sig []byte) (common.Ad
 		return common.Address{}, err
 	}
 	return crypto.PubkeyToAddress(*pubkey), nil
-}
-
-func (sb *simpleBackend) IsProposer() bool {
-	if sb.valSet == nil {
-		return false
-	}
-	return sb.valSet.IsProposer(sb.address)
 }

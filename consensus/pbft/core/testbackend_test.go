@@ -82,7 +82,7 @@ func (self *testSystemBackend) Broadcast(message []byte) error {
 	return nil
 }
 
-func (self *testSystemBackend) RoundChanged(needNewProposal bool) error {
+func (self *testSystemBackend) NextRound() error {
 	testLogger.Warn("nothing to happen")
 	return nil
 }
@@ -113,14 +113,6 @@ func (self *testSystemBackend) CheckSignature([]byte, common.Address, []byte) er
 
 func (self *testSystemBackend) CheckValidatorSignature(data []byte, sig []byte) (common.Address, error) {
 	return common.Address{}, nil
-}
-
-func (self *testSystemBackend) IsProposer() bool {
-	testLogger.Info("use replica 0 as proposer")
-	if len(self.sys.backends) == 0 {
-		return false
-	}
-	return self.Address() == self.sys.backends[0].Address()
 }
 
 func (self *testSystemBackend) Hash(b interface{}) common.Hash {

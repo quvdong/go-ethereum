@@ -41,17 +41,14 @@ type Backend interface {
 	// Commit is to deliver a final result to write into blockchain
 	Commit(Proposal) error
 
-	// RoundChanged is called when round change occurred
-	RoundChanged(needNewProposal bool) error
+	// NextRound is called when we want to trigger next Seal()
+	NextRound() error
 
 	// Verify is to verify the proposal request
 	Verify(Proposal) error
 
 	// Sign is to sign the data
 	Sign([]byte) ([]byte, error)
-
-	// Check wether I'm a proposer
-	IsProposer() bool
 
 	// CheckSignature is to verify the signature is signed from given peer
 	CheckSignature(data []byte, addr common.Address, sig []byte) error

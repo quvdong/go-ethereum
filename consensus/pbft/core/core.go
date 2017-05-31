@@ -39,17 +39,19 @@ func New(backend pbft.Backend, config *pbft.Config) Engine {
 	f := int64(math.Ceil(float64(n)/3) - 1)
 
 	return &core{
-		config:         config,
-		address:        backend.Address(),
-		N:              n,
-		F:              f,
-		state:          StateAcceptRequest,
-		logger:         log.New("address", backend.Address().Hex()),
-		backend:        backend,
-		backlogs:       make(map[pbft.Validator]*prque.Prque),
-		backlogsMu:     new(sync.Mutex),
-		snapshotsMu:    new(sync.RWMutex),
-		roundChangeSet: newRoundChangeSet(backend.Validators()),
+		config:            config,
+		address:           backend.Address(),
+		N:                 n,
+		F:                 f,
+		state:             StateAcceptRequest,
+		logger:            log.New("address", backend.Address().Hex()),
+		backend:           backend,
+		backlogs:          make(map[pbft.Validator]*prque.Prque),
+		backlogsMu:        new(sync.Mutex),
+		snapshotsMu:       new(sync.RWMutex),
+		roundChangeSet:    newRoundChangeSet(backend.Validators()),
+		pendingRequests:   prque.New(),
+		pendingRequestsMu: new(sync.Mutex),
 	}
 }
 
@@ -80,6 +82,9 @@ type core struct {
 
 	roundChangeSet   *roundChangeSet
 	roundChangeTimer *time.Timer
+
+	pendingRequests   *prque.Prque
+	pendingRequestsMu *sync.Mutex
 }
 
 func (c *core) finalizeMessage(msg *message) ([]byte, error) {
@@ -152,7 +157,11 @@ func (c *core) nextRound() *pbft.View {
 }
 
 func (c *core) isPrimary() bool {
-	return c.backend.IsProposer()
+	v := c.backend.Validators()
+	if v == nil {
+		return false
+	}
+	return v.IsProposer(c.backend.Address())
 }
 
 func (c *core) commit() {
@@ -179,13 +188,14 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	c.roundChangeSet.Clear(newView)
 	// New snapshot for new round
 	c.current = newSnapshot(newView, c.backend.Validators())
-
+	// Clear subject
+	c.subject = nil
 	// Calculate new proposer
 	c.backend.Validators().CalcProposer(c.proposerSeed())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
-	if roundChange {
-		c.backend.RoundChanged(true)
+	if roundChange && c.isPrimary() {
+		c.backend.NextRound()
 	}
 	c.newRoundChangeTimer()
 
@@ -216,6 +226,9 @@ func (c *core) proposerSeed() uint64 {
 func (c *core) setState(state State) {
 	if c.state != state {
 		c.state = state
+	}
+	if state == StateAcceptRequest {
+		c.processPendingRequests()
 	}
 	c.processBacklog()
 }

@@ -54,15 +54,15 @@ func TestHandleCheckpoint(t *testing.T) {
 		expectedErr error
 	}{
 		// empty subject
-		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(0), Round: big.NewInt(0)}}, system.backends[0].Validators().List()[0], nil, pbft.ErrInvalidMessage},
+		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(0), Round: big.NewInt(0)}}, system.backends[0].Validators().List()[0], nil, errInvalidMessage},
 		// current sequence
 		{system, &pbft.Subject{View: &pbft.View{Sequence: preprepare.View.Sequence}}, system.backends[0].Validators().List()[0], c.current, nil},
 		// old sequence
 		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(2)}}, system.backends[0].Validators().List()[0], c.snapshots[1], nil},
 		// old sequence without snapshot
-		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(0)}}, system.backends[0].Validators().List()[0], nil, pbft.ErrInvalidMessage},
+		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(0)}}, system.backends[0].Validators().List()[0], nil, errInvalidMessage},
 		// future sequence
-		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(4)}}, system.backends[0].Validators().List()[0], nil, pbft.ErrInvalidMessage},
+		{system, &pbft.Subject{View: &pbft.View{Sequence: big.NewInt(4)}}, system.backends[0].Validators().List()[0], nil, errInvalidMessage},
 	}
 
 	for _, test := range testCases {
