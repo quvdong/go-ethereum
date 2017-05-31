@@ -92,7 +92,7 @@ func (c *core) acceptPrepare(msg *message, src pbft.Validator) error {
 
 	// Add the prepare message to current snapshot
 	if err := c.current.Prepares.Add(msg); err != nil {
-		logger.Error("Failed to add prepare message to snapshot", "msg", msg, "error", err)
+		logger.Error("Failed to add prepare message to snapshot", "msg", msg, "err", err)
 		return err
 	}
 

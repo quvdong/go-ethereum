@@ -45,7 +45,7 @@ func (c *core) sendRoundChange() {
 
 	payload, err := Encode(rc)
 	if err != nil {
-		logger.Error("Failed to encode round change", "rc", rc, "error", err)
+		logger.Error("Failed to encode round change", "rc", rc, "err", err)
 		return
 	}
 
@@ -62,7 +62,7 @@ func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 	// Decode round change message
 	var rc *roundChange
 	if err := msg.Decode(&rc); err != nil {
-		logger.Error("Failed to decode round change", "error", err)
+		logger.Error("Failed to decode round change", "err", err)
 		return errInvalidMessage
 	}
 
@@ -87,7 +87,7 @@ func (c *core) handleRoundChange(msg *message, src pbft.Validator) error {
 		Sequence: new(big.Int).Set(rc.Sequence),
 	}, msg)
 	if err != nil {
-		logger.Warn("Failed to add round change message", "from", src, "msg", msg, "error", err)
+		logger.Warn("Failed to add round change message", "from", src, "msg", msg, "err", err)
 		return err
 	}
 

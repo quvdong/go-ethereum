@@ -73,7 +73,7 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 
 	// Verify the proposal we received
 	if err := c.backend.Verify(preprepare.Proposal); err != nil {
-		logger.Warn("Failed to verify proposal", "error", err)
+		logger.Warn("Failed to verify proposal", "err", err)
 		return err
 	}
 
