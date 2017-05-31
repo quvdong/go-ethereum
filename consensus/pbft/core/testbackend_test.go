@@ -82,7 +82,7 @@ func (self *testSystemBackend) Broadcast(message []byte) error {
 	return nil
 }
 
-func (self *testSystemBackend) NextSeal() error {
+func (self *testSystemBackend) NextRound() error {
 	testLogger.Warn("nothing to happen")
 	return nil
 }

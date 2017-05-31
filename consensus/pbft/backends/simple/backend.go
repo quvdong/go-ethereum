@@ -145,14 +145,10 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 	return sb.inserter(block)
 }
 
-// NextSeal will broadcast ChainHeadEvent to trigger next seal()
-func (sb *simpleBackend) NextSeal() error {
-	if sb.chain == nil {
-		sb.logger.Info("NextSeal", "address", sb.Address().Hex())
-	} else {
-		header := sb.chain.CurrentHeader()
-		sb.logger.Info("NextSeal", "address", sb.Address().Hex(), "current_hash", header.Hash(), "current_number", header.Number)
-	}
+// NextRound will broadcast ChainHeadEvent to trigger next seal()
+func (sb *simpleBackend) NextRound() error {
+	header := sb.chain.CurrentHeader()
+	sb.logger.Debug("NextRound", "address", sb.Address().Hex(), "current_hash", header.Hash(), "current_number", header.Number)
 	go sb.eventMux.Post(core.ChainHeadEvent{})
 	return nil
 }
