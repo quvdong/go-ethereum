@@ -174,7 +174,7 @@ func (sb *simpleBackend) Sign(data []byte) ([]byte, error) {
 func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := sb.getSignatureAddress(data, sig)
 	if err != nil {
-		log.Error("CheckSignature", "error", err)
+		log.Error("CheckSignature", "err", err)
 		return err
 	}
 	//Compare derived addresses
@@ -189,7 +189,7 @@ func (sb *simpleBackend) CheckValidatorSignature(data []byte, sig []byte) (commo
 	// 1. Get signature address
 	signer, err := sb.getSignatureAddress(data, sig)
 	if err != nil {
-		log.Error("CheckValidatorSignature", "error", err)
+		log.Error("CheckValidatorSignature", "err", err)
 		return common.Address{}, err
 	}
 

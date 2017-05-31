@@ -88,7 +88,7 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 
 	// Save to snapshot
 	if err := snapshot.Checkpoints.Add(msg); err != nil {
-		logger.Error("Failed to add checkpoint", "error", err)
+		logger.Error("Failed to add checkpoint", "err", err)
 		return err
 	}
 
@@ -117,7 +117,7 @@ func (c *core) buildStableCheckpoint() {
 		logger.Debug("Build a stable checkpoint", "checkpoint", stableCheckpoint)
 
 		if err := c.backend.Save(keyStableCheckpoint, stableCheckpoint); err != nil {
-			logger.Crit("Failed to save stable checkpoint", "error", err)
+			logger.Crit("Failed to save stable checkpoint", "err", err)
 		}
 	} else {
 		logger.Debug("Cannot build a stable checkpoint")

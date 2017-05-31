@@ -93,7 +93,7 @@ func (c *core) acceptCommit(msg *message, src pbft.Validator) error {
 
 	// Add the commit message to current snapshot
 	if err := c.current.Commits.Add(msg); err != nil {
-		logger.Error("Failed to record commit message", "msg", msg, "error", err)
+		logger.Error("Failed to record commit message", "msg", msg, "err", err)
 		return err
 	}
 
