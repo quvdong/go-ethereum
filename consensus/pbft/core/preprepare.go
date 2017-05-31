@@ -46,7 +46,7 @@ func (c *core) sendPreprepare(request *pbft.Request) {
 }
 
 func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handlePreprepare")
 
 	if c.waitingForRoundChange {

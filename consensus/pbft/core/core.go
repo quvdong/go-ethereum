@@ -177,9 +177,9 @@ func (c *core) commit() {
 func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	var logger log.Logger
 	if c.current == nil {
-		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.backend.Validators().GetProposer())
 	} else {
-		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer())
 	}
 
 	// Clear invalid RoundChange messages
@@ -195,16 +195,16 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	}
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.backend.Validators().GetProposer())
 }
 
 func (c *core) catchUpRound(view *pbft.View) {
-	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer())
 	c.waitingForRoundChange = true
 	c.current = newSnapshot(view, c.backend.Validators())
 	c.newRoundChangeTimer()
 
-	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.backend.Validators().GetProposer())
 }
 
 func (c *core) proposerSeed() uint64 {

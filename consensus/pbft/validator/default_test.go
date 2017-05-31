@@ -62,7 +62,7 @@ func testNewValidatorSet(t *testing.T) {
 	for i := 0; i < ValCnt-1; i++ {
 		val := valSet.GetByIndex(uint64(i))
 		nextVal := valSet.GetByIndex(uint64(i + 1))
-		if strings.Compare(val.Address().Hex(), nextVal.Address().Hex()) >= 0 {
+		if strings.Compare(val.String(), nextVal.String()) >= 0 {
 			t.Errorf("Validator set is not sorted in sorted in ascending order")
 		}
 	}

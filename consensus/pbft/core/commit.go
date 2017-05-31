@@ -39,7 +39,7 @@ func (c *core) sendCommit() {
 }
 
 func (c *core) handleCommit(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handleCommit")
 
 	if c.waitingForRoundChange {
@@ -77,7 +77,7 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 
 // verifyCommit verifies if the received commit message is equivalent to our subject
 func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(commit, sub) {
@@ -89,7 +89,7 @@ func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
 }
 
 func (c *core) acceptCommit(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
 	// Add the commit message to current snapshot
 	if err := c.current.Commits.Add(msg); err != nil {

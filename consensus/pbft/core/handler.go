@@ -118,7 +118,7 @@ func (c *core) handleMsg(payload []byte) error {
 }
 
 func (c *core) handleCheckedMsg(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("address", c.address.Hex(), "from", src.Address().Hex())
+	logger := c.logger.New("address", c.address.Hex(), "from", src)
 
 	// Store message if its a future message
 	testBacklog := func(err error) error {

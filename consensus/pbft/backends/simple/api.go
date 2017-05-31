@@ -29,8 +29,8 @@ func (api *API) Snapshot() {
 func (api *API) Backlog() {
 	backlog := api.backend.core.Backlog()
 	logs := make([]string, 0, len(backlog))
-	for address, q := range backlog {
-		logs = append(logs, fmt.Sprintf("{%v, %v}", address.Address().Hex(), q.Size()))
+	for validator, q := range backlog {
+		logs = append(logs, fmt.Sprintf("{%v, %v}", validator, q.Size()))
 	}
 	log.Info("Backlog", "logs", fmt.Sprintf("[%v]", strings.Join(logs, ", ")))
 }
