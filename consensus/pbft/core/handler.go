@@ -111,7 +111,7 @@ func (c *core) handleMsg(payload []byte) error {
 	_, src := c.backend.Validators().GetByAddress(msg.Address)
 	if src == nil {
 		logger.Error("Invalid address in message", "msg", msg)
-		return pbft.ErrNoMatchingValidator
+		return pbft.ErrUnauthorizedAddress
 	}
 
 	return c.handleCheckedMsg(msg, src)

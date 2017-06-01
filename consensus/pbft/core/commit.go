@@ -43,8 +43,8 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 	logger.Trace("handleCommit")
 
 	if c.waitingForRoundChange {
-		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		logger.Warn("Waiting for a round change, ignore", "msg", msg)
+		return errIgnored
 	}
 
 	// Decode commit message
@@ -82,7 +82,7 @@ func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(commit, sub) {
 		logger.Warn("Inconsistent subjects between commit and proposal", "expected", sub, "got", commit)
-		return pbft.ErrSubjectNotMatched
+		return errInconsistentSubject
 	}
 
 	return nil

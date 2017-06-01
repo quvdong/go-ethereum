@@ -59,7 +59,7 @@ func TestCheckSignature(t *testing.T) {
 	}
 	a = getInvalidAddress()
 	err = b.CheckSignature(data, a, sig)
-	if err != pbft.ErrInvalidSignature {
+	if err != errInvalidSignature {
 		t.Error("Should fail with ErrInvalidSignature")
 	}
 }
@@ -98,10 +98,10 @@ func TestCheckValidatorSignature(t *testing.T) {
 		t.Errorf("Unable to sign data")
 	}
 
-	// CheckValidatorSignature should return ErrNoMatchingValidator
+	// CheckValidatorSignature should return ErrUnauthorizedAddress
 	addr, err := b.CheckValidatorSignature(data, sig)
-	if err != pbft.ErrNoMatchingValidator {
-		t.Errorf("Expected error pbft.ErrNoMatchingValidator, but got: %v", err)
+	if err != pbft.ErrUnauthorizedAddress {
+		t.Errorf("Expected error pbft.ErrUnauthorizedAddress, but got: %v", err)
 	}
 	emptyAddr := common.Address{}
 	if addr != emptyAddr {
