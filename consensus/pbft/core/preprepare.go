@@ -51,7 +51,7 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 
 	if c.waitingForRoundChange {
 		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		return errIgnored
 	}
 
 	// Decode preprepare
@@ -68,7 +68,7 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 	// Check if the message comes from current proposer
 	if !c.backend.Validators().IsProposer(src.Address()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
-		return pbft.ErrNotFromProposer
+		return errNotFromProposer
 	}
 
 	// Verify the proposal we received

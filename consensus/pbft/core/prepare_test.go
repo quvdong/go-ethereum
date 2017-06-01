@@ -152,7 +152,7 @@ func TestHandlePrepare(t *testing.T) {
 				}
 				return sys
 			}(),
-			pbft.ErrSubjectNotMatched,
+			errInconsistentSubject,
 		},
 		{
 			// less than 2F+1
@@ -276,7 +276,7 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// old message
-			expected: pbft.ErrSubjectNotMatched,
+			expected: errInconsistentSubject,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: newTestProposal().Hash(),
@@ -288,7 +288,7 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// different digest
-			expected: pbft.ErrSubjectNotMatched,
+			expected: errInconsistentSubject,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(0)},
 				Digest: common.StringToHash("1234567890"),
@@ -300,7 +300,7 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// malicious package(lack of sequence)
-			expected: pbft.ErrSubjectNotMatched,
+			expected: errInconsistentSubject,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: nil},
 				Digest: newTestProposal().Hash(),
@@ -312,7 +312,7 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// wrong prepare message with same sequence but different round
-			expected: pbft.ErrSubjectNotMatched,
+			expected: errInconsistentSubject,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
 				Digest: newTestProposal().Hash(),
@@ -324,7 +324,7 @@ func TestVerifyPrepare(t *testing.T) {
 		},
 		{
 			// wrong prepare message with same round but different sequence
-			expected: pbft.ErrSubjectNotMatched,
+			expected: errInconsistentSubject,
 			prepare: &pbft.Subject{
 				View:   &pbft.View{Round: big.NewInt(0), Sequence: big.NewInt(1)},
 				Digest: newTestProposal().Hash(),

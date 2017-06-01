@@ -19,13 +19,30 @@ package core
 import "errors"
 
 var (
-	errFutureMessage          = errors.New("future message")
-	errOldMessage             = errors.New("old message")
-	errInvalidMessage         = errors.New("invalid message")
-	errFailedDecodePreprepare = errors.New("failed to decode Preprepare")
-	errFailedDecodePrepare    = errors.New("failed to decode Prepare")
-	errFailedDecodeCommit     = errors.New("failed to decode Commit")
-	errFailedDecodeCheckpoint = errors.New("failed to decode Checkpoint")
-	errFailedDecodeViewChange = errors.New("failed to decode RoundChange")
+	// errInconsistentSubject is returned when received subject is different from
+	// current subject.
+	errInconsistentSubject = errors.New("inconsistent subjects")
+	// errNotFromProposer is returned when received message is supposed to be from
+	// proposer.
+	errNotFromProposer = errors.New("message does not come from proposer")
+	// errIgnored is returned when a message was ignored.
+	errIgnored = errors.New("message is ignored")
+	// errFutureMessage is returned when current view is earlier than the
+	// view of the received message.
+	errFutureMessage = errors.New("future message")
+	// errOldMessage is returned when the received message's view is earlier
+	// than current view.
+	errOldMessage = errors.New("old message")
+	// errInvalidMessage is returned when the message is malformed.
+	errInvalidMessage = errors.New("invalid message")
+	// errFailedDecodePreprepare is returned when the preprepare message is malformed.
+	errFailedDecodePreprepare = errors.New("failed to decode preprepare")
+	// errFailedDecodePrepare is returned when the prepare message is malformed.
+	errFailedDecodePrepare = errors.New("failed to decode prepare")
+	// errFailedDecodeCommit is returned when the commit message is malformed.
+	errFailedDecodeCommit = errors.New("failed to decode commit")
+	// errFailedDecodeCheckpoint is returned when the checkpoint message is malformed.
+	errFailedDecodeCheckpoint = errors.New("failed to decode checkpoint")
+	// errFailedDecodeMessageSet is returned when the message set is malformed.
 	errFailedDecodeMessageSet = errors.New("failed to decode message set")
 )
