@@ -173,7 +173,7 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 				case manager.newPeerCh <- peer:
 					manager.wg.Add(1)
 					defer manager.wg.Done()
-					return manager.handle(peer)
+					return manager.handle(peer, manager.handleMsg)
 				case <-manager.quitSync:
 					return p2p.DiscQuitting
 				}
@@ -195,7 +195,7 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 	// Construct the different synchronisation mechanisms
 	manager.downloader = downloader.New(mode, chaindb, manager.eventMux, blockchain.HasHeader, blockchain.HasBlockAndState, blockchain.GetHeaderByHash,
 		blockchain.GetBlockByHash, blockchain.CurrentHeader, blockchain.CurrentBlock, blockchain.CurrentFastBlock, blockchain.FastSyncCommitHead,
-		blockchain.GetTdByHash, blockchain.InsertHeaderChain, manager.blockchain.InsertChain, blockchain.InsertReceiptChain, blockchain.Rollback,
+		blockchain.GetTdByHash, blockchain.InsertHeaderChain, blockchain.InsertChain, blockchain.InsertReceiptChain, blockchain.Rollback,
 		manager.removePeer)
 
 	validator := func(header *types.Header) error {
@@ -211,7 +211,7 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 			return 0, nil
 		}
 		atomic.StoreUint32(&manager.acceptTxs, 1) // Mark initial sync done on any fetcher import
-		return manager.blockchain.InsertChain(blocks)
+		return blockchain.InsertChain(blocks)
 	}
 	manager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
 
@@ -281,7 +281,7 @@ func (pm *protocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *p
 
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
-func (pm *protocolManager) handle(p *peer) error {
+func (pm *protocolManager) handle(p *peer, handleMsg func(*peer, p2p.Msg) error) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
@@ -332,16 +332,16 @@ func (pm *protocolManager) handle(p *peer) error {
 	}
 	// main loop. handle incoming messages.
 	for {
-		if err := pm.handleMsg(p); err != nil {
+		if err := pm.handlePeerMsg(p, handleMsg); err != nil {
 			p.Log().Debug("Ethereum message handling failed", "err", err)
 			return err
 		}
 	}
 }
 
-// handleMsg is invoked whenever an inbound message is received from a remote
-// peer. The remote connection is torn down upon returning any error.
-func (pm *protocolManager) handleMsg(p *peer) error {
+// handlePeerMsg is invoked whenever an inbound message is received from a
+// remote peer. The remote connection is torn down upon returning any error.
+func (pm *protocolManager) handlePeerMsg(p *peer, handleMsg func(*peer, p2p.Msg) error) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
@@ -351,7 +351,10 @@ func (pm *protocolManager) handleMsg(p *peer) error {
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
 	}
 	defer msg.Discard()
+	return handleMsg(p, msg)
+}
 
+func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == StatusMsg:
