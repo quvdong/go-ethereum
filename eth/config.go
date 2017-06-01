@@ -25,7 +25,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
-	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -51,7 +51,7 @@ var DefaultConfig = Config{
 		Percentile: 50,
 	},
 
-	PBFT: pbft.DefaultConfig,
+	Istanbul: istanbul.DefaultConfig,
 }
 
 func init() {
@@ -112,8 +112,8 @@ type Config struct {
 	// Enables tracking of SHA3 preimages in the VM
 	EnablePreimageRecording bool
 
-	// PBFT options
-	PBFT *pbft.Config
+	// Istanbul options
+	Istanbul *istanbul.Config
 
 	// Miscellaneous options
 	DocRoot   string `toml:"-"`

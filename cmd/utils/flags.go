@@ -32,7 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/keystore"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	"github.com/ethereum/go-ethereum/consensus/pbft"
+	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -465,31 +465,31 @@ var (
 		Value: eth.DefaultConfig.GPO.Percentile,
 	}
 
-	// PBFT settings
-	PBFTRequestTimeoutFlag = cli.Uint64Flag{
-		Name:  "pbft_request_timeout",
-		Usage: "The timeout for each PBFT round in millisecond",
-		Value: eth.DefaultConfig.PBFT.RequestTimeoutMsec,
+	// Istanbul settings
+	IstanbulRequestTimeoutFlag = cli.Uint64Flag{
+		Name:  "istanbul_request_timeout",
+		Usage: "The timeout for each Istanbul round in millisecond",
+		Value: eth.DefaultConfig.Istanbul.RequestTimeoutMsec,
 	}
-	PBFTBlockPeriodFlag = cli.Uint64Flag{
-		Name:  "pbft_block_period",
+	IstanbulBlockPeriodFlag = cli.Uint64Flag{
+		Name:  "istanbul_block_period",
 		Usage: "Default minimum difference between two consecutive block's timestamps in second",
-		Value: eth.DefaultConfig.PBFT.BlockPeriod,
+		Value: eth.DefaultConfig.Istanbul.BlockPeriod,
 	}
-	PBFTBlockPauseTimeFlag = cli.Uint64Flag{
-		Name:  "pbft_block_pause_time",
-		Usage: "Pause time when zero tx in previous block, values should be larger than pbft_block_period",
-		Value: eth.DefaultConfig.PBFT.BlockPauseTime,
+	IstanbulBlockPauseTimeFlag = cli.Uint64Flag{
+		Name:  "istanbul_block_pause_time",
+		Usage: "Pause time when zero tx in previous block, values should be larger than istanbul_block_period",
+		Value: eth.DefaultConfig.Istanbul.BlockPauseTime,
 	}
-	PBFTProposerPolicyFlag = cli.IntFlag{
-		Name:  "pbft_proposer_policy",
+	IstanbulProposerPolicyFlag = cli.IntFlag{
+		Name:  "istanbul_proposer_policy",
 		Usage: "The policy for proposer, the detail is not determined",
-		Value: int(eth.DefaultConfig.PBFT.ProposerPolicy),
+		Value: int(eth.DefaultConfig.Istanbul.ProposerPolicy),
 	}
-	PBFTCheckPointPeriodFlag = cli.IntFlag{
-		Name:  "pbft_cp_period",
+	IstanbulCheckPointPeriodFlag = cli.IntFlag{
+		Name:  "istanbul_cp_period",
 		Usage: "Synchronizes the mapping's checkpoint to the blocks on each round",
-		Value: eth.DefaultConfig.PBFT.CheckPointPeriod,
+		Value: eth.DefaultConfig.Istanbul.CheckPointPeriod,
 	}
 )
 
@@ -894,21 +894,21 @@ func setEthash(ctx *cli.Context, cfg *eth.Config) {
 	}
 }
 
-func setPBFT(ctx *cli.Context, cfg *eth.Config) {
-	if ctx.GlobalIsSet(PBFTRequestTimeoutFlag.Name) {
-		cfg.PBFT.RequestTimeoutMsec = ctx.GlobalUint64(PBFTRequestTimeoutFlag.Name)
+func setIstanbul(ctx *cli.Context, cfg *eth.Config) {
+	if ctx.GlobalIsSet(IstanbulRequestTimeoutFlag.Name) {
+		cfg.Istanbul.RequestTimeoutMsec = ctx.GlobalUint64(IstanbulRequestTimeoutFlag.Name)
 	}
-	if ctx.GlobalIsSet(PBFTBlockPeriodFlag.Name) {
-		cfg.PBFT.BlockPeriod = ctx.GlobalUint64(PBFTBlockPeriodFlag.Name)
+	if ctx.GlobalIsSet(IstanbulBlockPeriodFlag.Name) {
+		cfg.Istanbul.BlockPeriod = ctx.GlobalUint64(IstanbulBlockPeriodFlag.Name)
 	}
-	if ctx.GlobalIsSet(PBFTBlockPauseTimeFlag.Name) {
-		cfg.PBFT.BlockPauseTime = ctx.GlobalUint64(PBFTBlockPauseTimeFlag.Name)
+	if ctx.GlobalIsSet(IstanbulBlockPauseTimeFlag.Name) {
+		cfg.Istanbul.BlockPauseTime = ctx.GlobalUint64(IstanbulBlockPauseTimeFlag.Name)
 	}
-	if ctx.GlobalIsSet(PBFTProposerPolicyFlag.Name) {
-		cfg.PBFT.ProposerPolicy = pbft.ProposerPolicy(ctx.GlobalInt(PBFTProposerPolicyFlag.Name))
+	if ctx.GlobalIsSet(IstanbulProposerPolicyFlag.Name) {
+		cfg.Istanbul.ProposerPolicy = istanbul.ProposerPolicy(ctx.GlobalInt(IstanbulProposerPolicyFlag.Name))
 	}
-	if ctx.GlobalIsSet(PBFTCheckPointPeriodFlag.Name) {
-		cfg.PBFT.CheckPointPeriod = ctx.GlobalInt(PBFTCheckPointPeriodFlag.Name)
+	if ctx.GlobalIsSet(IstanbulCheckPointPeriodFlag.Name) {
+		cfg.Istanbul.CheckPointPeriod = ctx.GlobalInt(IstanbulCheckPointPeriodFlag.Name)
 	}
 }
 
@@ -935,7 +935,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *eth.Config) {
 	setGPO(ctx, &cfg.GPO)
 	setTxPool(ctx, &cfg.TxPool)
 	setEthash(ctx, cfg)
-	setPBFT(ctx, cfg)
+	setIstanbul(ctx, cfg)
 	switch {
 	case ctx.GlobalIsSet(SyncModeFlag.Name):
 		cfg.SyncMode = *GlobalTextMarshaler(ctx, SyncModeFlag.Name).(*downloader.SyncMode)
