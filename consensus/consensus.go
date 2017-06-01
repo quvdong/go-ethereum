@@ -106,14 +106,8 @@ type PoW interface {
 type Istanbul interface {
 	Engine
 
-	// Add a peer
-	AddPeer(peerID string, publicKey *ecdsa.PublicKey) error
-
-	// Remove a peer
-	RemovePeer(peerID string) error
-
 	// Handle a message from peer
-	HandleMsg(peerID string, data []byte) error
+	HandleMsg(pubKey *ecdsa.PublicKey, data []byte) error
 
 	// Receive new chain head block
 	NewChainHead(block *types.Block)

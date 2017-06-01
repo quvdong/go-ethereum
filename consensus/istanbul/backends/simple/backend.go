@@ -36,7 +36,6 @@ import (
 func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
 	backend := &simpleBackend{
 		config:           config,
-		peerSet:          newPeerSet(),
 		eventMux:         eventMux,
 		istanbulEventMux: new(event.TypeMux),
 		privateKey:       privateKey,
@@ -52,7 +51,6 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 
 type simpleBackend struct {
 	config           *istanbul.Config
-	peerSet          *peerSet
 	valSet           istanbul.ValidatorSet
 	eventMux         *event.TypeMux
 	istanbulEventMux *event.TypeMux
@@ -83,13 +81,8 @@ func (sb *simpleBackend) Validators() istanbul.ValidatorSet {
 }
 
 func (sb *simpleBackend) Send(payload []byte, target common.Address) error {
-	peer := sb.peerSet.GetByAddress(target)
-	if peer == nil {
-		return errInvalidPeer
-	}
-
 	go sb.eventMux.Post(istanbul.ConsensusDataEvent{
-		PeerID: peer.ID(),
+		Target: target,
 		Data:   payload,
 	})
 	return nil
@@ -97,19 +90,18 @@ func (sb *simpleBackend) Send(payload []byte, target common.Address) error {
 
 // Broadcast implements istanbul.Backend.Send
 func (sb *simpleBackend) Broadcast(payload []byte) error {
-	istanbulMsg := istanbul.MessageEvent{
-		Payload: payload,
-	}
+	for _, val := range sb.valSet.List() {
+		if val.Address() == sb.Address() {
+			// send to self
+			pbftMsg := istanbul.MessageEvent{
+				Payload: payload,
+			}
+			go sb.istanbulEventMux.Post(pbftMsg)
 
-	// send to self
-	go sb.istanbulEventMux.Post(istanbulMsg)
-
-	// send to other peers
-	for _, peer := range sb.peerSet.List() {
-		go sb.eventMux.Post(istanbul.ConsensusDataEvent{
-			PeerID: peer.ID(),
-			Data:   payload,
-		})
+		} else {
+			// send to other peers
+			sb.Send(payload, val.Address())
+		}
 	}
 	return nil
 }

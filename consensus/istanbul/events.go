@@ -21,8 +21,8 @@ import (
 )
 
 type ConsensusDataEvent struct {
-	// peer id for send p2p message
-	PeerID string
+	// target to send message
+	Target common.Address
 	// consensus message data
 	Data []byte
 }
