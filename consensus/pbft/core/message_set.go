@@ -177,7 +177,7 @@ func (ms *messageSet) String() string {
 	defer ms.messagesMu.Unlock()
 	addresses := make([]string, 0, len(ms.messages))
 	for _, v := range ms.messages {
-		addresses = append(addresses, v.Address.Hex())
+		addresses = append(addresses, v.Address.String())
 	}
 	return fmt.Sprintf("[%v]", strings.Join(addresses, ", "))
 }

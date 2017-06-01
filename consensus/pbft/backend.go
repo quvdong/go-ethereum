@@ -55,7 +55,7 @@ type Backend interface {
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
 	// CheckValidatorSignature verifies if the data is signed by one of the validators
-	// If the verification success, the signer's address is returned, otherwise
+	// If the verification succeeds, the signer's address is returned, otherwise
 	// an empty address and an error are returned.
 	CheckValidatorSignature(data []byte, sig []byte) (common.Address, error)
 

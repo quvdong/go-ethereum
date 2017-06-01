@@ -26,15 +26,6 @@ import (
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
-// TODO: under cooking
-type State struct {
-	View     *View
-	Proposal Proposal
-
-	PrepareMsgs map[uint64]*Subject
-	CommitMsgs  map[uint64]*Subject
-}
-
 // Proposal supports retrieving height and serialized block to be used during PBFT consensus.
 type Proposal interface {
 	// Number retrieves the sequence number of this proposal.
@@ -54,6 +45,12 @@ type Request struct {
 	Proposal Proposal
 }
 
+// View includes a round number and a sequence number.
+// Sequence is the block number we'd like to commit.
+// Each round has a number and is composed by 3 steps: preprepare, prepare and commit.
+//
+// If the given block is not accepted by validators, a round change will occur
+// and the validators start a new round with round+1.
 type View struct {
 	Round    *big.Int
 	Sequence *big.Int
@@ -76,6 +73,10 @@ func (v *View) DecodeRLP(s *rlp.Stream) error {
 	}
 	v.Round, v.Sequence = view.Round, view.Sequence
 	return nil
+}
+
+func (v *View) String() string {
+	return fmt.Sprintf("{Round: %d, Sequence: %d}", v.Round.Uint64(), v.Sequence.Uint64())
 }
 
 // Cmp compares v and y and returns:
@@ -142,5 +143,5 @@ func (b *Subject) DecodeRLP(s *rlp.Stream) error {
 }
 
 func (b *Subject) String() string {
-	return fmt.Sprintf("{View: %v, Digest: %v}", b.View, b.Digest.Hex())
+	return fmt.Sprintf("{View: %v, Digest: %v}", b.View, b.Digest.String())
 }
