@@ -103,11 +103,11 @@ var (
 		utils.GpoPercentileFlag,
 		utils.ExtraDataFlag,
 		configFileFlag,
-		utils.PBFTRequestTimeoutFlag,
-		utils.PBFTBlockPeriodFlag,
-		utils.PBFTBlockPauseTimeFlag,
-		utils.PBFTProposerPolicyFlag,
-		utils.PBFTCheckPointPeriodFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulBlockPauseTimeFlag,
+		utils.IstanbulProposerPolicyFlag,
+		utils.IstanbulCheckPointPeriodFlag,
 	}
 
 	rpcFlags = []cli.Flag{
