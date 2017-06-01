@@ -36,12 +36,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-const (
-	extraVanity        = 32 // Fixed number of extra-data prefix bytes reserved for signer vanity
-	extraValidatorSize = 1  // Fixed number of extra-data infix bytes reserved for validator size
-	extraSeal          = 65 // Fixed number of extra-data suffix bytes reserved for signer seal
-)
-
 var (
 	// errInvalidProposal is returned when a prposal is malformed.
 	errInvalidProposal = errors.New("invalid proposal")
@@ -436,7 +430,7 @@ func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) error {
 func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 	length := len(header.Extra)
 	// ensure the bytes is enough
-	if length < extraVanity+extraValidatorSize+extraSeal {
+	if length < types.ExtraVanity+types.ExtraValidatorSize+types.ExtraSeal {
 		return false
 	}
 
@@ -445,7 +439,7 @@ func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 	if vl == 0 {
 		return false
 	}
-	if length != extraVanity+extraValidatorSize+vl+extraSeal {
+	if length != types.ExtraVanity+types.ExtraValidatorSize+vl+types.ExtraSeal {
 		return false
 	}
 
@@ -453,7 +447,7 @@ func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 }
 
 func (sb *simpleBackend) getValidatorBytes(header *types.Header) []byte {
-	return header.Extra[extraVanity+extraValidatorSize : extraVanity+extraValidatorSize+sb.validatorLength(header)]
+	return header.Extra[types.ExtraVanity+types.ExtraValidatorSize : types.ExtraVanity+types.ExtraValidatorSize+sb.validatorLength(header)]
 }
 
 // prepareExtra creates a copy that includes vanity, validators, and a clean seal for the given header
@@ -461,26 +455,26 @@ func (sb *simpleBackend) getValidatorBytes(header *types.Header) []byte {
 // note that the header.Extra consisted of vanity, validator size, validators, seal, and committed signatures
 func (sb *simpleBackend) prepareExtra(header, parent *types.Header) []byte {
 	buf := make([]byte, 0)
-	if len(header.Extra) < extraVanity {
-		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, extraVanity-len(header.Extra))...)
+	if len(header.Extra) < types.ExtraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.ExtraVanity-len(header.Extra))...)
 	}
-	buf = header.Extra[:extraVanity]
+	buf = header.Extra[:types.ExtraVanity]
 
-	buf = append(buf, parent.Extra[extraVanity:extraVanity+extraValidatorSize+sb.validatorLength(parent)]...)
-	buf = append(buf, make([]byte, extraSeal)...)
+	buf = append(buf, parent.Extra[types.ExtraVanity:types.ExtraVanity+types.ExtraValidatorSize+sb.validatorLength(parent)]...)
+	buf = append(buf, make([]byte, types.ExtraSeal)...)
 	return buf
 }
 
 // signaturePosition returns start and end position for the given header
 func (sb *simpleBackend) signaturePosition(header *types.Header) (int, int) {
-	start := extraVanity + extraValidatorSize + sb.validatorLength(header)
-	end := start + extraSeal
+	start := types.ExtraVanity + types.ExtraValidatorSize + sb.validatorLength(header)
+	end := start + types.ExtraSeal
 	return int(start), int(end)
 }
 
 // validatorLength returns the validator length for the given header
 func (sb *simpleBackend) validatorLength(header *types.Header) int {
-	validatorSize := int(header.Extra[extraVanity : extraVanity+extraValidatorSize][0])
+	validatorSize := int(header.Extra[types.ExtraVanity : types.ExtraVanity+types.ExtraValidatorSize][0])
 	validatorLength := validatorSize * common.AddressLength
 	return int(validatorLength)
 }
@@ -509,7 +503,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-extraSeal], // Yes, this will panic if extra is too short
+		header.Extra[:len(header.Extra)-types.ExtraSeal], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
 	})
@@ -520,7 +514,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 // ecrecover extracts the Ethereum account address from a signed header.
 func (sb *simpleBackend) ecrecover(header *types.Header) (common.Address, error) {
 	// Retrieve the signature from the header extra-data
-	if len(header.Extra) < extraSeal {
+	if len(header.Extra) < types.ExtraSeal {
 		return common.Address{}, consensus.ErrMissingSignature
 	}
 	start, end := sb.signaturePosition(header)
