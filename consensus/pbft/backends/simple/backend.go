@@ -120,8 +120,8 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("Failed to commit proposal since RequestContext cannot cast to *types.Block")
-		return errCastingRequest
+		sb.logger.Error("Invalid proposal")
+		return errInvalidProposal
 	}
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
@@ -158,7 +158,7 @@ func (sb *simpleBackend) Verify(proposal pbft.Proposal) error {
 	block, ok := proposal.(*types.Block)
 	if !ok {
 		sb.logger.Error("Invalid proposal, %v", proposal)
-		return errCastingRequest
+		return errInvalidProposal
 	}
 	// verify the header of proposed block
 	return sb.VerifyHeader(sb.chain, block.Header(), false)
@@ -174,12 +174,12 @@ func (sb *simpleBackend) Sign(data []byte) ([]byte, error) {
 func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig []byte) error {
 	signer, err := sb.getSignatureAddress(data, sig)
 	if err != nil {
-		log.Error("CheckSignature", "err", err)
+		log.Error("Failed to get signer address", "err", err)
 		return err
 	}
 	//Compare derived addresses
 	if signer != address {
-		return pbft.ErrInvalidSignature
+		return errInvalidSignature
 	}
 	return nil
 }
@@ -189,7 +189,7 @@ func (sb *simpleBackend) CheckValidatorSignature(data []byte, sig []byte) (commo
 	// 1. Get signature address
 	signer, err := sb.getSignatureAddress(data, sig)
 	if err != nil {
-		log.Error("CheckValidatorSignature", "err", err)
+		log.Error("Failed to get signer address", "err", err)
 		return common.Address{}, err
 	}
 
@@ -198,7 +198,7 @@ func (sb *simpleBackend) CheckValidatorSignature(data []byte, sig []byte) (commo
 		return val.Address(), nil
 	}
 
-	return common.Address{}, pbft.ErrNoMatchingValidator
+	return common.Address{}, pbft.ErrUnauthorizedAddress
 }
 
 // get the signer address from the signature

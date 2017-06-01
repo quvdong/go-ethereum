@@ -164,10 +164,10 @@ func testSubjectWithSignature(t *testing.T) {
 	// 2.3 Test failed validate func
 	decodedMsg = new(message)
 	err = decodedMsg.FromPayload(msgPayload, func(data []byte, sig []byte) (common.Address, error) {
-		return common.Address{}, pbft.ErrNoMatchingValidator
+		return common.Address{}, pbft.ErrUnauthorizedAddress
 	})
-	if err != pbft.ErrNoMatchingValidator {
-		t.Errorf("Expect ErrNoMatchingValidator error, but got: %v", err)
+	if err != pbft.ErrUnauthorizedAddress {
+		t.Errorf("Expect ErrUnauthorizedAddress error, but got: %v", err)
 	}
 }
 

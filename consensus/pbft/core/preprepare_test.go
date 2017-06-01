@@ -105,7 +105,7 @@ func TestHandlePreprepare(t *testing.T) {
 				return sys
 			}(),
 			makeBlock(1),
-			pbft.ErrNotFromProposer,
+			errNotFromProposer,
 		},
 		{
 			// ErrInvalidMessage
@@ -125,25 +125,6 @@ func TestHandlePreprepare(t *testing.T) {
 			}(),
 			makeBlock(1),
 			errOldMessage,
-		},
-		{
-			// proposal is not included
-			// notice: force set the Preprepare.Proposal value to nil when test is started
-			func() *testSystem {
-				sys := NewTestSystemWithBackend(N, F)
-
-				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
-
-					if i == 0 {
-						// replica 0 is primary
-						c.state = StatePreprepared
-					}
-				}
-				return sys
-			}(),
-			makeBlock(1),
-			pbft.ErrNilProposal,
 		},
 	}
 
@@ -168,12 +149,6 @@ OUTER:
 			}
 
 			c := v.engine.(*core)
-
-			// for case: proposal is not included, hack the variable to nil
-			// FIXME: nil variable is not supported by rlp Encode/Decode
-			//if test.expectedErr == pbft.ErrNilProposal {
-			//	preprepare.Proposal = nil
-			//}
 
 			m, _ := Encode(preprepare)
 			_, val := v0.Validators().GetByAddress(v0.Address())

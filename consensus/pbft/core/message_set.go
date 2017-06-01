@@ -159,7 +159,7 @@ func (ms *messageSet) EncodeRLP(w io.Writer) error {
 func (ms *messageSet) verify(msg *message) error {
 	// verify if the message comes from one of the validators
 	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
-		return pbft.ErrNoMatchingValidator
+		return pbft.ErrUnauthorizedAddress
 	}
 
 	// TODO: check view number and sequence number

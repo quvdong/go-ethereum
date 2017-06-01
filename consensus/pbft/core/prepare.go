@@ -43,8 +43,8 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 	logger.Trace("handlePrepare")
 
 	if c.waitingForRoundChange {
-		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		logger.Warn("Waiting for a round change, ignore", "msg", msg)
+		return errIgnored
 	}
 
 	// Decode prepare message
@@ -81,7 +81,7 @@ func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(prepare, sub) {
 		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", sub, "got", prepare)
-		return pbft.ErrSubjectNotMatched
+		return errInconsistentSubject
 	}
 
 	return nil

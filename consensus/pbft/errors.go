@@ -19,15 +19,7 @@ package pbft
 import "errors"
 
 var (
-	ErrFromSelf          = errors.New("message comes from myself")
-	ErrNotFromProposer   = errors.New("message does not come from proposer")
-	ErrNilProposal       = errors.New("nil proposal")
-	ErrIgnored           = errors.New("message is ignored")
-	ErrSubjectNotMatched = errors.New("subjects are not matched")
-	ErrInvalidSignature  = errors.New("Invalid signature")
-	ErrInvalidPeerID     = errors.New("Invalid peer ID")
-
-	// ErrNoMatchingValidator is returned when validating a peer message by verifying its signature
-	// and the associated public is not found in the validator set.
-	ErrNoMatchingValidator = errors.New("Cannot find matching validator of the given signature")
+	// ErrUnauthorizedAddress is returned when given address cannot be found in
+	// current validator set.
+	ErrUnauthorizedAddress = errors.New("unauthorized address")
 )

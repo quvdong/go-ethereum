@@ -51,7 +51,7 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 
 	if c.current == nil {
 		logger.Warn("Ignore checkpoint messsages if we don't have current snapshot")
-		return pbft.ErrIgnored
+		return errIgnored
 	}
 
 	logger.Trace("handleCheckpoint")
@@ -64,7 +64,7 @@ func (c *core) handleCheckpoint(msg *message, src pbft.Validator) error {
 	if cp.View.Sequence.Cmp(c.current.Sequence()) == 0 { // current
 		// If we're waiting for RoundChange, ignore this
 		if c.waitingForRoundChange {
-			return pbft.ErrIgnored
+			return errIgnored
 		}
 		snapshot = c.current
 	} else if cp.View.Sequence.Cmp(c.current.Sequence()) < 0 { // old checkpoint
