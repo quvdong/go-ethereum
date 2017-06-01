@@ -23,42 +23,44 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
-func (c *core) handleFinalCommitted(ev pbft.FinalCommittedEvent, p pbft.Validator) error {
-	logger := c.logger.New("state", c.state, "number", ev.Proposal.Number(), "hash", ev.Proposal.Hash())
+func (c *core) handleFinalCommitted(proposal pbft.Proposal, proposer common.Address) error {
+	logger := c.logger.New("state", c.state, "number", proposal.Number(), "hash", proposal.Hash())
 
-	// this block is from consensus
+	// this proposal comes from consensus
 	sub := c.current.Subject()
 	if sub != nil &&
-		ev.Proposal.Hash() == sub.Digest &&
+		proposal.Hash() == sub.Digest &&
 		c.state == StateCommitted {
-		logger.Trace("New block from consensus")
+		logger.Trace("New proposal from consensus")
 
-		// send out the checkpoint
+		// broadcast the checkpoint
 		c.sendCheckpoint(&pbft.Subject{
 			View: &pbft.View{
-				Sequence: new(big.Int).Set(ev.Proposal.Number()),
+				Sequence: new(big.Int).Set(proposal.Number()),
 				Round:    new(big.Int).Set(c.current.Round()),
 			},
-			Digest: ev.Proposal.Hash(),
+			Digest: proposal.Hash(),
 		})
 
 		// store snapshot
 		c.snapshotsMu.Lock()
 		c.snapshots = append(c.snapshots, c.current)
 		c.snapshotsMu.Unlock()
-	} else { // this block is from geth sync
-		logger.Trace("New block from synchronization")
+	} else { // this proposal comes from synchronization
+		logger.Trace("New proposal from synchronization")
 	}
 
-	if ev.Proposal.Number().Cmp(c.current.Sequence()) >= 0 {
+	// We're late, catch up the sequence number
+	if proposal.Number().Cmp(c.current.Sequence()) >= 0 {
 		// We build a stable checkpoint every 'CheckPointPeriod' proposal
 		if new(big.Int).Mod(c.current.Sequence(), big.NewInt(int64(c.config.CheckPointPeriod))).Int64() == 0 {
 			go c.sendEvent(buildCheckpointEvent{})
 		}
 
-		c.lastProposer = ev.Proposer
+		// Remember to store the proposer since we've accpeted the proposal
+		c.lastProposer = proposer
 		c.startNewRound(&pbft.View{
-			Sequence: new(big.Int).Add(ev.Proposal.Number(), common.Big1),
+			Sequence: new(big.Int).Add(proposal.Number(), common.Big1),
 			Round:    new(big.Int).Set(common.Big0),
 		}, false)
 	}

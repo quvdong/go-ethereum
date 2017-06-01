@@ -31,7 +31,7 @@ var (
 	}
 )
 
-// check the message state
+// checkMessage checks the message state
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view

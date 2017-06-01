@@ -50,7 +50,7 @@ func (val *defaultValidator) Address() common.Address {
 }
 
 func (val *defaultValidator) String() string {
-	return val.Address().Hex()
+	return val.Address().String()
 }
 
 // ----------------------------------------------------------------------------
