@@ -32,6 +32,7 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
+// New creates an Ethereum backend for PBFT core engine.
 func New(config *pbft.Config, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.PBFT {
 	backend := &simpleBackend{
 		config:       config,
@@ -48,6 +49,7 @@ func New(config *pbft.Config, eventMux *event.TypeMux, privateKey *ecdsa.Private
 }
 
 // ----------------------------------------------------------------------------
+
 type simpleBackend struct {
 	config       *pbft.Config
 	peerSet      *peerSet
@@ -114,15 +116,15 @@ func (sb *simpleBackend) Broadcast(payload []byte) error {
 
 // Commit implements pbft.Backend.Commit
 func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
-	sb.logger.Info("Committed", "address", sb.Address().Hex(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
-	// step1: update validator set from extra data of block
-	// step2: insert chain
+	// Check if the proposal is a valid block
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
-		sb.logger.Error("Invalid proposal")
+		sb.logger.Error("Invalid proposal, %v", proposal)
 		return errInvalidProposal
 	}
+
+	sb.logger.Info("Committed", "address", sb.Address(), "hash", proposal.Hash(), "number", proposal.Number().Uint64())
 	// - if the proposed and committed blocks are the same, send the proposed hash
 	//   to commit channel, which is being watched inside the engine.Seal() function.
 	// - otherwise, we try to insert the block.
@@ -141,7 +143,7 @@ func (sb *simpleBackend) Commit(proposal pbft.Proposal) error {
 // NextRound will broadcast ChainHeadEvent to trigger next seal()
 func (sb *simpleBackend) NextRound() error {
 	header := sb.chain.CurrentHeader()
-	sb.logger.Debug("NextRound", "address", sb.Address().Hex(), "current_hash", header.Hash(), "current_number", header.Number)
+	sb.logger.Debug("NextRound", "address", sb.Address(), "current_hash", header.Hash(), "current_number", header.Number)
 	go sb.eventMux.Post(core.ChainHeadEvent{})
 	return nil
 }
@@ -153,7 +155,7 @@ func (sb *simpleBackend) EventMux() *event.TypeMux {
 
 // Verify implements pbft.Backend.Verify
 func (sb *simpleBackend) Verify(proposal pbft.Proposal) error {
-	// decode the proposal to block
+	// Check if the proposal is a valid block
 	block := &types.Block{}
 	block, ok := proposal.(*types.Block)
 	if !ok {
@@ -177,7 +179,7 @@ func (sb *simpleBackend) CheckSignature(data []byte, address common.Address, sig
 		log.Error("Failed to get signer address", "err", err)
 		return err
 	}
-	//Compare derived addresses
+	// Compare derived addresses
 	if signer != address {
 		return errInvalidSignature
 	}
@@ -203,9 +205,9 @@ func (sb *simpleBackend) CheckValidatorSignature(data []byte, sig []byte) (commo
 
 // get the signer address from the signature
 func (sb *simpleBackend) getSignatureAddress(data []byte, sig []byte) (common.Address, error) {
-	//1. Keccak data
+	// 1. Keccak data
 	hashData := crypto.Keccak256([]byte(data))
-	//2. Recover public key
+	// 2. Recover public key
 	pubkey, err := crypto.SigToPub(hashData, sig)
 	if err != nil {
 		return common.Address{}, err

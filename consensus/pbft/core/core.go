@@ -44,7 +44,7 @@ func New(backend pbft.Backend, config *pbft.Config) Engine {
 		N:                 n,
 		F:                 f,
 		state:             StateAcceptRequest,
-		logger:            log.New("address", backend.Address().Hex()),
+		logger:            log.New("address", backend.Address()),
 		backend:           backend,
 		backlogs:          make(map[pbft.Validator]*prque.Prque),
 		backlogsMu:        new(sync.Mutex),

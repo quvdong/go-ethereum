@@ -20,12 +20,13 @@ import "github.com/ethereum/go-ethereum/consensus/pbft"
 
 func (c *core) handleRequest(request *pbft.Request) error {
 	logger := c.logger.New("state", c.state, "seq", c.current.sequence)
-	logger.Trace("handleRequest", "request", request.Proposal.Number())
 
 	if err := c.checkRequestMsg(request); err != nil {
 		logger.Warn("unexpected requests", "err", err, "request", request)
 		return err
 	}
+
+	logger.Trace("handleRequest", "request", request.Proposal.Number())
 
 	if c.state == StateAcceptRequest {
 		c.sendPreprepare(request)
@@ -70,7 +71,7 @@ func (c *core) processPendingRequests() {
 		m, prio := c.pendingRequests.Pop()
 		r, ok := m.(*pbft.Request)
 		if !ok {
-			c.logger.Debug("Cannot cast to request")
+			c.logger.Warn("Malformed request, skip", "msg", m)
 			continue
 		}
 		// Push back if it's a future message

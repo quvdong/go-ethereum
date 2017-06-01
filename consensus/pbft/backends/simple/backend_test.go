@@ -151,7 +151,7 @@ func (slice Keys) Len() int {
 }
 
 func (slice Keys) Less(i, j int) bool {
-	return strings.Compare(crypto.PubkeyToAddress(slice[i].PublicKey).Hex(), crypto.PubkeyToAddress(slice[j].PublicKey).Hex()) < 0
+	return strings.Compare(crypto.PubkeyToAddress(slice[i].PublicKey).String(), crypto.PubkeyToAddress(slice[j].PublicKey).String()) < 0
 }
 
 func (slice Keys) Swap(i, j int) {

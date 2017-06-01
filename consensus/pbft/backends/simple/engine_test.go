@@ -229,8 +229,8 @@ func TestSealCommitted(t *testing.T) {
 	if err != nil {
 		t.Errorf("error should be nil, but got: %v", err)
 	}
-	if finalBlock.Hash().Hex() != expectedBlock.Hash().Hex() {
-		t.Errorf("block should be equal, got: %v, expected: %v", finalBlock.Hash().Hex(), expectedBlock.Hash().Hex())
+	if finalBlock.Hash() != expectedBlock.Hash() {
+		t.Errorf("block should be equal, got: %v, expected: %v", finalBlock.Hash(), expectedBlock.Hash())
 	}
 }
 

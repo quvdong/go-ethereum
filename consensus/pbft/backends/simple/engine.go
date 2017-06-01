@@ -44,7 +44,7 @@ const (
 var (
 	// errInvalidProposal is returned when a prposal is malformed.
 	errInvalidProposal = errors.New("invalid proposal")
-	// ErrInvalidSignature is returned when given signature is not signed by given
+	// errInvalidSignature is returned when given signature is not signed by given
 	// address.
 	errInvalidSignature = errors.New("invalid signature")
 	// errUnknownBlock is returned when the list of signers is requested for a block
@@ -385,7 +385,7 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 	}
 
 	if _, val := sb.valSet.GetByAddress(peer.Address()); val == nil {
-		sb.logger.Error("Not in validator set", "peerAddr", peer.Address().Hex())
+		sb.logger.Error("Not in validator set", "peerAddr", peer.Address())
 		return errInvalidPeer
 	}
 

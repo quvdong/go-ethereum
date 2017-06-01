@@ -1,3 +1,19 @@
+// Copyright 2017 AMIS Technologies
+// This file is part of the go-ethereum library.
+//
+// The go-ethereum library is free software: you can redistribute it and/or modify
+// it under the terms of the GNU Lesser General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// The go-ethereum library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+// GNU Lesser General Public License for more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
+
 package core
 
 import (
@@ -29,9 +45,10 @@ func TestHandleMsg(t *testing.T) {
 	})
 	// with a matched payload. msgPreprepare should match with *pbft.Preprepare in normal case.
 	msg := &message{
-		Code:    msgPreprepare,
-		Msg:     m,
-		Address: v0.Address(),
+		Code:      msgPreprepare,
+		Msg:       m,
+		Address:   v0.Address(),
+		Signature: []byte{},
 	}
 
 	_, val := v0.Validators().GetByAddress(v0.Address())
@@ -48,9 +65,10 @@ func TestHandleMsg(t *testing.T) {
 	})
 	// with a unmatched payload. msgPrepare should match with *pbft.Subject in normal case.
 	msg = &message{
-		Code:    msgPrepare,
-		Msg:     m,
-		Address: v0.Address(),
+		Code:      msgPrepare,
+		Msg:       m,
+		Address:   v0.Address(),
+		Signature: []byte{},
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
@@ -67,9 +85,10 @@ func TestHandleMsg(t *testing.T) {
 	})
 	// with a unmatched payload. pbft.MsgCommit should match with *pbft.Subject in normal case.
 	msg = &message{
-		Code:    msgCommit,
-		Msg:     m,
-		Address: v0.Address(),
+		Code:      msgCommit,
+		Msg:       m,
+		Address:   v0.Address(),
+		Signature: []byte{},
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
@@ -86,14 +105,15 @@ func TestHandleMsg(t *testing.T) {
 	})
 	// invalid message code. message code is not exists in list
 	msg = &message{
-		Code:    uint64(99),
-		Msg:     m,
-		Address: v0.Address(),
+		Code:      uint64(99),
+		Msg:       m,
+		Address:   v0.Address(),
+		Signature: []byte{},
 	}
 
 	_, val = v0.Validators().GetByAddress(v0.Address())
-	if err := r0.handleCheckedMsg(msg, val); err != nil {
-		t.Error("should not return failed message, but:", err)
+	if err := r0.handleCheckedMsg(msg, val); err == nil {
+		t.Error("error is supposed to be returned")
 	}
 
 	// with malicious payload

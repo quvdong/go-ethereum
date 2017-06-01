@@ -22,7 +22,7 @@ import (
 )
 
 func TestViewCompare(t *testing.T) {
-	// test equal
+	// test equality
 	srvView := &View{
 		Sequence: big.NewInt(2),
 		Round:    big.NewInt(1),

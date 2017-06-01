@@ -25,7 +25,7 @@ import (
 
 // Start implements core.Engine.Start
 func (c *core) Start(lastSequence *big.Int, lastProposer common.Address) error {
-	// initial last commit sequence and proposer
+	// initial last proposer
 	c.lastProposer = lastProposer
 
 	// Start a new round from last sequence + 1
@@ -53,9 +53,11 @@ func (c *core) Stop() error {
 // Subscribe both internal and external events
 func (c *core) subscribeEvents() {
 	c.events = c.backend.EventMux().Subscribe(
+		// external events
 		pbft.RequestEvent{},
 		pbft.MessageEvent{},
 		pbft.FinalCommittedEvent{},
+		// internal events
 		backlogEvent{},
 		buildCheckpointEvent{},
 	)
@@ -81,8 +83,7 @@ func (c *core) handleEvents() {
 		case pbft.MessageEvent:
 			c.handleMsg(ev.Payload)
 		case pbft.FinalCommittedEvent:
-			_, val := c.backend.Validators().GetByAddress(c.Address())
-			c.handleFinalCommitted(ev, val)
+			c.handleFinalCommitted(ev.Proposal, ev.Proposer)
 		case backlogEvent:
 			// No need to check signature for internal messages
 			c.handleCheckedMsg(ev.msg, ev.src)
@@ -98,7 +99,7 @@ func (c *core) sendEvent(ev interface{}) {
 }
 
 func (c *core) handleMsg(payload []byte) error {
-	logger := c.logger.New("address", c.address.Hex())
+	logger := c.logger.New("address", c.address)
 
 	// Decode message and check its signature
 	msg := new(message)
@@ -118,7 +119,7 @@ func (c *core) handleMsg(payload []byte) error {
 }
 
 func (c *core) handleCheckedMsg(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("address", c.address.Hex(), "from", src)
+	logger := c.logger.New("address", c.address, "from", src)
 
 	// Store message if its a future message
 	testBacklog := func(err error) error {
@@ -145,5 +146,5 @@ func (c *core) handleCheckedMsg(msg *message, src pbft.Validator) error {
 		logger.Error("Invalid message", "msg", msg)
 	}
 
-	return nil
+	return errInvalidMessage
 }
