@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
@@ -359,34 +360,12 @@ func (sb *simpleBackend) APIs(chain consensus.ChainReader) []rpc.API {
 	}}
 }
 
-// AddPeer implements consensus.Istanbul.AddPeer
-func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) error {
-	peer := newPeer(peerID, publicKey)
-	// check is validator
-	if _, val := sb.valSet.GetByAddress(peer.Address()); val != nil {
-		// add to peer set
-		sb.peerSet.Add(peer)
-	}
-	return nil
-}
-
-// RemovePeer implements consensus.Istanbul.RemovePeer
-func (sb *simpleBackend) RemovePeer(peerID string) error {
-	sb.peerSet.Remove(peerID)
-	return nil
-}
-
 // HandleMsg implements consensus.Istanbul.HandleMsg
-func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
-	peer := sb.peerSet.Get(peerID)
-	if peer == nil {
-		sb.logger.Error("Not in peer set", "peerID", peerID)
-		return errInvalidPeer
-	}
-
-	if _, val := sb.valSet.GetByAddress(peer.Address()); val == nil {
-		sb.logger.Error("Not in validator set", "peerAddr", peer.Address())
-		return errInvalidPeer
+func (sb *simpleBackend) HandleMsg(pubKey *ecdsa.PublicKey, data []byte) error {
+	addr := crypto.PubkeyToAddress(*pubKey)
+	if _, val := sb.valSet.GetByAddress(addr); val == nil {
+		sb.logger.Error("Not in validator set", "addr", addr)
+		return istanbul.ErrUnauthorizedAddress
 	}
 
 	go sb.istanbulEventMux.Post(istanbul.MessageEvent{
