@@ -30,7 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
-	pbftBackend "github.com/ethereum/go-ethereum/consensus/pbft/backends/simple"
+	istanbul "github.com/ethereum/go-ethereum/consensus/istanbul/backends/simple"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -125,8 +125,8 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 		etherbase:      config.Etherbase,
 	}
 
-	// force to set the pbft etherbase to node key address
-	if chainConfig.PBFT != nil {
+	// force to set the istanbul etherbase to node key address
+	if chainConfig.Istanbul != nil {
 		eth.etherbase = crypto.PubkeyToAddress(ctx.NodeKey().PublicKey)
 	}
 
@@ -218,9 +218,9 @@ func CreateConsensusEngine(ctx *node.ServiceContext, config *Config, chainConfig
 	if chainConfig.Clique != nil {
 		return clique.New(chainConfig.Clique, db)
 	}
-	// If PBFT is requested, set it up
-	if chainConfig.PBFT != nil {
-		return pbftBackend.New(config.PBFT, ctx.EventMux, ctx.NodeKey(), db)
+	// If Istanbul is requested, set it up
+	if chainConfig.Istanbul != nil {
+		return istanbul.New(config.Istanbul, ctx.EventMux, ctx.NodeKey(), db)
 	}
 
 	// Otherwise assume proof-of-work
@@ -322,8 +322,8 @@ func (s *Ethereum) Etherbase() (eb common.Address, err error) {
 // set in js console via admin interface or wrapper from cli flags
 func (self *Ethereum) SetEtherbase(etherbase common.Address) {
 	self.lock.Lock()
-	if _, ok := self.engine.(consensus.PBFT); ok {
-		log.Error("Cannot set etherbase in PBFT consensus")
+	if _, ok := self.engine.(consensus.Istanbul); ok {
+		log.Error("Cannot set etherbase in Istanbul consensus")
 		return
 	}
 	self.etherbase = etherbase

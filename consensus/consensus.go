@@ -102,8 +102,8 @@ type PoW interface {
 	Hashrate() float64
 }
 
-// PBFT is a consensus engine to avoid byzantine failure
-type PBFT interface {
+// Istanbul is a consensus engine to avoid byzantine failure
+type Istanbul interface {
 	Engine
 
 	// Add a peer

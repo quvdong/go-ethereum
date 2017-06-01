@@ -201,13 +201,13 @@ var AppHelpFlagGroups = []flagGroup{
 		},
 	},
 	{
-		Name: "PBFT",
+		Name: "Istanbul",
 		Flags: []cli.Flag{
-			utils.PBFTRequestTimeoutFlag,
-			utils.PBFTBlockPeriodFlag,
-			utils.PBFTBlockPauseTimeFlag,
-			utils.PBFTProposerPolicyFlag,
-			utils.PBFTCheckPointPeriodFlag,
+			utils.IstanbulRequestTimeoutFlag,
+			utils.IstanbulBlockPeriodFlag,
+			utils.IstanbulBlockPauseTimeFlag,
+			utils.IstanbulProposerPolicyFlag,
+			utils.IstanbulCheckPointPeriodFlag,
 		},
 	},
 }
