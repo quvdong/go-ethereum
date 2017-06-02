@@ -159,7 +159,7 @@ func (ms *messageSet) EncodeRLP(w io.Writer) error {
 func (ms *messageSet) verify(msg *message) error {
 	// verify if the message comes from one of the validators
 	if _, v := ms.valSet.GetByAddress(msg.Address); v == nil {
-		return pbft.ErrNoMatchingValidator
+		return pbft.ErrUnauthorizedAddress
 	}
 
 	// TODO: check view number and sequence number
@@ -168,7 +168,7 @@ func (ms *messageSet) verify(msg *message) error {
 }
 
 func (ms *messageSet) addVerifiedMessage(msg *message) error {
-	ms.messages[hash(msg)] = msg
+	ms.messages[pbft.RLPHash(msg)] = msg
 	return nil
 }
 
@@ -177,7 +177,7 @@ func (ms *messageSet) String() string {
 	defer ms.messagesMu.Unlock()
 	addresses := make([]string, 0, len(ms.messages))
 	for _, v := range ms.messages {
-		addresses = append(addresses, v.Address.Hex())
+		addresses = append(addresses, v.Address.String())
 	}
 	return fmt.Sprintf("[%v]", strings.Join(addresses, ", "))
 }

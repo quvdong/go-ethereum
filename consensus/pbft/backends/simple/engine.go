@@ -42,13 +42,16 @@ const (
 )
 
 var (
+	// errInvalidProposal is returned when a prposal is malformed.
+	errInvalidProposal = errors.New("invalid proposal")
+	// errInvalidSignature is returned when given signature is not signed by given
+	// address.
+	errInvalidSignature = errors.New("invalid signature")
 	// errUnknownBlock is returned when the list of signers is requested for a block
 	// that is not part of the local blockchain.
 	errUnknownBlock = errors.New("unknown block")
 	// errUnauthorized is returned if a header is signed by a non authorized entity.
 	errUnauthorized = errors.New("unauthorized")
-	// errNotInValidatorSet is returned if I'm not in validator set but try to start engine
-	errNotInValidatorSet = errors.New("not in validator set")
 	// errInvalidDifficulty is returned if the difficulty of a block is not 1
 	errInvalidDifficulty = errors.New("invalid difficulty")
 	// errInvalidPeer is returned when a message from invalid peer comes
@@ -63,8 +66,6 @@ var (
 	errInvalidUncleHash = errors.New("non empty uncle hash")
 	// errInconsistentValidatorSet is returned if the validator set is inconsistent
 	errInconsistentValidatorSet = errors.New("non empty uncle hash")
-	// errCastingRequest is returned if request cannot cast specific type
-	errCastingRequest = errors.New("failed to cast the request")
 	// errInvalidTimestamp is returned if the timestamp of a block is lower than the previous block's timestamp + the minimum block period.
 	errInvalidTimestamp = errors.New("invalid timestamp")
 )
@@ -365,10 +366,6 @@ func (sb *simpleBackend) AddPeer(peerID string, publicKey *ecdsa.PublicKey) erro
 	if _, val := sb.valSet.GetByAddress(peer.Address()); val != nil {
 		// add to peer set
 		sb.peerSet.Add(peer)
-		// post connection event to pbft core
-		go sb.pbftEventMux.Post(pbft.ConnectionEvent{
-			Address: val.Address(),
-		})
 	}
 	return nil
 }
@@ -388,7 +385,7 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 	}
 
 	if _, val := sb.valSet.GetByAddress(peer.Address()); val == nil {
-		sb.logger.Error("Not in validator set", "peerAddr", peer.Address().Hex())
+		sb.logger.Error("Not in validator set", "peerAddr", peer.Address())
 		return errInvalidPeer
 	}
 
@@ -402,7 +399,7 @@ func (sb *simpleBackend) HandleMsg(peerID string, data []byte) error {
 func (sb *simpleBackend) NewChainHead(block *types.Block) {
 	p, err := sb.Author(block.Header())
 	if err != nil {
-		sb.logger.Error("Failed to get block proposer", "error", err)
+		sb.logger.Error("Failed to get block proposer", "err", err)
 		return
 	}
 	go sb.pbftEventMux.Post(pbft.FinalCommittedEvent{
@@ -417,7 +414,7 @@ func (sb *simpleBackend) Start(chain consensus.ChainReader, inserter func(block 
 		return err
 	}
 	if _, v := sb.valSet.GetByAddress(sb.address); v == nil {
-		return errNotInValidatorSet
+		return pbft.ErrUnauthorizedAddress
 	}
 	sb.chain = chain
 	sb.inserter = inserter

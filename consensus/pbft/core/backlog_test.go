@@ -276,12 +276,6 @@ func testProcessBacklog(t *testing.T, msg *message) {
 			Sequence: big.NewInt(1),
 			Round:    big.NewInt(0),
 		}, newTestValidatorSet(4)),
-		subject: &pbft.Subject{
-			View: &pbft.View{
-				Sequence: big.NewInt(1),
-				Round:    big.NewInt(0),
-			},
-		},
 	}
 	c.subscribeEvents()
 	defer c.unsubscribeEvents()

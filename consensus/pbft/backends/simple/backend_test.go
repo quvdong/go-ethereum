@@ -59,7 +59,7 @@ func TestCheckSignature(t *testing.T) {
 	}
 	a = getInvalidAddress()
 	err = b.CheckSignature(data, a, sig)
-	if err != pbft.ErrInvalidSignature {
+	if err != errInvalidSignature {
 		t.Error("Should fail with ErrInvalidSignature")
 	}
 }
@@ -98,10 +98,10 @@ func TestCheckValidatorSignature(t *testing.T) {
 		t.Errorf("Unable to sign data")
 	}
 
-	// CheckValidatorSignature should return ErrNoMatchingValidator
+	// CheckValidatorSignature should return ErrUnauthorizedAddress
 	addr, err := b.CheckValidatorSignature(data, sig)
-	if err != pbft.ErrNoMatchingValidator {
-		t.Errorf("Expected error pbft.ErrNoMatchingValidator, but got: %v", err)
+	if err != pbft.ErrUnauthorizedAddress {
+		t.Errorf("Expected error pbft.ErrUnauthorizedAddress, but got: %v", err)
 	}
 	emptyAddr := common.Address{}
 	if addr != emptyAddr {
@@ -151,7 +151,7 @@ func (slice Keys) Len() int {
 }
 
 func (slice Keys) Less(i, j int) bool {
-	return strings.Compare(crypto.PubkeyToAddress(slice[i].PublicKey).Hex(), crypto.PubkeyToAddress(slice[j].PublicKey).Hex()) < 0
+	return strings.Compare(crypto.PubkeyToAddress(slice[i].PublicKey).String(), crypto.PubkeyToAddress(slice[j].PublicKey).String()) < 0
 }
 
 func (slice Keys) Swap(i, j int) {

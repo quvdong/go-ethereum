@@ -26,26 +26,28 @@ func (c *core) sendCommit() {
 	logger := c.logger.New("state", c.state)
 	logger.Trace("sendCommit")
 
-	subject, err := Encode(c.subject)
+	sub := c.current.Subject()
+	encodedSubject, err := Encode(sub)
 	if err != nil {
-		logger.Error("Failed to encode", "subject", c.subject)
+		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
 	c.broadcast(&message{
 		Code: msgCommit,
-		Msg:  subject,
+		Msg:  encodedSubject,
 	})
 }
 
 func (c *core) handleCommit(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handleCommit")
 
 	if c.waitingForRoundChange {
-		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		logger.Warn("Waiting for a round change, ignore", "msg", msg)
+		return errIgnored
 	}
 
+	// Decode commit message
 	var commit *pbft.Subject
 	err := msg.Decode(&commit)
 	if err != nil {
@@ -62,8 +64,10 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 
 	c.acceptCommit(msg, src)
 
-	// if has proposal and receives enough commit messages,
-	// it can change to StateCommitted directly to speed up the consensus process
+	// Commit the proposal once we have enough commit messages and we are not in StateCommitted.
+	//
+	// If we already have a proposal, we may have chance to speed up the consensus process
+	// by committing the proposal without prepare messages.
 	if int64(c.current.Commits.Size()) > 2*c.F && c.state.Cmp(StateCommitted) < 0 {
 		c.commit()
 	}
@@ -71,22 +75,27 @@ func (c *core) handleCommit(msg *message, src pbft.Validator) error {
 	return nil
 }
 
+// verifyCommit verifies if the received commit message is equivalent to our subject
 func (c *core) verifyCommit(commit *pbft.Subject, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
-	if !reflect.DeepEqual(commit, c.subject) {
-		logger.Warn("Inconsistent subjects between commit and proposal", "expected", c.subject, "got", commit)
-		return pbft.ErrSubjectNotMatched
+	sub := c.current.Subject()
+	if !reflect.DeepEqual(commit, sub) {
+		logger.Warn("Inconsistent subjects between commit and proposal", "expected", sub, "got", commit)
+		return errInconsistentSubject
 	}
 
 	return nil
 }
 
-func (c *core) acceptCommit(msg *message, src pbft.Validator) {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+func (c *core) acceptCommit(msg *message, src pbft.Validator) error {
+	logger := c.logger.New("from", src, "state", c.state)
 
-	// We check signature in Add
+	// Add the commit message to current snapshot
 	if err := c.current.Commits.Add(msg); err != nil {
-		logger.Error("Failed to record commit message", "msg", msg, "error", err)
+		logger.Error("Failed to record commit message", "msg", msg, "err", err)
+		return err
 	}
+
+	return nil
 }

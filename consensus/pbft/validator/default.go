@@ -32,18 +32,28 @@ func (slice Validators) Len() int {
 }
 
 func (slice Validators) Less(i, j int) bool {
-	return strings.Compare(slice[i].Address().Hex(), slice[j].Address().Hex()) < 0
+	return strings.Compare(slice[i].String(), slice[j].String()) < 0
 }
 
 func (slice Validators) Swap(i, j int) {
 	slice[i], slice[j] = slice[j], slice[i]
 }
 
+// ----------------------------------------------------------------------------
+
 type defaultValidator struct {
 	address common.Address
 }
 
-func (val *defaultValidator) Address() common.Address { return val.address }
+func (val *defaultValidator) Address() common.Address {
+	return val.address
+}
+
+func (val *defaultValidator) String() string {
+	return val.Address().String()
+}
+
+// ----------------------------------------------------------------------------
 
 type defaultSet struct {
 	validators Validators

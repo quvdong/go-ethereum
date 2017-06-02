@@ -146,9 +146,10 @@ func (m *message) Payload() ([]byte, error) {
 
 func (m *message) PayloadNoSig() ([]byte, error) {
 	return rlp.EncodeToBytes(&message{
-		Code:    m.Code,
-		Msg:     m.Msg,
-		Address: m.Address,
+		Code:      m.Code,
+		Msg:       m.Msg,
+		Address:   m.Address,
+		Signature: []byte{},
 	})
 }
 
@@ -157,7 +158,7 @@ func (m *message) Decode(val interface{}) error {
 }
 
 func (m *message) String() string {
-	return fmt.Sprintf("{Code: %v, Address: %v}", m.Code, m.Address.Hex())
+	return fmt.Sprintf("{Code: %v, Address: %v}", m.Code, m.Address.String())
 }
 
 // ==============================================

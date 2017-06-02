@@ -31,7 +31,7 @@ var (
 	}
 )
 
-// check the message state
+// checkMessage checks the message state
 // return errInvalidMessage if the message is invalid
 // return errFutureMessage if the message view is larger than current view
 // return errOldMessage if the message view is smaller than current view
@@ -63,7 +63,7 @@ func (c *core) checkMessage(msgCode uint64, view *pbft.View) error {
 }
 
 func (c *core) storeBacklog(msg *message, src pbft.Validator) {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
 	if src.Address() == c.Address() {
 		logger.Warn("Backlog from self")
@@ -106,7 +106,7 @@ func (c *core) processBacklog() {
 			continue
 		}
 
-		logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+		logger := c.logger.New("from", src, "state", c.state)
 		isFuture := false
 
 		// We stop processing if

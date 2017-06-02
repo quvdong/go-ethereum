@@ -16,13 +16,18 @@
 
 package core
 
-import "github.com/ethereum/go-ethereum/consensus/pbft"
+import (
+	"reflect"
+
+	"github.com/ethereum/go-ethereum/consensus/pbft"
+)
 
 func (c *core) sendPreprepare(request *pbft.Request) {
 	logger := c.logger.New("state", c.state)
-	curView := c.currentView()
 
-	if c.current.sequence.Cmp(request.Proposal.Number()) == 0 && c.isPrimary() {
+	// If I'm the proposer and I have the same sequence with the proposal
+	if c.current.Sequence().Cmp(request.Proposal.Number()) == 0 && c.isPrimary() {
+		curView := c.currentView()
 		preprepare, err := Encode(&pbft.Preprepare{
 			View:     curView,
 			Proposal: request.Proposal,
@@ -41,14 +46,15 @@ func (c *core) sendPreprepare(request *pbft.Request) {
 }
 
 func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handlePreprepare")
 
 	if c.waitingForRoundChange {
 		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		return errIgnored
 	}
 
+	// Decode preprepare
 	var preprepare *pbft.Preprepare
 	err := msg.Decode(&preprepare)
 	if err != nil {
@@ -59,19 +65,23 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 		return err
 	}
 
+	// Check if the message comes from current proposer
 	if !c.backend.Validators().IsProposer(src.Address()) {
 		logger.Warn("Ignore preprepare messages from non-proposer")
-		return pbft.ErrNotFromProposer
+		return errNotFromProposer
 	}
 
+	// Verify the proposal we received
 	if err := c.backend.Verify(preprepare.Proposal); err != nil {
-		logger.Warn("Verify proposal failed", "err", err)
+		logger.Warn("Failed to verify proposal", "err", err)
 		return err
 	}
 
-	if preprepare.Proposal == nil {
-		logger.Warn("Proposal is nil")
-		return pbft.ErrNilProposal
+	// Ensure we have the same view with the preprepare message
+	view := c.currentView()
+	if !reflect.DeepEqual(preprepare.View, view) {
+		logger.Warn("Inconsistent view", "expected", view, "got", preprepare.View)
+		return errInvalidMessage
 	}
 
 	if c.state == StateAcceptRequest {
@@ -84,11 +94,5 @@ func (c *core) handlePreprepare(msg *message, src pbft.Validator) error {
 }
 
 func (c *core) acceptPreprepare(preprepare *pbft.Preprepare) {
-	subject := &pbft.Subject{
-		View:   preprepare.View,
-		Digest: preprepare.Proposal.Hash(),
-	}
-
-	c.subject = subject
-	c.current.Preprepare = preprepare
+	c.current.SetPreprepare(preprepare)
 }

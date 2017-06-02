@@ -17,15 +17,19 @@
 package core
 
 import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto/sha3"
-	"github.com/ethereum/go-ethereum/rlp"
+	"sync"
+
+	"github.com/ethereum/go-ethereum/consensus/pbft"
 )
 
-func hash(v interface{}) (h common.Hash) {
-	hw := sha3.NewKeccak256()
-	rlp.Encode(hw, v)
-	hw.Sum(h[:0])
-
-	return
+func newTestSnapshot(view *pbft.View, validatorSet pbft.ValidatorSet) *snapshot {
+	return &snapshot{
+		round:       view.Round,
+		sequence:    view.Sequence,
+		Preprepare:  newTestPreprepare(view),
+		Prepares:    newMessageSet(validatorSet),
+		Commits:     newMessageSet(validatorSet),
+		Checkpoints: newMessageSet(validatorSet),
+		mu:          new(sync.RWMutex),
+	}
 }

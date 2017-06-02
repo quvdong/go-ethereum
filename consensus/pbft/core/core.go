@@ -44,7 +44,7 @@ func New(backend pbft.Backend, config *pbft.Config) Engine {
 		N:                 n,
 		F:                 f,
 		state:             StateAcceptRequest,
-		logger:            log.New("address", backend.Address().Hex()),
+		logger:            log.New("address", backend.Address()),
 		backend:           backend,
 		backlogs:          make(map[pbft.Validator]*prque.Prque),
 		backlogsMu:        new(sync.Mutex),
@@ -70,8 +70,6 @@ type core struct {
 
 	lastProposer          common.Address
 	waitingForRoundChange bool
-
-	subject *pbft.Subject
 
 	backlogs   map[pbft.Validator]*prque.Prque
 	backlogsMu *sync.Mutex
@@ -115,13 +113,13 @@ func (c *core) send(msg *message, target common.Address) {
 
 	payload, err := c.finalizeMessage(msg)
 	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "error", err)
+		logger.Error("Failed to finalize message", "msg", msg, "err", err)
 		return
 	}
 
 	// send payload
 	if err = c.backend.Send(payload, target); err != nil {
-		logger.Error("Failed to send message", "msg", msg, "error", err)
+		logger.Error("Failed to send message", "msg", msg, "err", err)
 		return
 	}
 }
@@ -131,13 +129,13 @@ func (c *core) broadcast(msg *message) {
 
 	payload, err := c.finalizeMessage(msg)
 	if err != nil {
-		logger.Error("Failed to finalize message", "msg", msg, "error", err)
+		logger.Error("Failed to finalize message", "msg", msg, "err", err)
 		return
 	}
 
 	// Broadcast payload
 	if err = c.backend.Broadcast(payload); err != nil {
-		logger.Error("Failed to broadcast message", "msg", msg, "error", err)
+		logger.Error("Failed to broadcast message", "msg", msg, "err", err)
 		return
 	}
 }
@@ -179,17 +177,15 @@ func (c *core) commit() {
 func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	var logger log.Logger
 	if c.current == nil {
-		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.backend.Validators().GetProposer())
 	} else {
-		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer())
 	}
 
 	// Clear invalid RoundChange messages
 	c.roundChangeSet.Clear(newView)
 	// New snapshot for new round
 	c.current = newSnapshot(newView, c.backend.Validators())
-	// Clear subject
-	c.subject = nil
 	// Calculate new proposer
 	c.backend.Validators().CalcProposer(c.proposerSeed())
 	c.waitingForRoundChange = false
@@ -199,16 +195,16 @@ func (c *core) startNewRound(newView *pbft.View, roundChange bool) {
 	}
 	c.newRoundChangeTimer()
 
-	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger.Debug("New round", "new_round", newView.Round, "new_seq", newView.Sequence, "new_proposer", c.backend.Validators().GetProposer())
 }
 
 func (c *core) catchUpRound(view *pbft.View) {
-	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.backend.Validators().GetProposer())
 	c.waitingForRoundChange = true
 	c.current = newSnapshot(view, c.backend.Validators())
 	c.newRoundChangeTimer()
 
-	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.backend.Validators().GetProposer().Address().Hex())
+	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.backend.Validators().GetProposer())
 }
 
 func (c *core) proposerSeed() uint64 {

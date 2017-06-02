@@ -26,26 +26,28 @@ func (c *core) sendPrepare() {
 	logger := c.logger.New("state", c.state)
 	logger.Trace("sendPrepare")
 
-	subject, err := Encode(c.subject)
+	sub := c.current.Subject()
+	encodedSubject, err := Encode(sub)
 	if err != nil {
-		logger.Error("Failed to encode", "subject", c.subject)
+		logger.Error("Failed to encode", "subject", sub)
 		return
 	}
 	c.broadcast(&message{
 		Code: msgPrepare,
-		Msg:  subject,
+		Msg:  encodedSubject,
 	})
 }
 
 func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 	logger.Trace("handlePrepare")
 
 	if c.waitingForRoundChange {
-		logger.Warn("Waiting for a RoundChange, ignore", "msg", msg)
-		return pbft.ErrIgnored
+		logger.Warn("Waiting for a round change, ignore", "msg", msg)
+		return errIgnored
 	}
 
+	// Decode prepare message
 	var prepare *pbft.Subject
 	err := msg.Decode(&prepare)
 	if err != nil {
@@ -62,8 +64,8 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 
 	c.acceptPrepare(msg, src)
 
-	// change to StatePrepared if receving enough prepare messages
-	// and the current state is at previous state
+	// Change to StatePrepared if we've received enough prepare messages
+	// and we are in earlier state before StatePrepared
 	if int64(c.current.Prepares.Size()) > 2*c.F && c.state.Cmp(StatePrepared) < 0 {
 		c.setState(StatePrepared)
 		c.sendCommit()
@@ -72,22 +74,27 @@ func (c *core) handlePrepare(msg *message, src pbft.Validator) error {
 	return nil
 }
 
+// verifyPrepare verifies if the received prepare message is equivalent to our subject
 func (c *core) verifyPrepare(prepare *pbft.Subject, src pbft.Validator) error {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
 
-	if !reflect.DeepEqual(prepare, c.subject) {
-		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", c.subject, "got", prepare)
-		return pbft.ErrSubjectNotMatched
+	sub := c.current.Subject()
+	if !reflect.DeepEqual(prepare, sub) {
+		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", sub, "got", prepare)
+		return errInconsistentSubject
 	}
 
 	return nil
 }
 
-func (c *core) acceptPrepare(msg *message, src pbft.Validator) {
-	logger := c.logger.New("from", src.Address().Hex(), "state", c.state)
+func (c *core) acceptPrepare(msg *message, src pbft.Validator) error {
+	logger := c.logger.New("from", src, "state", c.state)
 
-	// we check signature in Add
+	// Add the prepare message to current snapshot
 	if err := c.current.Prepares.Add(msg); err != nil {
-		logger.Error("Failed to record prepare message", "msg", msg, "error", err)
+		logger.Error("Failed to add prepare message to snapshot", "msg", msg, "err", err)
+		return err
 	}
+
+	return nil
 }
