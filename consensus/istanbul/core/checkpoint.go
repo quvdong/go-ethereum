@@ -78,8 +78,12 @@ func (c *core) handleCheckpoint(msg *message, src istanbul.Validator) error {
 		if snapshotIndex < len(c.snapshots) && c.snapshots[snapshotIndex].Sequence().Cmp(cp.View.Sequence) == 0 {
 			snapshot = c.snapshots[snapshotIndex]
 		} else {
-			min := c.snapshots[0].Sequence()
-			logger.Warn("Failed to find snapshot entry", "target", cp.View.Sequence, "current", c.current.Sequence(), "min", min)
+			if len(c.snapshots) > 0 {
+				min := c.snapshots[0].Sequence()
+				logger.Warn("Failed to find snapshot entry", "target", cp.View.Sequence, "current", c.current.Sequence(), "min", min)
+			} else {
+				logger.Warn("Failed to find snapshot entry", "target", cp.View.Sequence, "current", c.current.Sequence())
+			}
 			return errInvalidMessage
 		}
 	} else { // future checkpoint
