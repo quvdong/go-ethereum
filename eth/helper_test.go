@@ -159,7 +159,7 @@ func newTestPeer(name string, version int, pm *protocolManager, shake bool) (*te
 	go func() {
 		select {
 		case pm.newPeerCh <- peer:
-			errc <- pm.handle(peer)
+			errc <- pm.handle(peer, pm.handleMsg)
 		case <-pm.quitSync:
 			errc <- p2p.DiscQuitting
 		}
