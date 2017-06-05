@@ -430,7 +430,7 @@ func (sb *simpleBackend) initValidatorSet(chain consensus.ChainReader) error {
 func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 	length := len(header.Extra)
 	// ensure the bytes is enough
-	if length < types.ExtraVanity+types.ExtraValidatorSize+types.ExtraSeal {
+	if length < types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize +types.IstanbulExtraSeal {
 		return false
 	}
 
@@ -439,7 +439,7 @@ func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 	if vl == 0 {
 		return false
 	}
-	if length != types.ExtraVanity+types.ExtraValidatorSize+vl+types.ExtraSeal {
+	if length != types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize +vl+types.IstanbulExtraSeal {
 		return false
 	}
 
@@ -447,7 +447,7 @@ func (sb *simpleBackend) validExtraFormat(header *types.Header) bool {
 }
 
 func (sb *simpleBackend) getValidatorBytes(header *types.Header) []byte {
-	return header.Extra[types.ExtraVanity+types.ExtraValidatorSize : types.ExtraVanity+types.ExtraValidatorSize+sb.validatorLength(header)]
+	return header.Extra[types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize : types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize +sb.validatorLength(header)]
 }
 
 // prepareExtra creates a copy that includes vanity, validators, and a clean seal for the given header
@@ -455,26 +455,26 @@ func (sb *simpleBackend) getValidatorBytes(header *types.Header) []byte {
 // note that the header.Extra consisted of vanity, validator size, validators, seal, and committed signatures
 func (sb *simpleBackend) prepareExtra(header, parent *types.Header) []byte {
 	buf := make([]byte, 0)
-	if len(header.Extra) < types.ExtraVanity {
-		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.ExtraVanity-len(header.Extra))...)
+	if len(header.Extra) < types.IstanbulExtraVanity {
+		header.Extra = append(header.Extra, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity -len(header.Extra))...)
 	}
-	buf = header.Extra[:types.ExtraVanity]
+	buf = header.Extra[:types.IstanbulExtraVanity]
 
-	buf = append(buf, parent.Extra[types.ExtraVanity:types.ExtraVanity+types.ExtraValidatorSize+sb.validatorLength(parent)]...)
-	buf = append(buf, make([]byte, types.ExtraSeal)...)
+	buf = append(buf, parent.Extra[types.IstanbulExtraVanity:types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize +sb.validatorLength(parent)]...)
+	buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 	return buf
 }
 
 // signaturePosition returns start and end position for the given header
 func (sb *simpleBackend) signaturePosition(header *types.Header) (int, int) {
-	start := types.ExtraVanity + types.ExtraValidatorSize + sb.validatorLength(header)
-	end := start + types.ExtraSeal
+	start := types.IstanbulExtraVanity + types.IstanbulExtraValidatorSize + sb.validatorLength(header)
+	end := start + types.IstanbulExtraSeal
 	return int(start), int(end)
 }
 
 // validatorLength returns the validator length for the given header
 func (sb *simpleBackend) validatorLength(header *types.Header) int {
-	validatorSize := int(header.Extra[types.ExtraVanity : types.ExtraVanity+types.ExtraValidatorSize][0])
+	validatorSize := int(header.Extra[types.IstanbulExtraVanity : types.IstanbulExtraVanity +types.IstanbulExtraValidatorSize][0])
 	validatorLength := validatorSize * common.AddressLength
 	return int(validatorLength)
 }
@@ -503,7 +503,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 		header.GasLimit,
 		header.GasUsed,
 		header.Time,
-		header.Extra[:len(header.Extra)-types.ExtraSeal], // Yes, this will panic if extra is too short
+		header.Extra[:len(header.Extra)-types.IstanbulExtraSeal], // Yes, this will panic if extra is too short
 		header.MixDigest,
 		header.Nonce,
 	})
@@ -514,7 +514,7 @@ func sigHash(header *types.Header) (hash common.Hash) {
 // ecrecover extracts the Ethereum account address from a signed header.
 func (sb *simpleBackend) ecrecover(header *types.Header) (common.Address, error) {
 	// Retrieve the signature from the header extra-data
-	if len(header.Extra) < types.ExtraSeal {
+	if len(header.Extra) < types.IstanbulExtraSeal {
 		return common.Address{}, consensus.ErrMissingSignature
 	}
 	start, end := sb.signaturePosition(header)

@@ -54,10 +54,10 @@ func TestIstanbulExtraFilter(t *testing.T) {
 		{hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"), hexutil.MustDecode("0x00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000")},
 
 		// extra is nil
-		{[]byte{}, bytes.Repeat([]byte{0x00}, ExtraVanity+ExtraValidatorSize+ExtraSeal)},
+		{[]byte{}, bytes.Repeat([]byte{0x00}, IstanbulExtraVanity + IstanbulExtraValidatorSize + IstanbulExtraSeal)},
 
 		// information is not enough
-		{[]byte{1, 2, 3}, append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, ExtraVanity+ExtraValidatorSize+ExtraSeal-3 /*testExtra size is 3*/)...)},
+		{[]byte{1, 2, 3}, append([]byte{1, 2, 3}, bytes.Repeat([]byte{0x00}, IstanbulExtraVanity + IstanbulExtraValidatorSize + IstanbulExtraSeal -3 /*testExtra size is 3*/)...)},
 
 		// validator size not mapping to validator length
 		// validator size is 1, but validator length is 0

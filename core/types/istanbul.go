@@ -27,9 +27,9 @@ var (
 	// The IstanbulDigest represents a constant of "Istanbul practical byzantine fault tolerance".
 	IstanbulDigest = common.HexToHash("0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365")
 
-	ExtraVanity        = int(params.MaximumExtraDataSize) // Fixed number of extra-data prefix bytes reserved for signer vanity
-	ExtraValidatorSize = 1                                // Fixed number of extra-data infix bytes reserved for validator size
-	ExtraSeal          = 65                               // Fixed number of extra-data suffix bytes reserved for signer seal
+	IstanbulExtraVanity        = int(params.MaximumExtraDataSize) // Fixed number of extra-data prefix bytes reserved for signer vanity
+	IstanbulExtraValidatorSize = 1                                // Fixed number of extra-data infix bytes reserved for validator size
+	IstanbulExtraSeal          = 65                               // Fixed number of extra-data suffix bytes reserved for signer seal
 )
 
 // IstanbulExtraFilter is used to filter out the useless information.
@@ -40,7 +40,7 @@ var (
 // └─────────────────┴──────────────────────┴────────────────────────────────┴───────────────┘
 func IstanbulExtraFilter(h *Header) *Header {
 	newHeader := CopyHeader(h)
-	defaultLength := ExtraVanity + ExtraValidatorSize + ExtraSeal
+	defaultLength := IstanbulExtraVanity + IstanbulExtraValidatorSize + IstanbulExtraSeal
 
 	// The number of validator addresses is not known since the extra may be insufficient,
 	// but we can checks whether extra is enough(vanity + validator#N + seal).
@@ -50,7 +50,7 @@ func IstanbulExtraFilter(h *Header) *Header {
 	}
 
 	// Calculate the validator length.
-	valLength := int(newHeader.Extra[ExtraVanity : ExtraVanity+ExtraValidatorSize][0]) * common.AddressLength
+	valLength := int(newHeader.Extra[IstanbulExtraVanity : IstanbulExtraVanity+IstanbulExtraValidatorSize][0]) * common.AddressLength
 
 	// Same as before, but validator length is also considered.
 	if len(newHeader.Extra) < defaultLength+valLength {
@@ -58,7 +58,7 @@ func IstanbulExtraFilter(h *Header) *Header {
 	}
 
 	// We just keep vanity, validator#N, validators, and seal in Extra.
-	newHeader.Extra = newHeader.Extra[0 : ExtraVanity+ExtraValidatorSize+valLength+ExtraSeal]
+	newHeader.Extra = newHeader.Extra[0 : IstanbulExtraVanity+IstanbulExtraValidatorSize+valLength+IstanbulExtraSeal]
 
 	return newHeader
 }
