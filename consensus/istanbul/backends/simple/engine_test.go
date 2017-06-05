@@ -77,10 +77,10 @@ func getGenesisAndKeys(n int) (*core.Genesis, []*ecdsa.PrivateKey) {
 }
 
 func appendValidators(genesis *core.Genesis, addrs []common.Address) {
-	if len(genesis.ExtraData) < extraVanity {
-		genesis.ExtraData = append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, extraVanity)...)
+	if len(genesis.ExtraData) < types.IstanbulExtraVanity {
+		genesis.ExtraData = append(genesis.ExtraData, bytes.Repeat([]byte{0x00}, types.IstanbulExtraVanity)...)
 	}
-	genesis.ExtraData = genesis.ExtraData[:extraVanity]
+	genesis.ExtraData = genesis.ExtraData[:types.IstanbulExtraVanity]
 
 	validatorSize := byte(len(addrs))
 	genesis.ExtraData = append(genesis.ExtraData, validatorSize)
@@ -88,7 +88,7 @@ func appendValidators(genesis *core.Genesis, addrs []common.Address) {
 	for _, addr := range addrs {
 		genesis.ExtraData = append(genesis.ExtraData, addr[:]...)
 	}
-	genesis.ExtraData = append(genesis.ExtraData, make([]byte, extraSeal)...)
+	genesis.ExtraData = append(genesis.ExtraData, make([]byte, types.IstanbulExtraSeal)...)
 }
 
 func makeHeader(parent *types.Block, config *istanbul.Config) *types.Header {
@@ -435,10 +435,10 @@ OUT3:
 func TestPrepareExtra(t *testing.T) {
 	validatorN := 4
 	buf := make([]byte, 0)
-	buf = append(buf, make([]byte, extraVanity)...)
+	buf = append(buf, make([]byte, types.IstanbulExtraVanity)...)
 	buf = append(buf, byte(validatorN))
 	buf = append(buf, make([]byte, validatorN*common.AddressLength)...)
-	buf = append(buf, make([]byte, extraSeal)...)
+	buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 
 	parentHeader := &types.Header{}
 	parentHeader.Extra = buf
@@ -447,7 +447,7 @@ func TestPrepareExtra(t *testing.T) {
 	header.Extra = common.StringToHash("123").Bytes()
 
 	expectedExtra := parentHeader.Extra
-	copy(expectedExtra[0:extraVanity], header.Extra)
+	copy(expectedExtra[0:types.IstanbulExtraVanity], header.Extra)
 
 	b, _, _ := newSimpleBackend()
 	extra := b.prepareExtra(header, parentHeader)
@@ -471,10 +471,10 @@ func TestSignaturePosition(t *testing.T) {
 	buf = append(buf, common.StringToHash("123").Bytes()...)
 	buf = append(buf, byte(validatorN))
 	buf = append(buf, make([]byte, validatorN*common.AddressLength)...)
-	buf = append(buf, make([]byte, extraSeal)...)
+	buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 
-	expectedStart := extraVanity + extraValidatorSize + validatorN*common.AddressLength
-	expectedtEnd := expectedStart + extraSeal
+	expectedStart := types.IstanbulExtraVanity + types.IstanbulExtraValidatorSize + validatorN*common.AddressLength
+	expectedtEnd := expectedStart + types.IstanbulExtraSeal
 
 	header := &types.Header{}
 	header.Extra = buf
@@ -500,7 +500,7 @@ func TestValidExtra(t *testing.T) {
 				buf = append(buf, common.StringToHash("123").Bytes()...)
 				buf = append(buf, byte(validatorN))
 				buf = append(buf, make([]byte, validatorN*common.AddressLength)...)
-				buf = append(buf, make([]byte, extraSeal)...)
+				buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 				return buf
 			}(),
 			true,
@@ -512,7 +512,7 @@ func TestValidExtra(t *testing.T) {
 				buf := make([]byte, 0)
 				buf = append(buf, common.StringToHash("123").Bytes()...)
 				buf = append(buf, byte(validatorN))
-				buf = append(buf, make([]byte, extraSeal)...)
+				buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 				return buf
 			}(),
 			false,
@@ -525,7 +525,7 @@ func TestValidExtra(t *testing.T) {
 				buf = append(buf, common.StringToHash("123").Bytes()...)
 				buf = append(buf, byte(validatorN))
 				buf = append(buf, make([]byte, validatorN*common.AddressLength)...)
-				buf = append(buf, make([]byte, extraSeal)...)
+				buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 				return buf
 			}(),
 			false,
@@ -538,7 +538,7 @@ func TestValidExtra(t *testing.T) {
 				buf = append(buf, common.StringToHash("123").Bytes()...)
 				buf = append(buf, byte(validatorN))
 				buf = append(buf, make([]byte, common.AddressLength)...)
-				buf = append(buf, make([]byte, extraSeal)...)
+				buf = append(buf, make([]byte, types.IstanbulExtraSeal)...)
 				return buf
 			}(),
 			false,
