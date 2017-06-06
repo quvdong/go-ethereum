@@ -191,9 +191,10 @@ OUTER:
 			validator := v.Validators().GetByIndex(uint64(i))
 			m, _ := Encode(v.engine.(*core).current.Subject())
 			if err := r0.handleCommit(&message{
-				Code:    msgPrepare,
-				Msg:     m,
-				Address: validator.Address(),
+				Code:      msgPrepare,
+				Msg:       m,
+				Address:   validator.Address(),
+				Signature: validator.Address().Bytes(), // small hack
 			}, validator); err != nil {
 				if err != test.expectedErr {
 					t.Error("unexpected error: ", err)
@@ -218,6 +219,24 @@ OUTER:
 		// core should have 2F+1 prepare messages
 		if int64(r0.current.Commits.Size()) <= 2*r0.F {
 			t.Error("commit messages size should greater than 2F+1, size:", r0.current.Commits.Size())
+		}
+
+		// check signatures large than 2F+1
+		signedCount := int64(0)
+		signers := make([]common.Address, len(v0.commitSigs[0])/common.AddressLength)
+		for i := 0; i < len(signers); i++ {
+			copy(signers[i][:], v0.commitSigs[0][i*common.AddressLength:])
+		}
+		for _, validator := range v0.Validators().List() {
+			for _, signer := range signers {
+				if validator.Address() == signer {
+					signedCount++
+					break
+				}
+			}
+		}
+		if signedCount <= 2*r0.F {
+			t.Errorf("expected signed count larger than:%v, but got:%v", 2*r0.F, signedCount)
 		}
 	}
 }
