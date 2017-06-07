@@ -195,6 +195,7 @@ OUTER:
 				Msg:       m,
 				Address:   validator.Address(),
 				Signature: validator.Address().Bytes(), // small hack
+				ProposalSeal: []byte{},
 			}, validator); err != nil {
 				if err != test.expectedErr {
 					t.Error("unexpected error: ", err)

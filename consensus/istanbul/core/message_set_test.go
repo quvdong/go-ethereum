@@ -21,9 +21,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/common"
 )
 
 func TestMessageSetWithPreprepare(t *testing.T) {
@@ -129,10 +129,11 @@ func TestMessageSetEncodeDecode(t *testing.T) {
 			t.Errorf("Failed to encode preprepare %v, err: %v", pp, err)
 		}
 		msg := &message{
-			Code:      msgPreprepare,
-			Msg:       rawPP,
-			Address:   valSet.GetProposer().Address(),
-			Signature: []byte{0x01, 0x02},
+			Code:         msgPreprepare,
+			Msg:          rawPP,
+			Address:      valSet.GetProposer().Address(),
+			Signature:    []byte{0x01, 0x02},
+			ProposalSeal: []byte{},
 		}
 
 		err = ms.Add(msg)
