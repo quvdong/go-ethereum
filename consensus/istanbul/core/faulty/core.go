@@ -14,18 +14,16 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package faulty
 
 import (
 	"bytes"
-	"math"
 	"math/big"
 	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/core/faulty"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -36,9 +34,6 @@ import (
 
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) Engine {
-	if config.FaultyMode != istanbul.Disabled.Uint64() {
-		return faulty.New(backend, config)
-	}
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
@@ -174,7 +169,6 @@ func (c *core) commit() {
 		}
 
 		if err := c.backend.Commit(proposal, committedSeals); err != nil {
-			c.current.UnlockHash() //Unlock block when insertion fails
 			c.sendNextRoundChange()
 			return
 		}
@@ -193,21 +187,13 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 	// Clear invalid round change messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
-	c.updateRoundState(newView, c.valSet, roundChange)
+	c.current = newRoundState(newView, c.valSet)
 	// Calculate new proposer
 	c.valSet.CalcProposer(c.lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isProposer() {
-		// If it is locked, propose the old proposal
-		if c.current != nil && c.current.IsHashLocked() {
-			r := &istanbul.Request{
-				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
-			}
-			c.sendPreprepare(r)
-		} else {
-			c.backend.NextRound()
-		}
+		c.backend.NextRound()
 	}
 	c.newRoundChangeTimer()
 
@@ -215,29 +201,17 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
-	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size())
+	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
 
 	if view.Round.Cmp(c.current.Round()) > 0 {
 		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
 	}
 	c.waitingForRoundChange = true
-
-	//Needs to keep block lock for round catching up
-	c.updateRoundState(view, c.valSet, true)
+	c.current = newRoundState(view, c.valSet)
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()
 
-	logger.Debug("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet.GetProposer())
-}
-
-// updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
-	// Lock only if both roundChange is true and it is locked
-	if roundChange && c.current != nil && c.current.IsHashLocked() {
-		c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare)
-	} else {
-		c.current = newRoundState(view, validatorSet, common.Hash{}, nil)
-	}
+	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
 }
 
 func (c *core) setState(state State) {
@@ -271,10 +245,8 @@ func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 
 	// set timeout based on the round number
-	t := uint64(math.Pow(2, float64(c.current.Round().Uint64()))) * c.config.RequestTimeout
-	timeout := time.Duration(t) * time.Millisecond
+	timeout := time.Duration(c.config.RequestTimeout)*time.Millisecond + time.Duration(c.current.Round().Uint64()*c.config.BlockPeriod)*time.Second
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
-		c.logger.Debug("timeout exceeds")
 		c.sendEvent(timeoutEvent{})
 	})
 }
