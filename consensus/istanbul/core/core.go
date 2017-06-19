@@ -246,7 +246,8 @@ func (c *core) newRoundChangeTimer() {
 		c.roundChangeTimer.Stop()
 	}
 
-	timeout := time.Duration(c.config.RequestTimeout) * time.Millisecond
+	// set timeout based on the round number
+	timeout := time.Duration(c.config.RequestTimeout)*time.Millisecond + time.Duration(c.current.Round().Uint64()*c.config.BlockPeriod)*time.Second
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		// If we're not waiting for round change yet, we can try to catch up
 		// the max round with F+1 round change message. We only need to catch up
