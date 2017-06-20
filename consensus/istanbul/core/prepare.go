@@ -24,7 +24,6 @@ import (
 
 func (c *core) sendPrepare() {
 	logger := c.logger.New("state", c.state)
-	logger.Trace("sendPrepare")
 
 	sub := c.current.Subject()
 	encodedSubject, err := Encode(sub)
@@ -39,9 +38,6 @@ func (c *core) sendPrepare() {
 }
 
 func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-	logger.Trace("handlePrepare")
-
 	// Decode prepare message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)

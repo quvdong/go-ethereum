@@ -26,7 +26,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
-// Constructs a new messageSet to accumulate messages for given sequence/view number.
+// Construct a new message set to accumulate messages for given sequence/view number.
 func newMessageSet(valSet istanbul.ValidatorSet) *messageSet {
 	return &messageSet{
 		view: &istanbul.View{

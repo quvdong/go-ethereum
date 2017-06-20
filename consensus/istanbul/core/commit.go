@@ -24,7 +24,6 @@ import (
 
 func (c *core) sendCommit() {
 	logger := c.logger.New("state", c.state)
-	logger.Trace("sendCommit")
 
 	sub := c.current.Subject()
 	encodedSubject, err := Encode(sub)
@@ -39,9 +38,6 @@ func (c *core) sendCommit() {
 }
 
 func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("from", src, "state", c.state)
-	logger.Trace("handleCommit")
-
 	// Decode commit message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
