@@ -77,13 +77,13 @@ type ProtocolManager interface {
 	// NodeInfo retrieves some protocol metadata about the running host node.
 	NodeInfo() *EthNodeInfo
 
-	// Return downloader
+	// Downloader retreives the downloader
 	Downloader() *downloader.Downloader
 
-	// Set acceptTxs
+	// SetAcceptTxs sets the flag whether we're considered synchronised
 	SetAcceptTxs(uint32)
 
-	// Return SubProtocols
+	// Protocols returns supported p2p protocols
 	Protocols() []p2p.Protocol
 }
 
