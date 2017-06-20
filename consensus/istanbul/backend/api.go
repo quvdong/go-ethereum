@@ -17,13 +17,9 @@
 package backend
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -31,25 +27,6 @@ import (
 type API struct {
 	chain    consensus.ChainReader
 	istanbul *simpleBackend
-}
-
-// RoundState returns current state and proposer
-func (api *API) RoundState() {
-	state, roundState := api.istanbul.core.RoundState()
-	log.Info("RoundState", "sequence", roundState.Sequence, "round", roundState.Round,
-		"state", state, "hash", roundState.Preprepare.Proposal.Hash(),
-		"prepares", roundState.Prepares, "commits", roundState.Commits,
-		"checkpoint", roundState.Checkpoints)
-}
-
-// Backlog returns backlogs
-func (api *API) Backlog() {
-	backlog := api.istanbul.core.Backlog()
-	logs := make([]string, 0, len(backlog))
-	for validator, q := range backlog {
-		logs = append(logs, fmt.Sprintf("{%v, %v}", validator, q.Size()))
-	}
-	log.Info("Backlog", "logs", fmt.Sprintf("[%v]", strings.Join(logs, ", ")))
 }
 
 // GetSnapshot retrieves the state snapshot at a given block.

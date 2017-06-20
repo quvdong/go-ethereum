@@ -24,16 +24,11 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/rlp"
-	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
 type Engine interface {
 	Start(lastSequence *big.Int, lastProposer common.Address, lastProposal istanbul.Proposal) error
 	Stop() error
-	// get current state and round state
-	RoundState() (State, *roundState)
-	// get back log
-	Backlog() map[istanbul.Validator]*prque.Prque
 }
 
 type State uint64
