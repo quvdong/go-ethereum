@@ -252,14 +252,6 @@ func (c *core) Address() common.Address {
 	return c.address
 }
 
-func (c *core) RoundState() (State, *roundState) {
-	return c.state, c.current
-}
-
-func (c *core) Backlog() map[istanbul.Validator]*prque.Prque {
-	return c.backlogs
-}
-
 func (c *core) newRoundChangeTimer() {
 	if c.roundChangeTimer != nil {
 		c.roundChangeTimer.Stop()

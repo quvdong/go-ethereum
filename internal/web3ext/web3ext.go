@@ -693,16 +693,6 @@ web3._extend({
   	methods:
   	[
 		new web3._extend.Method({
-			name: 'roundstate',
-			call: 'istanbul_roundstate',
-			params: 0
-		}),
-		new web3._extend.Method({
-			name: 'backlog',
-			call: 'istanbul_backlog',
-			params: 0
-		}),
-		new web3._extend.Method({
 			name: 'getSnapshot',
 			call: 'istanbul_getSnapshot',
 			params: 1,
