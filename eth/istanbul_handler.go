@@ -35,7 +35,7 @@ import (
 )
 
 const (
-	// support eth/63 protocol
+	// istanbul is compatible with eth63 protocol
 	istanbulName           = "istanbul"
 	istanbulVersion        = 64
 	istanbulProtocolLength = 18
@@ -51,7 +51,7 @@ type istanbulProtocolManager struct {
 }
 
 func newIstanbulProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Istanbul, blockchain *core.BlockChain, chaindb ethdb.Database) (*istanbulProtocolManager, error) {
-	// Create default protocol manager
+	// Create eth63 protocol manager
 	defaultManager, err := newProtocolManager(config, mode, networkId, maxPeers, mux, txpool, engine, blockchain, chaindb)
 	if err != nil {
 		return nil, err
@@ -63,7 +63,7 @@ func newIstanbulProtocolManager(config *params.ChainConfig, mode downloader.Sync
 		engine:          engine,
 	}
 
-	// Overwrite SubProtocols to support only istanbul protocol
+	// Support only Istanbul protocol
 	manager.SubProtocols = []p2p.Protocol{
 		p2p.Protocol{
 			Name:    istanbulName,
@@ -96,7 +96,7 @@ func newIstanbulProtocolManager(config *params.ChainConfig, mode downloader.Sync
 }
 
 func (pm *istanbulProtocolManager) Start() {
-	// receive the Istanbul event
+	// Subscribe required events
 	pm.eventSub = pm.eventMux.Subscribe(istanbul.ConsensusDataEvent{}, core.ChainHeadEvent{})
 	go pm.eventLoop()
 	pm.protocolManager.Start()
@@ -110,9 +110,10 @@ func (pm *istanbulProtocolManager) Stop() {
 	pm.eventSub.Unsubscribe() // quits eventLoop
 }
 
-// handleMsg overrides protocolManager.handleMsg()
+// handleMsg handles Istanbul related consensus messages or
+// fallback to default procotol manager's handler
 func (pm *istanbulProtocolManager) handleMsg(p *peer, msg p2p.Msg) error {
-	// Handle the message depending on its contents
+	// Handle Istanbul messages
 	switch {
 	case msg.Code == IstanbulMsg:
 		pubKey, err := p.ID().Pubkey()
@@ -123,17 +124,15 @@ func (pm *istanbulProtocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 		if err := msg.Decode(&data); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		pm.engine.HandleMsg(pubKey, data)
+		return pm.engine.HandleMsg(pubKey, data)
 	default:
-		// Handle by default handler if the message isn't istanbul message
+		// Invoke default protocol manager's message handler
 		return pm.protocolManager.handleMsg(p, msg)
 	}
-	return nil
 }
 
 // event loop for Istanbul
 func (pm *istanbulProtocolManager) eventLoop() {
-	// automatically stops if unsubscribe
 	for obj := range pm.eventSub.Chan() {
 		switch ev := obj.Data.(type) {
 		case istanbul.ConsensusDataEvent:
@@ -144,9 +143,9 @@ func (pm *istanbulProtocolManager) eventLoop() {
 	}
 }
 
-// event loop for Istanbul events
+// sendEvent sends a p2p message with given data to a peer
 func (pm *istanbulProtocolManager) sendEvent(event istanbul.ConsensusDataEvent) {
-	// FIXME: it's inefficient because retrieving all peers every time
+	// FIXME: it's inefficient because it retrieves all peers every time
 	p := pm.findPeer(event.Target)
 	if p == nil {
 		log.Warn("Failed to find peer by address", "addr", event.Target)
@@ -156,12 +155,11 @@ func (pm *istanbulProtocolManager) sendEvent(event istanbul.ConsensusDataEvent) 
 }
 
 func (pm *istanbulProtocolManager) commitBlock(block *types.Block) error {
-	// TODO: find a better way to handle validator insert block
 	if _, err := pm.blockchain.InsertChain(types.Blocks{block}); err != nil {
-		log.Debug("Block insert failed", "number", block.Number(), "hash", block.Hash(), "err", err)
+		log.Debug("Failed to insert block", "number", block.Number(), "hash", block.Hash(), "err", err)
 		return err
 	}
-	// Only announce the block, not broadcast it
+	// Only announce the block, don't broadcast it
 	go pm.BroadcastBlock(block, false)
 	return nil
 }
@@ -173,7 +171,7 @@ func (pm *istanbulProtocolManager) newHead(event core.ChainHeadEvent) {
 	}
 }
 
-// findPeer retrieves all peers by given address
+// findPeer retrieves a peer by given address
 func (pm *istanbulProtocolManager) findPeer(addr common.Address) *peer {
 	for _, p := range pm.peers.Peers() {
 		pubKey, err := p.ID().Pubkey()
