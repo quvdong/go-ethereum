@@ -168,14 +168,14 @@ OUTER:
 			validator := r0.valSet.GetByIndex(uint64(i))
 			m, _ := Encode(v.engine.(*core).current.Subject())
 			if err := r0.handleCommit(&message{
-				Code:       msgCommit,
-				Msg:        m,
-				Address:    validator.Address(),
-				Signature:  []byte{},
+				Code:          msgCommit,
+				Msg:           m,
+				Address:       validator.Address(),
+				Signature:     []byte{},
 				CommittedSeal: validator.Address().Bytes(), // small hack
 			}, validator); err != nil {
 				if err != test.expectedErr {
-					t.Error("unexpected error: ", err)
+					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 				}
 				continue OUTER
 			}
@@ -185,10 +185,10 @@ OUTER:
 		if r0.state != StateCommitted {
 			// There are not enough commit messages in core
 			if r0.state != StatePrepared {
-				t.Error("state should be prepared")
+				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePrepared)
 			}
 			if r0.current.Commits.Size() > 2*r0.valSet.F() {
-				t.Error("commit messages size should less than ", 2*r0.valSet.F()+1)
+				t.Errorf("the size of commit messages should be less than %v", 2*r0.valSet.F()+1)
 			}
 
 			continue
@@ -196,7 +196,7 @@ OUTER:
 
 		// core should have 2F+1 prepare messages
 		if r0.current.Commits.Size() <= 2*r0.valSet.F() {
-			t.Error("commit messages size should greater than 2F+1, size:", r0.current.Commits.Size())
+			t.Errorf("the size of commit messages should be larger than 2F+1: size %v", r0.current.Commits.Size())
 		}
 
 		// check signatures large than 2F+1
@@ -214,7 +214,7 @@ OUTER:
 			}
 		}
 		if signedCount <= 2*r0.valSet.F() {
-			t.Errorf("expected signed count larger than:%v, but got:%v", 2*r0.valSet.F(), signedCount)
+			t.Errorf("the expected signed count should be larger than %v, but got %v", 2*r0.valSet.F(), signedCount)
 		}
 	}
 }
@@ -312,7 +312,7 @@ func TestVerifyCommit(t *testing.T) {
 
 		if err := c.verifyCommit(test.commit, peer); err != nil {
 			if err != test.expected {
-				t.Errorf("Results %d are different, err:%v", i, err)
+				t.Errorf("result %d: error mismatch: have %v, want %v", i, err, test.expected)
 			}
 		}
 	}

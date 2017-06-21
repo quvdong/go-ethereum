@@ -199,7 +199,7 @@ OUTER:
 				Address: validator.Address(),
 			}, validator); err != nil {
 				if err != test.expectedErr {
-					t.Errorf("unexpected error, got: %v, expected: %v", err, test.expectedErr)
+					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 				}
 				continue OUTER
 			}
@@ -209,10 +209,10 @@ OUTER:
 		if r0.state != StatePrepared {
 			// There are not enough prepared messages in core
 			if r0.state != StatePreprepared {
-				t.Error("state should be preprepared")
+				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
 			}
 			if r0.current.Prepares.Size() > 2*r0.valSet.F() {
-				t.Error("prepare messages size should less than ", 2*r0.valSet.F()+1)
+				t.Errorf("the size of prepare messages should be less than %v", 2*r0.valSet.F()+1)
 			}
 
 			continue
@@ -220,31 +220,31 @@ OUTER:
 
 		// core should have 2F+1 prepare messages
 		if r0.current.Prepares.Size() <= 2*r0.valSet.F() {
-			t.Error("prepare messages size should greater than 2F+1, size:", r0.current.Prepares.Size())
+			t.Errorf("the size of prepare messages should be larger than 2F+1: size %v", r0.current.Commits.Size())
 		}
 
 		// a message will be delivered to backend if 2F+1
 		if int64(len(v0.sentMsgs)) != 1 {
-			t.Error("the Send() should be called once, got:", len(test.system.backends[0].sentMsgs))
+			t.Errorf("the Send() should be called once: times %v", len(test.system.backends[0].sentMsgs))
 		}
 
 		// verify commit messages
 		decodedMsg := new(message)
 		err := decodedMsg.FromPayload(v0.sentMsgs[0], nil)
 		if err != nil {
-			t.Error("failed to parse")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 
 		if decodedMsg.Code != msgCommit {
-			t.Error("message code is not the same")
+			t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, msgCommit)
 		}
 		var m *istanbul.Subject
 		err = decodedMsg.Decode(&m)
 		if err != nil {
-			t.Error("failed to decode Prepare")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 		if !reflect.DeepEqual(m, expectedSubject) {
-			t.Error("subject should be the same")
+			t.Errorf("subject mismatch: have %v, want %v", m, expectedSubject)
 		}
 	}
 }
@@ -343,7 +343,7 @@ func TestVerifyPrepare(t *testing.T) {
 
 		if err := c.verifyPrepare(test.prepare, peer); err != nil {
 			if err != test.expected {
-				t.Errorf("expected result is not the same (%d), err:%v", i, err)
+				t.Errorf("result %d: error mismatch: have %v, want %v", i, err, test.expected)
 			}
 		}
 	}

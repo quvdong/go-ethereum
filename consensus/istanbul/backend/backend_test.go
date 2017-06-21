@@ -37,7 +37,7 @@ func TestSign(t *testing.T) {
 	data := []byte("Here is a string....")
 	sig, err := b.Sign(data)
 	if err != nil {
-		t.Error("Sign data should succeed")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	//Check signature recover
 	hashData := crypto.Keccak256([]byte(data))
@@ -45,7 +45,7 @@ func TestSign(t *testing.T) {
 	var signer common.Address
 	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
 	if strings.Compare(signer.Hex(), "0x70524d664ffe731100208a0154e556f9bb679ae6") != 0 {
-		t.Errorf("Signature should recover to address 0x70524d664ffe731100208a0154e556f9bb679ae6")
+		t.Errorf("address mismatch: have %v, want 0x70524d664ffe731100208a0154e556f9bb679ae6", signer.Hex())
 	}
 }
 
@@ -58,12 +58,12 @@ func TestCheckSignature(t *testing.T) {
 	a := getAddress()
 	err := b.CheckSignature(data, a, sig)
 	if err != nil {
-		t.Error("Signature should match the given address")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	a = getInvalidAddress()
 	err = b.CheckSignature(data, a, sig)
 	if err != errInvalidSignature {
-		t.Error("Should fail with ErrInvalidSignature")
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidSignature)
 	}
 }
 
@@ -77,38 +77,38 @@ func TestCheckValidatorSignature(t *testing.T) {
 		// Sign
 		sig, err := crypto.Sign(hashData, k)
 		if err != nil {
-			t.Errorf("Unable to sign data")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 		// CheckValidatorSignature should succeed
 		addr, err := istanbul.CheckValidatorSignature(vset, data, sig)
 		if err != nil {
-			t.Errorf("CheckValidatorSignature should succeed")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 		validator := vset.GetByIndex(uint64(i))
 		if addr != validator.Address() {
-			t.Errorf("CheckValidatorSignature should return correct validator's address")
+			t.Errorf("validator address mismatch: have %v, want %v", addr, validator.Address())
 		}
 	}
 
 	// 2. Negative test: sign with any key other than validator's key should return error
 	key, err := crypto.GenerateKey()
 	if err != nil {
-		t.Errorf("Unable to generate key")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	// Sign
 	sig, err := crypto.Sign(hashData, key)
 	if err != nil {
-		t.Errorf("Unable to sign data")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// CheckValidatorSignature should return ErrUnauthorizedAddress
 	addr, err := istanbul.CheckValidatorSignature(vset, data, sig)
 	if err != istanbul.ErrUnauthorizedAddress {
-		t.Errorf("Expected error istanbul.ErrUnauthorizedAddress, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want %v", err, istanbul.ErrUnauthorizedAddress)
 	}
 	emptyAddr := common.Address{}
 	if addr != emptyAddr {
-		t.Errorf("Expected empty address, but got: %v", addr)
+		t.Errorf("address mismatch: have %v, want %v", addr, emptyAddr)
 	}
 }
 
@@ -152,11 +152,11 @@ func TestCommit(t *testing.T) {
 				select {
 				case result := <-backend.commitCh:
 					if result.Hash() != expBlock.Hash() {
-						t.Errorf("expected: %v, but got: %v", expBlock.Hash().Hex(), result.Hash().Hex())
+						t.Errorf("hash mismatch: have %v, want %v", result.Hash(), expBlock.Hash())
 					}
 					return
 				case <-time.After(time.Second):
-					t.Error("unexpected error, timeout")
+					t.Error("unexpected timeout occurs")
 				}
 			}
 		}()
@@ -164,7 +164,7 @@ func TestCommit(t *testing.T) {
 		backend.proposedBlockHash = expBlock.Hash()
 		if err := backend.Commit(expBlock, test.expectedSignature); err != nil {
 			if err != test.expectedErr {
-				t.Errorf("expected: %v, but got: %v", test.expectedErr, err)
+				t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 			}
 		}
 	}

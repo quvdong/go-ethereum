@@ -66,7 +66,7 @@ func newBlockChain(n int) (*core.BlockChain, *simpleBackend) {
 		panic(err)
 	}
 	if snap == nil {
-		panic("nil snap")
+		panic("failed to get snapshot")
 	}
 	proposerAddr := snap.ValSet.GetProposer().Address()
 
@@ -157,12 +157,12 @@ func TestPrepare(t *testing.T) {
 	header := makeHeader(chain.Genesis(), engine.config)
 	err := engine.Prepare(chain, header)
 	if err != nil {
-		t.Errorf("error should be nil, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	header.ParentHash = common.StringToHash("1234567890")
 	err = engine.Prepare(chain, header)
 	if err != consensus.ErrUnknownAncestor {
-		t.Errorf("error should be consensus.ErrUnknownAncestor, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrUnknownAncestor)
 	}
 }
 
@@ -176,7 +176,7 @@ func TestSealStopChannel(t *testing.T) {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(istanbul.RequestEvent)
 			if !ok {
-				t.Errorf("unexpected event comes, got: %v, expected: istanbul.RequestEvent", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 			}
 			stop <- struct{}{}
 		}
@@ -185,10 +185,10 @@ func TestSealStopChannel(t *testing.T) {
 	go eventLoop()
 	finalBlock, err := engine.Seal(chain, block, stop)
 	if err != nil {
-		t.Errorf("error should be nil, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	if finalBlock != nil {
-		t.Errorf("block should be nil, but got: %v", finalBlock)
+		t.Errorf("block mismatch: have %v, want nil", finalBlock)
 	}
 }
 
@@ -201,7 +201,7 @@ func TestSealRoundChange(t *testing.T) {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(istanbul.RequestEvent)
 			if !ok {
-				t.Errorf("unexpected event comes, got: %v, expected: istanbul.RequestEvent", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 			}
 			engine.NextRound()
 		}
@@ -211,7 +211,7 @@ func TestSealRoundChange(t *testing.T) {
 
 	seal := func() {
 		engine.Seal(chain, block, nil)
-		t.Errorf("should not be called")
+		t.Error("seal should not be completed")
 	}
 	go seal()
 
@@ -233,7 +233,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 		case ev := <-eventSub.Chan():
 			_, ok := ev.Data.(istanbul.RequestEvent)
 			if !ok {
-				t.Errorf("unexpected event comes, got: %v, expected: istanbul.RequestEvent", reflect.TypeOf(ev.Data))
+				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 			}
 			engine.Commit(otherBlock, []byte{})
 		}
@@ -242,7 +242,7 @@ func TestSealCommittedOtherHash(t *testing.T) {
 	go eventLoop()
 	seal := func() {
 		engine.Seal(chain, block, nil)
-		t.Errorf("should not be called")
+		t.Error("seal should not be completed")
 	}
 	go seal()
 
@@ -261,10 +261,10 @@ func TestSealCommitted(t *testing.T) {
 
 	finalBlock, err := engine.Seal(chain, block, nil)
 	if err != nil {
-		t.Errorf("error should be nil, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	if finalBlock.Hash() != expectedBlock.Hash() {
-		t.Errorf("block should be equal, got: %v, expected: %v", finalBlock.Hash(), expectedBlock.Hash())
+		t.Errorf("hash mismatch: have %v, want %v", finalBlock.Hash(), expectedBlock.Hash())
 	}
 }
 
@@ -276,7 +276,7 @@ func TestVerifyHeader(t *testing.T) {
 	block, _ = engine.updateBlock(chain.Genesis().Header(), block)
 	err := engine.VerifyHeader(chain, block.Header(), false)
 	if err != errEmptyCommittedSeals {
-		t.Errorf("unexpected error comes, got: %v, expected: errEmptyCommittedSeals", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errEmptyCommittedSeals)
 	}
 
 	// short extra data
@@ -284,13 +284,13 @@ func TestVerifyHeader(t *testing.T) {
 	header.Extra = []byte{}
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidExtraDataFormat {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidExtraDataFormat", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidExtraDataFormat)
 	}
 	// incorrect extra format
 	header.Extra = []byte("0000000000000000000000000000000012300000000000000000000000000000000000000000000000000000000000000000")
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidExtraDataFormat {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidExtraDataFormat", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidExtraDataFormat)
 	}
 
 	// non zero MixDigest
@@ -299,7 +299,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.MixDigest = common.StringToHash("123456789")
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidMixDigest {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidMixDigest", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMixDigest)
 	}
 
 	// invalid uncles hash
@@ -308,7 +308,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.UncleHash = common.StringToHash("123456789")
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidUncleHash {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidUncleHash", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidUncleHash)
 	}
 
 	// invalid difficulty
@@ -317,7 +317,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.Difficulty = big.NewInt(2)
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidDifficulty {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidDifficulty", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidDifficulty)
 	}
 
 	// invalid timestamp
@@ -326,7 +326,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.Time = new(big.Int).Add(chain.Genesis().Time(), new(big.Int).SetUint64(engine.config.BlockPeriod-1))
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidTimestamp {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidTimestamp", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidTimestamp)
 	}
 
 	// future block
@@ -335,7 +335,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.Time = new(big.Int).Add(big.NewInt(now().Unix()), new(big.Int).SetUint64(10))
 	err = engine.VerifyHeader(chain, header, false)
 	if err != consensus.ErrFutureBlock {
-		t.Errorf("unexpected error comes, got: %v, expected: consensus.ErrFutureBlock", err)
+		t.Errorf("error mismatch: have %v, want %v", err, consensus.ErrFutureBlock)
 	}
 
 	// invalid nonce
@@ -345,7 +345,7 @@ func TestVerifyHeader(t *testing.T) {
 	header.Number = big.NewInt(int64(engine.config.Epoch))
 	err = engine.VerifyHeader(chain, header, false)
 	if err != errInvalidNonce {
-		t.Errorf("unexpected error comes, got: %v, expected: errInvalidCoinbase", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidNonce)
 	}
 }
 
@@ -355,7 +355,7 @@ func TestVerifySeal(t *testing.T) {
 	// cannot verify genesis
 	err := engine.VerifySeal(chain, genesis.Header())
 	if err != errUnknownBlock {
-		t.Errorf("unexpected error comes, got: %v, expected: errUnknownBlock", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errUnknownBlock)
 	}
 
 	block := makeBlock(chain, engine, genesis)
@@ -365,14 +365,14 @@ func TestVerifySeal(t *testing.T) {
 	block1 := block.WithSeal(header)
 	err = engine.VerifySeal(chain, block1.Header())
 	if err != errUnauthorized {
-		t.Errorf("unexpected error comes, got: %v, expected: errUnauthorized", err)
+		t.Errorf("error mismatch: have %v, want %v", err, errUnauthorized)
 	}
 
 	// unauthorized users but still can get correct signer address
 	engine.privateKey, _ = crypto.GenerateKey()
 	err = engine.VerifySeal(chain, block.Header())
 	if err != nil {
-		t.Errorf("error should be nil, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 }
 
@@ -410,7 +410,7 @@ OUT1:
 		case err := <-results:
 			if err != nil {
 				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals {
-					t.Errorf("error should be nil, but got: %v", err)
+					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals", err)
 					break OUT1
 				}
 			}
@@ -432,7 +432,7 @@ OUT2:
 		case err := <-results:
 			if err != nil {
 				if err != errEmptyCommittedSeals && err != errInvalidCommittedSeals {
-					t.Errorf("error should be nil, but got: %v", err)
+					t.Errorf("error mismatch: have %v, want errEmptyCommittedSeals|errInvalidCommittedSeals", err)
 					break OUT2
 				}
 			}
@@ -467,7 +467,7 @@ OUT3:
 			index++
 			if index == size {
 				if errors != expectedErrors {
-					t.Errorf("Unexpected error number, got: %v, expected: %v", errors, expectedErrors)
+					t.Errorf("error mismatch: have %v, want %v", err, expectedErrors)
 				}
 				break OUT3
 			}
@@ -493,10 +493,10 @@ func TestPrepareExtra(t *testing.T) {
 
 	payload, err := prepareExtra(h, validators)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Errorf("error mismatch: have %v, want: nil", err)
 	}
 	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("expected: %v, but got: %v", expectedResult, payload)
+		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}
 
 	// append useless information to extra-data
@@ -504,7 +504,7 @@ func TestPrepareExtra(t *testing.T) {
 
 	payload, err = prepareExtra(h, validators)
 	if !reflect.DeepEqual(payload, expectedResult) {
-		t.Errorf("expected: %v, got: %v", expectedResult, payload)
+		t.Errorf("payload mismatch: have %v, want %v", payload, expectedResult)
 	}
 }
 
@@ -531,23 +531,23 @@ func TestWriteSeal(t *testing.T) {
 	// normal case
 	err := writeSeal(h, expectedSeal)
 	if err != expectedErr {
-		t.Errorf("expected: %v, but got: %v", expectedErr, err)
+		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
 	}
 
 	// verify istanbul extra-data
 	istExtra, err := types.ExtractIstanbulExtra(h)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("expected: %v, got: %v", expectedIstExtra, istExtra)
+		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 
 	// invalid seal
 	unexpectedSeal := append(expectedSeal, make([]byte, 1)...)
 	err = writeSeal(h, unexpectedSeal)
 	if err != errInvalidSignature {
-		t.Errorf("expected: %v, got: %v", errInvalidSignature, err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidSignature)
 	}
 }
 
@@ -574,22 +574,22 @@ func TestWriteCommittedSeals(t *testing.T) {
 	// normal case
 	err := writeCommittedSeals(h, expectedCommittedSeal)
 	if err != expectedErr {
-		t.Errorf("expected: %v, but got: %v", expectedErr, err)
+		t.Errorf("error mismatch: have %v, want %v", err, expectedErr)
 	}
 
 	// verify istanbul extra-data
 	istExtra, err := types.ExtractIstanbulExtra(h)
 	if err != nil {
-		t.Errorf("unexpected error: %v", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	if !reflect.DeepEqual(istExtra, expectedIstExtra) {
-		t.Errorf("expected: %v, got: %v", expectedIstExtra, istExtra)
+		t.Errorf("extra data mismatch: have %v, want %v", istExtra, expectedIstExtra)
 	}
 
 	// invalid seal
 	unexpectedCommittedSeal := append(expectedCommittedSeal, make([]byte, 1)...)
 	err = writeCommittedSeals(h, unexpectedCommittedSeal)
 	if err != errInvalidCommittedSeals {
-		t.Errorf("expected: %v, got: %v", errInvalidCommittedSeals, err)
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidCommittedSeals)
 	}
 }

@@ -70,13 +70,13 @@ func TestNewRequest(t *testing.T) {
 
 	for _, backend := range sys.backends {
 		if len(backend.commitMsgs) != 2 {
-			t.Error("expected execution of requests should be 2, but got:", len(backend.commitMsgs))
+			t.Errorf("the number of executed requests mismatch: have %v, want 2", len(backend.commitMsgs))
 		}
 		if !reflect.DeepEqual(request1.Number(), backend.commitMsgs[0].Number()) {
-			t.Errorf("request number should be equal, expect:%v, but got:%v", request1.Number(), backend.commitMsgs[0].Number())
+			t.Errorf("the number of requests mismatch: have %v, want %v", request1.Number(), backend.commitMsgs[0].Number())
 		}
 		if !reflect.DeepEqual(request2.Number(), backend.commitMsgs[1].Number()) {
-			t.Errorf("request number should be equal, expect:%v, but got:%v", request2.Number(), backend.commitMsgs[1].Number())
+			t.Errorf("the number of requests mismatch: have %v, want %v", request2.Number(), backend.commitMsgs[1].Number())
 		}
 	}
 }
