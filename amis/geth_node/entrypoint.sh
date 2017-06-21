@@ -6,15 +6,23 @@
 
 /geth \
     --identity "$IDENTITY" \
-	--rpc \
+    --rpc \
+    --rpcaddr "0.0.0.0" \
     --rpcport "8545" \
-	--rpccorsdomain "*" \
-	--datadir "/eth" \
-	--port "$PORT" \
+    --rpccorsdomain "*" \
+    --datadir "/eth" \
+    --port "$PORT" \
     --rpcapi "db,eth,net,web3" \
     --networkid "20160816" \
     --nat "any" \
     --nodekeyhex "$NODEKEY" \
     --bootnodes "$BOOTNODES" \
+    --targetgaslimit $GAS_LIMIT \
+    --txpool.globalslots $GLOBAL_SLOTS \
+    --txpool.accountslots $ACCOUNT_SLOTS \
+    --txpool.globalqueue $GLOBAL_QUEUE \
+    --txpool.accountqueue $ACCOUNT_QUEUE \
     --minerthreads 1 \
-    --debug
+    --debug \
+    --metrics \
+    --promaddr "$PROMETHEUS_ADDR"
