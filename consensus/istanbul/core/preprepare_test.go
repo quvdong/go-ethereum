@@ -158,36 +158,36 @@ OUTER:
 				Address: v0.Address(),
 			}, val); err != nil {
 				if err != test.expectedErr {
-					t.Errorf("unexpected error, expect:%v, but got:%v", test.expectedErr, err)
+					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 				}
 				continue OUTER
 			}
 
 			if c.state != StatePreprepared {
-				t.Error("state should be preprepared")
+				t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
 			}
 
 			if !reflect.DeepEqual(c.current.Subject().View, curView) {
-				t.Error("view should be the same")
+				t.Errorf("view mismatch: have %v, want %v", c.current.Subject().View, curView)
 			}
 
 			// verify prepare messages
 			decodedMsg := new(message)
 			err := decodedMsg.FromPayload(v.sentMsgs[0], nil)
 			if err != nil {
-				t.Error("failed to parse")
+				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 
 			if decodedMsg.Code != msgPrepare {
-				t.Error("message code is not the same")
+				t.Errorf("message code mismatch: have %v, want %v", decodedMsg.Code, msgPrepare)
 			}
 			var subject *istanbul.Subject
 			err = decodedMsg.Decode(&subject)
 			if err != nil {
-				t.Error("failed to decode Prepare")
+				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 			if !reflect.DeepEqual(subject, c.current.Subject()) {
-				t.Error("subject should be the same")
+				t.Errorf("subject mismatch: have %v, want %v", subject, c.current.Subject())
 			}
 		}
 	}

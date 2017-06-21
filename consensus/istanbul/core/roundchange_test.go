@@ -50,8 +50,7 @@ func TestRoundChangeSet(t *testing.T) {
 		}
 		rc.Add(view.Round, msg)
 		if rc.roundChanges[view.Round.Uint64()].Size() != i+1 {
-			t.Errorf("unexpected round change message size, got: %v, expected: %v",
-				rc.roundChanges[view.Round.Uint64()].Size(), i+1)
+			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), i+1)
 		}
 	}
 
@@ -64,8 +63,7 @@ func TestRoundChangeSet(t *testing.T) {
 		}
 		rc.Add(view.Round, msg)
 		if rc.roundChanges[view.Round.Uint64()].Size() != vset.Size() {
-			t.Errorf("unexpected round change message size, got: %v, expected: %v",
-				rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
+			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
 		}
 	}
 
@@ -74,11 +72,10 @@ func TestRoundChangeSet(t *testing.T) {
 		maxRound := rc.MaxRound(i)
 		if i <= vset.Size() {
 			if maxRound == nil || maxRound.Cmp(view.Round) != 0 {
-				t.Errorf("unexpected max round, got: %v, expected: %v", maxRound, view.Round)
+				t.Errorf("max round mismatch: have %v, want %v", maxRound, view.Round)
 			}
 		} else if maxRound != nil {
-			t.Errorf("max round should be nil, but got: %v", maxRound)
-
+			t.Errorf("max round mismatch: have %v, want nil", maxRound)
 		}
 	}
 
@@ -86,13 +83,11 @@ func TestRoundChangeSet(t *testing.T) {
 	for i := int64(0); i < 2; i++ {
 		rc.Clear(big.NewInt(i))
 		if rc.roundChanges[view.Round.Uint64()].Size() != vset.Size() {
-			t.Errorf("unexpected round change message size, got: %v, expected: %v",
-				rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
+			t.Errorf("the size of round change messages mismatch: have %v, want %v", rc.roundChanges[view.Round.Uint64()].Size(), vset.Size())
 		}
 	}
 	rc.Clear(big.NewInt(2))
 	if rc.roundChanges[view.Round.Uint64()] != nil {
-		t.Errorf("round change set should be nil, but got: %v",
-			rc.roundChanges[view.Round.Uint64()])
+		t.Errorf("the change messages mismatch: have %v, want nil", rc.roundChanges[view.Round.Uint64()])
 	}
 }

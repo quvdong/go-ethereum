@@ -18,6 +18,7 @@ package core
 
 import (
 	"math/big"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
@@ -40,14 +41,14 @@ func TestCheckRequestMsg(t *testing.T) {
 	// invalid request
 	err := c.checkRequestMsg(nil)
 	if err != errInvalidMessage {
-		t.Error("Should return errInvalidMessage if nil request")
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
 	}
 	r := &istanbul.Request{
 		Proposal: nil,
 	}
 	err = c.checkRequestMsg(r)
 	if err != errInvalidMessage {
-		t.Error("Should return errInvalidMessage if nil proposal")
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
 	}
 
 	// old request
@@ -56,7 +57,7 @@ func TestCheckRequestMsg(t *testing.T) {
 	}
 	err = c.checkRequestMsg(r)
 	if err != errOldMessage {
-		t.Error("Should return errOldMessage if old request")
+		t.Errorf("error mismatch: have %v, want %v", err, errOldMessage)
 	}
 
 	// future request
@@ -65,7 +66,7 @@ func TestCheckRequestMsg(t *testing.T) {
 	}
 	err = c.checkRequestMsg(r)
 	if err != errFutureMessage {
-		t.Error("Should return errFutureMessage if future request")
+		t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 	}
 
 	// current request
@@ -74,7 +75,7 @@ func TestCheckRequestMsg(t *testing.T) {
 	}
 	err = c.checkRequestMsg(r)
 	if err != nil {
-		t.Error("Should return nil if current request")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 }
 
@@ -109,7 +110,7 @@ func TestStoreRequestMsg(t *testing.T) {
 	c.storeRequestMsg(&requests[0])
 	c.storeRequestMsg(&requests[2])
 	if c.pendingRequests.Size() != len(requests) {
-		t.Fatalf("Unexpected pending requests size, got: %v, expected: %v", c.pendingRequests.Size(), len(requests))
+		t.Errorf("the size of pending requests mismatch: have %v, want %v", c.pendingRequests.Size(), len(requests))
 	}
 
 	c.current.sequence = big.NewInt(3)
@@ -125,12 +126,12 @@ func TestStoreRequestMsg(t *testing.T) {
 	case ev := <-c.events.Chan():
 		e, ok := ev.Data.(istanbul.RequestEvent)
 		if !ok {
-			t.Fatalf("Unexpected event comes")
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
 		if e.Proposal.Number().Cmp(requests[2].Proposal.Number()) != 0 {
-			t.Fatalf("Unexpected request number, got: %v, expected: %v", e.Proposal.Number(), requests[2].Proposal.Number())
+			t.Errorf("the number of proposal mismatch: have %v, want %v", e.Proposal.Number(), requests[2].Proposal.Number())
 		}
 	case <-timeout.C:
-		t.Error("Timeout. Cannot receive events as expected")
+		t.Error("unexpected timeout occurs")
 	}
 }

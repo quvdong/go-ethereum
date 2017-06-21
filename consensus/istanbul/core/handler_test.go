@@ -54,7 +54,7 @@ func TestHandleMsg(t *testing.T) {
 
 	_, val := v0.Validators(nil).GetByAddress(v0.Address())
 	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePreprepare {
-		t.Error("message should decode failed")
+		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodePreprepare)
 	}
 
 	m, _ = Encode(&istanbul.Preprepare{
@@ -75,7 +75,7 @@ func TestHandleMsg(t *testing.T) {
 
 	_, val = v0.Validators(nil).GetByAddress(v0.Address())
 	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodePrepare {
-		t.Error("message should decode failed")
+		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodePreprepare)
 	}
 
 	m, _ = Encode(&istanbul.Preprepare{
@@ -96,7 +96,7 @@ func TestHandleMsg(t *testing.T) {
 
 	_, val = v0.Validators(nil).GetByAddress(v0.Address())
 	if err := r0.handleCheckedMsg(msg, val); err != errFailedDecodeCommit {
-		t.Error("message should decode failed")
+		t.Errorf("error mismatch: have %v, want %v", err, errFailedDecodeCommit)
 	}
 
 	m, _ = Encode(&istanbul.Preprepare{
@@ -117,11 +117,11 @@ func TestHandleMsg(t *testing.T) {
 
 	_, val = v0.Validators(nil).GetByAddress(v0.Address())
 	if err := r0.handleCheckedMsg(msg, val); err == nil {
-		t.Error("error is supposed to be returned")
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// with malicious payload
 	if err := r0.handleMsg([]byte{1}); err == nil {
-		t.Error("message should decode failed..., but:", err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 }

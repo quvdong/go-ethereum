@@ -43,33 +43,33 @@ func testPreprepare(t *testing.T) {
 
 	msgPayload, err := m.Payload()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	decodedMsg := new(message)
 	err = decodedMsg.FromPayload(msgPayload, nil)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	var decodedPP *istanbul.Preprepare
 	err = decodedMsg.Decode(&decodedPP)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// if block is encoded/decoded by rlp, we cannot to compare interface data type using reflect.DeepEqual. (like istanbul.Proposal)
 	// so individual comparison here.
 	if !reflect.DeepEqual(pp.Proposal.Hash(), decodedPP.Proposal.Hash()) {
-		t.Errorf("Header are different, expected '%+v', got '%+v'", pp.Proposal, decodedPP.Proposal)
+		t.Errorf("proposal hash mismatch: have %v, want %v", decodedPP.Proposal.Hash(), pp.Proposal.Hash())
 	}
 
 	if !reflect.DeepEqual(pp.View, decodedPP.View) {
-		t.Errorf("View are different, expected '%+v', got '%+v'", pp.View, decodedPP.View)
+		t.Errorf("view mismatch: have %v, want %v", decodedPP.View, pp.View)
 	}
 
 	if !reflect.DeepEqual(pp.Proposal.Number(), decodedPP.Proposal.Number()) {
-		t.Errorf("Block number are different, expected '%+v', got '%+v'", pp, decodedPP)
+		t.Errorf("proposal number mismatch: have %v, want %v", decodedPP.Proposal.Number(), pp.Proposal.Number())
 	}
 }
 
@@ -92,23 +92,23 @@ func testSubject(t *testing.T) {
 
 	msgPayload, err := m.Payload()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	decodedMsg := new(message)
 	err = decodedMsg.FromPayload(msgPayload, nil)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	var decodedSub *istanbul.Subject
 	err = decodedMsg.Decode(&decodedSub)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	if !reflect.DeepEqual(s, decodedSub) {
-		t.Errorf("messages are different, expected '%+v', got '%+v'", s, decodedSub)
+		t.Errorf("subject mismatch: have %v, want %v", decodedSub, s)
 	}
 }
 
@@ -134,7 +134,7 @@ func testSubjectWithSignature(t *testing.T) {
 
 	msgPayload, err := m.Payload()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// 2. Decode test
@@ -144,11 +144,11 @@ func testSubjectWithSignature(t *testing.T) {
 		return common.Address{}, nil
 	})
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	if !reflect.DeepEqual(decodedMsg, m) {
-		t.Errorf("Messages are different, expected '%+v', got '%+v'", m, decodedMsg)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// 2.2 Test nil validate func
@@ -159,7 +159,7 @@ func testSubjectWithSignature(t *testing.T) {
 	}
 
 	if !reflect.DeepEqual(decodedMsg, m) {
-		t.Errorf("Messages are different, expected '%+v', got '%+v'", m, decodedMsg)
+		t.Errorf("message mismatch: have %v, want %v", decodedMsg, m)
 	}
 
 	// 2.3 Test failed validate func
@@ -168,7 +168,7 @@ func testSubjectWithSignature(t *testing.T) {
 		return common.Address{}, istanbul.ErrUnauthorizedAddress
 	})
 	if err != istanbul.ErrUnauthorizedAddress {
-		t.Errorf("Expect ErrUnauthorizedAddress error, but got: %v", err)
+		t.Errorf("error mismatch: have %v, want %v", err, istanbul.ErrUnauthorizedAddress)
 	}
 }
 
@@ -188,25 +188,25 @@ func testRoundChange(t *testing.T) {
 
 	msgPayload, err := m.Payload()
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	decodedMsg := new(message)
 	err = decodedMsg.FromPayload(msgPayload, nil)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	var decodedRC *roundChange
 	err = decodedMsg.Decode(&decodedRC)
 	if err != nil {
-		t.Error(err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	// if block is encoded/decoded by rlp, we cannot to compare interface data type using reflect.DeepEqual. (like istanbul.Proposal)
 	// so individual comparison here.
 	if !reflect.DeepEqual(rc, decodedRC) {
-		t.Errorf("messages are different, expected '%+v', got '%+v'", rc, decodedRC)
+		t.Errorf("round change mismatch: have %v, want %v", decodedRC, rc)
 	}
 }
 

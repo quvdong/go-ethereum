@@ -41,7 +41,7 @@ func TestMessageSetWithPreprepare(t *testing.T) {
 
 	rawPP, err := rlp.EncodeToBytes(pp)
 	if err != nil {
-		t.Errorf("Failed to encode preprepare %v, err: %v", pp, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 	msg := &message{
 		Code:    msgPreprepare,
@@ -51,16 +51,16 @@ func TestMessageSetWithPreprepare(t *testing.T) {
 
 	err = ms.Add(msg)
 	if err != nil {
-		t.Errorf("Failed to add message %v, err: %v", msg, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	err = ms.Add(msg)
 	if err != nil {
-		t.Errorf("Failed to add message %v, err: %v", msg, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	if ms.Size() != 1 {
-		t.Error("There should be exactly one message in set")
+		t.Errorf("the size of message set mismatch: have %v, want 1", ms.Size())
 	}
 }
 
@@ -81,7 +81,7 @@ func TestMessageSetWithSubject(t *testing.T) {
 
 	rawSub, err := rlp.EncodeToBytes(sub)
 	if err != nil {
-		t.Errorf("Failed to encode subject %v, err: %v", sub, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	msg := &message{
@@ -92,15 +92,15 @@ func TestMessageSetWithSubject(t *testing.T) {
 
 	err = ms.Add(msg)
 	if err != nil {
-		t.Errorf("Failed to add message %v, err: %v", msg, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	err = ms.Add(msg)
 	if err != nil {
-		t.Errorf("Failed to add message %v, err: %v", msg, err)
+		t.Errorf("error mismatch: have %v, want nil", err)
 	}
 
 	if ms.Size() != 1 {
-		t.Error("There should be exactly one message in set")
+		t.Errorf("the size of message set mismatch: have %v, want 1", ms.Size())
 	}
 }

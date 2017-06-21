@@ -43,7 +43,7 @@ func TestCheckMessage(t *testing.T) {
 	// invalid view format
 	err := c.checkMessage(msgPreprepare, nil)
 	if err != errInvalidMessage {
-		t.Error("Should return errInvalidMessage if nil view")
+		t.Errorf("error mismatch: have %v, want %v", err, errInvalidMessage)
 	}
 
 	testStates := []State{StateAcceptRequest, StatePreprepared, StatePrepared, StateCommitted}
@@ -59,7 +59,7 @@ func TestCheckMessage(t *testing.T) {
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
 			if err != errFutureMessage {
-				t.Error("Should return errFutureMessage because it's a future sequence")
+				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
 	}
@@ -74,7 +74,7 @@ func TestCheckMessage(t *testing.T) {
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
 			if err != errFutureMessage {
-				t.Error("Should return errFutureMessage because it's a future round")
+				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
 	}
@@ -90,7 +90,7 @@ func TestCheckMessage(t *testing.T) {
 		for j := 0; j < len(testCode); j++ {
 			err := c.checkMessage(testCode[j], v)
 			if err != errFutureMessage {
-				t.Error("Should return errFutureMessage because it's a current round but waiting for round change")
+				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
 	}
@@ -103,11 +103,11 @@ func TestCheckMessage(t *testing.T) {
 		err = c.checkMessage(testCode[i], v)
 		if testCode[i] == msgPreprepare {
 			if err != nil {
-				t.Error("Should return nil because we can execute it now")
+				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 		} else {
 			if err != errFutureMessage {
-				t.Error("Should return errFutureMessage because it's a future round")
+				t.Errorf("error mismatch: have %v, want %v", err, errFutureMessage)
 			}
 		}
 	}
@@ -117,7 +117,7 @@ func TestCheckMessage(t *testing.T) {
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
 		if err != nil {
-			t.Error("Should return nil because we can execute it now")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
 
@@ -126,7 +126,7 @@ func TestCheckMessage(t *testing.T) {
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
 		if err != nil {
-			t.Error("Should return nil because we can execute it now")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
 
@@ -135,7 +135,7 @@ func TestCheckMessage(t *testing.T) {
 	for i := 0; i < len(testCode); i++ {
 		err = c.checkMessage(testCode[i], v)
 		if err != nil {
-			t.Error("Should return nil because we can execute it now")
+			t.Errorf("error mismatch: have %v, want nil", err)
 		}
 	}
 
@@ -163,8 +163,9 @@ func TestStoreBacklog(t *testing.T) {
 		Msg:  prepreparePayload,
 	}
 	c.storeBacklog(m, p)
-	if !reflect.DeepEqual(c.backlogs[p].PopItem(), m) {
-		t.Error("Should be equal")
+	msg := c.backlogs[p].PopItem()
+	if !reflect.DeepEqual(msg, m) {
+		t.Errorf("message mismatch: have %v, want %v", msg, m)
 	}
 
 	// push prepare msg
@@ -179,8 +180,9 @@ func TestStoreBacklog(t *testing.T) {
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
-	if !reflect.DeepEqual(c.backlogs[p].PopItem(), m) {
-		t.Error("Should be equal")
+	msg = c.backlogs[p].PopItem()
+	if !reflect.DeepEqual(msg, m) {
+		t.Errorf("message mismatch: have %v, want %v", msg, m)
 	}
 
 	// push commit msg
@@ -189,8 +191,9 @@ func TestStoreBacklog(t *testing.T) {
 		Msg:  subjectPayload,
 	}
 	c.storeBacklog(m, p)
-	if !reflect.DeepEqual(c.backlogs[p].PopItem(), m) {
-		t.Error("Should be equal")
+	msg = c.backlogs[p].PopItem()
+	if !reflect.DeepEqual(msg, m) {
+		t.Errorf("message mismatch: have %v, want %v", msg, m)
 	}
 }
 
@@ -233,9 +236,8 @@ func TestProcessFutureBacklog(t *testing.T) {
 	const timeoutDura = 2 * time.Second
 	timeout := time.NewTimer(timeoutDura)
 	select {
-	case <-c.events.Chan():
-		t.Errorf("Should not receive any events")
-
+	case e := <-c.events.Chan():
+		t.Errorf("unexpected events comes: %v", e)
 	case <-timeout.C:
 		// success
 	}
@@ -306,13 +308,13 @@ func testProcessBacklog(t *testing.T, msg *message) {
 	case ev := <-c.events.Chan():
 		e, ok := ev.Data.(backlogEvent)
 		if !ok {
-			t.Fatalf("Unexpected event comes")
+			t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
 		}
 		if e.msg.Code != msg.Code {
-			t.Fatalf("Unexpected message code, actual = %v, expected = %v", e.msg.Code, msg.Code)
+			t.Errorf("message code mismatch: have %v, want %v", e.msg.Code, msg.Code)
 		}
 		// success
 	case <-timeout.C:
-		t.Error("Timeout. Cannot receive events as expected")
+		t.Error("unexpected timeout occurs")
 	}
 }
