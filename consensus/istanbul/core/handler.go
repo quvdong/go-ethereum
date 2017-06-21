@@ -25,7 +25,7 @@ import (
 
 // Start implements core.Engine.Start
 func (c *core) Start(lastSequence *big.Int, lastProposer common.Address, lastProposal istanbul.Proposal) error {
-	// initial last proposer
+	// Initialize last proposer
 	c.lastProposer = lastProposer
 	c.lastProposal = lastProposal
 	c.valSet = c.backend.Validators(c.lastProposal)
@@ -92,7 +92,7 @@ func (c *core) handleEvents() {
 	}
 }
 
-// sendEvent sends internal events
+// sendEvent sends events to mux
 func (c *core) sendEvent(ev interface{}) {
 	c.backend.EventMux().Post(ev)
 }
@@ -107,7 +107,7 @@ func (c *core) handleMsg(payload []byte) error {
 		return err
 	}
 
-	// Only accept message if address is valid
+	// Only accept message if the address is valid
 	_, src := c.valSet.GetByAddress(msg.Address)
 	if src == nil {
 		logger.Error("Invalid address in message", "msg", msg)
@@ -120,7 +120,7 @@ func (c *core) handleMsg(payload []byte) error {
 func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("address", c.address, "from", src)
 
-	// Store message if its a future message
+	// Store the message if it's a future message
 	testBacklog := func(err error) error {
 		if err == errFutureMessage {
 			c.storeBacklog(msg, src)

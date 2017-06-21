@@ -18,7 +18,6 @@ package core
 
 import (
 	"bytes"
-	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -32,10 +31,7 @@ import (
 	"gopkg.in/karalabe/cookiejar.v2/collections/prque"
 )
 
-const (
-	keyStableCheckpoint = "StableCheckpoint"
-)
-
+// New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) Engine {
 	c := &core{
 		config:             config,
@@ -102,7 +98,7 @@ func (c *core) finalizeMessage(msg *message) ([]byte, error) {
 	msg.CommittedSeal = []byte{}
 	// Assign the CommittedSeal if it's a commit message and proposal is not nil
 	if msg.Code == msgCommit && c.current.Proposal() != nil {
-		seal := prepareProposalSeal(c.current.Proposal().Hash(), msg.Code)
+		seal := PrepareCommittedSeal(c.current.Proposal().Hash())
 		msg.CommittedSeal, err = c.backend.Sign(seal)
 		if err != nil {
 			return nil, err
@@ -137,7 +133,7 @@ func (c *core) send(msg *message, target common.Address) {
 		return
 	}
 
-	// send payload
+	// Send payload
 	if err = c.backend.Send(payload, target); err != nil {
 		logger.Error("Failed to send message", "msg", msg, "err", err)
 		return
@@ -167,14 +163,7 @@ func (c *core) currentView() *istanbul.View {
 	}
 }
 
-func (c *core) nextRound() *istanbul.View {
-	return &istanbul.View{
-		Sequence: new(big.Int).Set(c.current.Sequence()),
-		Round:    new(big.Int).Add(c.current.Round(), common.Big1),
-	}
-}
-
-func (c *core) isPrimary() bool {
+func (c *core) isProposer() bool {
 	v := c.valSet
 	if v == nil {
 		return false
@@ -208,7 +197,7 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 	}
 
 	c.valSet = c.backend.Validators(c.lastProposal)
-	// Clear invalid RoundChange messages
+	// Clear invalid round change messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
 	c.current = newRoundState(newView, c.valSet)
@@ -216,7 +205,7 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 	c.valSet.CalcProposer(c.lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
-	if roundChange && c.isPrimary() {
+	if roundChange && c.isProposer() {
 		c.backend.NextRound()
 	}
 	c.newRoundChangeTimer()
@@ -280,20 +269,10 @@ func (c *core) checkValidatorSignature(data []byte, sig []byte) (common.Address,
 	return istanbul.CheckValidatorSignature(c.valSet, data, sig)
 }
 
-// prepareProposalSeal returns a slice from the given hash, and msgCode. Replaces msgCode
-// with msgPreprepare if msgCode is larger than uint8.
-func prepareProposalSeal(hash common.Hash, msgCode uint64) []byte {
-	// a sanity check
-	if msgCode > math.MaxUint8 {
-		msgCode = msgPreprepare
-	}
+// PrepareCommittedSeal returns a committed seal for the given hash
+func PrepareCommittedSeal(hash common.Hash) []byte {
 	var buf bytes.Buffer
 	buf.Write(hash.Bytes())
-	buf.Write([]byte{byte(msgCode)})
+	buf.Write([]byte{byte(msgCommit)})
 	return buf.Bytes()
-}
-
-// PrepareCommittedSeal returns a slice of committed seal for the given hash
-func PrepareCommittedSeal(hash common.Hash) []byte {
-	return prepareProposalSeal(hash, msgCommit)
 }

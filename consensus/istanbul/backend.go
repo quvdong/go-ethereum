@@ -23,7 +23,7 @@ import (
 
 // Backend provides application specific functions for Istanbul core
 type Backend interface {
-	// Address returns self address
+	// Address returns the owner's address
 	Address() common.Address
 
 	// Validators returns the validator set
@@ -32,13 +32,13 @@ type Backend interface {
 	// EventMux returns the event mux in backend
 	EventMux() *event.TypeMux
 
-	// Send sends a message to specific peer
+	// Send sends a message to specific target
 	Send(payload []byte, target common.Address) error
 
-	// Broadcast sends a message to all peers
+	// Broadcast sends a message to all validators
 	Broadcast(valSet ValidatorSet, payload []byte) error
 
-	// Commit delivers a approved proposal to backend.
+	// Commit delivers an approved proposal to backend.
 	// The delivered proposal will be put into blockchain.
 	Commit(proposal Proposal, seals []byte) error
 
@@ -51,6 +51,7 @@ type Backend interface {
 	// Sign signs input data with the backend's private key
 	Sign([]byte) ([]byte, error)
 
-	// CheckSignature verifies the signature by checking if it's signed by given peer
+	// CheckSignature verifies the signature by checking if it's signed by
+	// the given validator
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 }
