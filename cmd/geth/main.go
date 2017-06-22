@@ -123,6 +123,9 @@ var (
 		utils.GpoPercentileFlag,
 		utils.ExtraDataFlag,
 		configFileFlag,
+		utils.IstanbulRequestTimeoutFlag,
+		utils.IstanbulBlockPeriodFlag,
+		utils.IstanbulBlockPauseTimeFlag,
 	}
 
 	rpcFlags = []cli.Flag{
