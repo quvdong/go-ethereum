@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/event"
 )
 
 // Backend provides application specific functions for Istanbul core
@@ -31,8 +30,8 @@ type Backend interface {
 	// Validators returns the validator set
 	Validators(proposal Proposal) ValidatorSet
 
-	// EventMux returns the event mux in backend
-	EventMux() *event.TypeMux
+	// EventQueue returns the event queue in backend
+	EventQueue() *EventQueue
 
 	// Send sends a message to specific target
 	Send(payload []byte, target common.Address) error
