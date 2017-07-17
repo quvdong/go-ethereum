@@ -207,6 +207,7 @@ func (pool *TxPool) eventLoop() {
 					if pool.chainconfig.IsHomestead(ev.Block.Number()) {
 						pool.homestead = true
 					}
+					pool.signer = types.MakeSigner(pool.chainconfig, ev.Block.Number())
 				}
 				pool.resetState()
 				pool.mu.Unlock()

@@ -357,7 +357,7 @@ func (self *worker) makeCurrent(parent *types.Block, header *types.Header) error
 	}
 	work := &Work{
 		config:    self.config,
-		signer:    types.NewEIP155Signer(self.config.ChainId),
+		signer:    types.MakeSigner(self.config, header.Number),
 		state:     state,
 		ancestors: set.New(),
 		family:    set.New(),
@@ -546,7 +546,7 @@ func (env *Work) commitTransactions(mux *event.TypeMux, txs *types.TransactionsB
 			// Everything ok, collect the logs and shift in the next transaction from the same account
 			coalescedLogs = append(coalescedLogs, logs...)
 			env.tcount++
-			txs.Shift()
+			txs.Shift(env.signer)
 
 		default:
 			// Pop the current failed transaction without shifting in the next from the account
