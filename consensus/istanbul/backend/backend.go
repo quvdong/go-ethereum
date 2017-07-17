@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"sync"
 	"time"
 
@@ -92,11 +93,7 @@ func (sb *backend) Address() common.Address {
 
 // Validators implements istanbul.Backend.Validators
 func (sb *backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet {
-	snap, err := sb.snapshot(sb.chain, proposal.Number().Uint64(), proposal.Hash(), nil)
-	if err != nil {
-		return validator.NewSet(nil, sb.config.ProposerPolicy)
-	}
-	return snap.ValSet
+	return sb.getValidators(proposal.Number().Uint64(), proposal.Hash())
 }
 
 // Broadcast implements istanbul.Backend.Send
@@ -219,4 +216,34 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 		return errInvalidSignature
 	}
 	return nil
+}
+
+// HasBlock implements istanbul.Backend.HashBlock
+func (sb *backend) HasBlock(hash common.Hash, number *big.Int) bool {
+	return sb.chain.GetHeader(hash, number.Uint64()) != nil
+}
+
+// GetProposer implements istanbul.Backend.GetProposer
+func (sb *backend) GetProposer(number uint64) common.Address {
+	if h := sb.chain.GetHeaderByNumber(number); h != nil {
+		a, _ := sb.Author(h)
+		return a
+	}
+	return common.Address{}
+}
+
+// ParentValidators implements istanbul.Backend.GetParentValidators
+func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	if block, ok := proposal.(*types.Block); ok {
+		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
+	}
+	return validator.NewSet(nil, sb.config.ProposerPolicy)
+}
+
+func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
+	snap, err := sb.snapshot(sb.chain, number, hash, nil)
+	if err != nil {
+		return validator.NewSet(nil, sb.config.ProposerPolicy)
+	}
+	return snap.ValSet
 }
