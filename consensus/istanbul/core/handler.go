@@ -34,7 +34,7 @@ func (c *core) Start(lastSequence *big.Int, lastProposer common.Address, lastPro
 	c.startNewRound(&istanbul.View{
 		Sequence: new(big.Int).Add(lastSequence, common.Big1),
 		Round:    common.Big0,
-	}, false)
+	}, lastProposal, lastProposer, false)
 
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
@@ -175,5 +175,15 @@ func (c *core) handleTimeoutMsg() {
 			return
 		}
 	}
-	c.sendNextRoundChange()
+
+	lastProposal, lastProposer := c.backend.LastProposal()
+	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) > 0 {
+		c.logger.Trace("round change timeout, catch up latest sequence", "number", lastProposal.Number().Uint64())
+		c.startNewRound(&istanbul.View{
+			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
+			Round:    new(big.Int),
+		}, lastProposal, lastProposer, false)
+	} else {
+		c.sendNextRoundChange()
+	}
 }

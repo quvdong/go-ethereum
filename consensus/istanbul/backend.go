@@ -67,4 +67,7 @@ type Backend interface {
 
 	// ParentValidators returns the validator set of the given proposal's parent block
 	ParentValidators(proposal Proposal) ValidatorSet
+
+	// LastProposal retrieves latest committed proposal and the address of proposer
+	LastProposal() (Proposal, common.Address)
 }

@@ -178,12 +178,26 @@ func (c *core) commit() {
 	}
 }
 
-func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
+func (c *core) startNewRound(newView *istanbul.View, lastProposal istanbul.Proposal, lastProposer common.Address, roundChange bool) {
 	var logger log.Logger
 	if c.current == nil {
 		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.valSet.GetProposer())
 	} else {
 		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
+	}
+
+	// Try to get last proposal
+	if lastProposal == nil {
+		lastProposal, lastProposer = c.backend.LastProposal()
+		if lastProposal.Number().Cmp(newView.Sequence) > 0 {
+			newView = &istanbul.View{
+				Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
+				Round:    new(big.Int),
+			}
+			c.lastProposal = lastProposal
+			c.lastProposer = lastProposer
+			logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+		}
 	}
 
 	c.valSet = c.backend.Validators(c.lastProposal)

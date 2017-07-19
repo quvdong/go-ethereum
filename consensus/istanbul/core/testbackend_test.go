@@ -151,6 +151,10 @@ func (self *testSystemBackend) ParentValidators(proposal istanbul.Proposal) ista
 	return self.peers
 }
 
+func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
+	return makeBlock(1), common.Address{}
+}
+
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.
