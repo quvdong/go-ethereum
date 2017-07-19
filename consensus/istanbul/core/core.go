@@ -64,6 +64,7 @@ type core struct {
 
 	backend               istanbul.Backend
 	events                *event.TypeMuxSubscription
+	finalCommittedSub     *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
 	lastProposer          common.Address
