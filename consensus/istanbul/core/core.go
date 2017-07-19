@@ -18,6 +18,7 @@ package core
 
 import (
 	"bytes"
+	"math"
 	"math/big"
 	"sync"
 	"time"
@@ -245,7 +246,8 @@ func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 
 	// set timeout based on the round number
-	timeout := time.Duration(c.config.RequestTimeout)*time.Millisecond + time.Duration(c.current.Round().Uint64()*c.config.BlockPeriod)*time.Second
+	t := uint64(math.Pow(2, float64(c.current.Round().Uint64()))) * c.config.RequestTimeout
+	timeout := time.Duration(t) * time.Millisecond
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
 	})
