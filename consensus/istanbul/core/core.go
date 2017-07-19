@@ -188,14 +188,14 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 	// Clear invalid round change messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
-	c.updateRoundState(newView, c.valSet)
+	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
 	c.valSet.CalcProposer(c.lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isProposer() {
 		// If it is locked, propose the old proposal
-		if c.current.IsHashLocked() {
+		if c.current != nil && c.current.IsHashLocked() {
 			r := &istanbul.Request{
 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 			}
@@ -218,7 +218,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 	c.waitingForRoundChange = true
 
 	//Needs to keep block lock for round catching up
-	c.updateRoundState(view, c.valSet)
+	c.updateRoundState(view, c.valSet, true)
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()
 
@@ -226,9 +226,9 @@ func (c *core) catchUpRound(view *istanbul.View) {
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
-func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet) {
-	// Lock only if both keepLock is true and it is locked
-	if c.current.IsHashLocked() {
+func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
+	// Lock only if both roundChange is true and it is locked
+	if roundChange && c.current != nil && c.current.IsHashLocked() {
 		c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare)
 	} else {
 		c.current = newRoundState(view, validatorSet, common.Hash{}, nil)

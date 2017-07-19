@@ -177,6 +177,44 @@ func TestCommit(t *testing.T) {
 	}
 }
 
+func TestHasBlock(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
+	finalBlock, _ := engine.Seal(chain, block, nil)
+	chain.InsertChain(types.Blocks{finalBlock})
+	if engine.HasBlock(block.Hash(), finalBlock.Number()) {
+		t.Errorf("error mismatch: have true, want false")
+	}
+	if !engine.HasBlock(finalBlock.Hash(), finalBlock.Number()) {
+		t.Errorf("error mismatch: have false, want true")
+	}
+}
+
+func TestGetProposer(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	block := makeBlock(chain, engine, chain.Genesis())
+	chain.InsertChain(types.Blocks{block})
+	expected := engine.GetProposer(1)
+	actual := engine.Address()
+	if actual != expected {
+		t.Errorf("proposer mismatch: have %v, want %v", actual.Hex(), expected.Hex())
+	}
+}
+
+func TestParentValidators(t *testing.T) {
+	chain, engine := newBlockChain(1)
+	block := makeBlock(chain, engine, chain.Genesis())
+	chain.InsertChain(types.Blocks{block})
+	expected := engine.Validators(block).List()
+	//Block without seal will make empty validator set
+	block = makeBlockWithoutSeal(chain, engine, block)
+	chain.InsertChain(types.Blocks{block})
+	actual := engine.ParentValidators(block).List()
+	if len(expected) != len(actual) || expected[0] != actual[0] {
+		t.Errorf("validator set mismatch: have %v, want %v", actual, expected)
+	}
+}
+
 /**
  * SimpleBackend
  * Private key: bb047e5940b6d83354d9432db7c449ac8fca2248008aaa7271369880f9f11cc1
