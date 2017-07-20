@@ -96,19 +96,23 @@ func (sb *backend) Validators(proposal istanbul.Proposal) istanbul.ValidatorSet 
 	return sb.getValidators(proposal.Number().Uint64(), proposal.Hash())
 }
 
-// Broadcast implements istanbul.Backend.Send
+// Broadcast implements istanbul.Backend.Broadcast
 func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error {
+	// send to others
+	sb.Gossip(valSet, payload)
+	// send to self
+	msg := istanbul.MessageEvent{
+		Payload: payload,
+	}
+	go sb.istanbulEventMux.Post(msg)
+	return nil
+}
+
+// Broadcast implements istanbul.Backend.Gossip
+func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 	targets := make(map[common.Address]bool)
 	for _, val := range valSet.List() {
-		if val.Address() == sb.Address() {
-			// send to self
-			msg := istanbul.MessageEvent{
-				Payload: payload,
-			}
-			go sb.istanbulEventMux.Post(msg)
-
-		} else {
-			// send to other peers
+		if val.Address() != sb.Address() {
 			targets[val.Address()] = true
 		}
 	}

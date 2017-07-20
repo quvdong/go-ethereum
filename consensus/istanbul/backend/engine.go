@@ -18,7 +18,6 @@ package backend
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"errors"
 	"math/big"
 	"math/rand"
@@ -32,7 +31,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
@@ -485,24 +483,11 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // HandleMsg implements consensus.Istanbul.HandleMsg
-func (sb *backend) HandleMsg(pubKey *ecdsa.PublicKey, data []byte) error {
+func (sb *backend) HandleMsg(addr common.Address, data []byte) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if !sb.coreStarted {
 		return istanbul.ErrStoppedEngine
-	}
-	addr := crypto.PubkeyToAddress(*pubKey)
-	// get the latest snapshot
-	curHeader := sb.chain.CurrentHeader()
-	snap, err := sb.snapshot(sb.chain, curHeader.Number.Uint64(), curHeader.Hash(), nil)
-	if err != nil {
-		sb.logger.Error("Cannot get latest snapshot", "err", err)
-		return err
-	}
-
-	if _, val := snap.ValSet.GetByAddress(addr); val == nil {
-		sb.logger.Error("Not in validator set", "peerAddr", addr)
-		return istanbul.ErrUnauthorizedAddress
 	}
 
 	go sb.istanbulEventMux.Post(istanbul.MessageEvent{

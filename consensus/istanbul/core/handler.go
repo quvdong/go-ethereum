@@ -84,7 +84,9 @@ func (c *core) handleEvents() {
 				c.storeRequestMsg(r)
 			}
 		case istanbul.MessageEvent:
-			c.handleMsg(ev.Payload)
+			if err := c.handleMsg(ev.Payload); err == nil {
+				c.backend.Gossip(c.valSet, ev.Payload)
+			}
 		case istanbul.FinalCommittedEvent:
 			c.handleFinalCommitted(ev.Proposal, ev.Proposer)
 		case backlogEvent:
