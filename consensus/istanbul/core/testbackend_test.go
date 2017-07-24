@@ -133,6 +133,19 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 	})
 }
 
+// Only block height 5 will return true
+func (self *testSystemBackend) HasBlock(hash common.Hash, number *big.Int) bool {
+	return number.Cmp(big.NewInt(5)) == 0
+}
+
+func (self *testSystemBackend) GetProposer(number uint64) common.Address {
+	return common.Address{}
+}
+
+func (self *testSystemBackend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	return self.peers
+}
+
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.
@@ -187,7 +200,7 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
-		}, vset)
+		}, vset, common.Hash{}, nil)
 		core.logger = testLogger
 		core.validateFn = backend.CheckValidatorSignature
 
