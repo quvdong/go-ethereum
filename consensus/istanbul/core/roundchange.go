@@ -107,14 +107,14 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		if cv.Round.Cmp(rc.Round) < 0 {
 			c.sendRoundChange(rc.Round)
 		}
-	}
-
-	// We've received 2f+1 round change messages, start a new round immediately.
-	if num == int(2*c.valSet.F()+1) {
-		c.startNewRound(&istanbul.View{
-			Round:    new(big.Int).Set(rc.Round),
-			Sequence: new(big.Int).Set(rc.Sequence),
-		}, true)
+	} else if num == int(2*c.valSet.F()+1) {
+		if rc.Round.Cmp(cv.Round) > 0 || c.waitingForRoundChange {
+			// We've received 2f+1 round change messages, start a new round immediately.
+			c.startNewRound(&istanbul.View{
+				Round:    new(big.Int).Set(rc.Round),
+				Sequence: new(big.Int).Set(rc.Sequence),
+			}, true)
+		}
 	}
 
 	return nil
