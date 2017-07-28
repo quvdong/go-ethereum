@@ -118,6 +118,10 @@ func (b *Preprepare) DecodeRLP(s *rlp.Stream) error {
 	return nil
 }
 
+func (b *Preprepare) String() string {
+	return fmt.Sprintf("view=%v, number=%v, hash=%v", b.View, b.Proposal.Number(), b.Proposal.Hash())
+}
+
 type Subject struct {
 	View   *View
 	Digest common.Hash

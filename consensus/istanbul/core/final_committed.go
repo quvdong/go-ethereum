@@ -26,7 +26,7 @@ import (
 
 func (c *core) handleFinalCommitted(proposal istanbul.Proposal, proposer common.Address) error {
 	logger := c.logger.New("state", c.state, "number", proposal.Number(), "hash", proposal.Hash())
-	logger.Trace("Received a final committed proposal")
+	logger.Debug("Received a final committed proposal")
 
 	// Catch up the sequence number
 	if proposal.Number().Cmp(c.current.Sequence()) >= 0 {

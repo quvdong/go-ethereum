@@ -211,7 +211,7 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 }
 
 func (c *core) catchUpRound(view *istanbul.View) {
-	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
+	logger := c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer(), "valSet", c.valSet.List(), "size", c.valSet.Size())
 
 	if view.Round.Cmp(c.current.Round()) > 0 {
 		c.roundMeter.Mark(new(big.Int).Sub(view.Round, c.current.Round()).Int64())
@@ -223,7 +223,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()
 
-	logger.Trace("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet)
+	logger.Debug("Catch up round", "new_round", view.Round, "new_seq", view.Sequence, "new_proposer", c.valSet.GetProposer())
 }
 
 // updateRoundState updates round state by checking if locking block is necessary
@@ -270,6 +270,7 @@ func (c *core) newRoundChangeTimer() {
 	t := uint64(math.Pow(2, float64(c.current.Round().Uint64()))) * c.config.RequestTimeout
 	timeout := time.Duration(t) * time.Millisecond
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
+		c.logger.Debug("timeout exceeds")
 		c.sendEvent(timeoutEvent{})
 	})
 }

@@ -60,6 +60,8 @@ func (c *core) sendRoundChange(round *big.Int) {
 		return
 	}
 
+	logger.Debug("round change", "round", cv.Round, "sequence", cv.Sequence)
+
 	c.broadcast(&message{
 		Code: msgRoundChange,
 		Msg:  payload,

@@ -136,6 +136,9 @@ func (pm *protocolManager) syncer() {
 	pm.fetcher.Start()
 	defer pm.fetcher.Stop()
 	defer pm.downloader.Terminate()
+	defer func() {
+		log.Debug("syncer stopped")
+	}()
 
 	// Wait for different events to fire synchronisation operations
 	forceSync := time.Tick(forceSyncCycle)
@@ -144,6 +147,7 @@ func (pm *protocolManager) syncer() {
 		case <-pm.newPeerCh:
 			// Make sure we have peers to select from, then sync
 			if pm.peers.Len() < minDesiredPeerCount {
+				log.Debug("Low peer count", "len", pm.peers.Len())
 				break
 			}
 			go pm.synchronise(pm.peers.BestPeer())
@@ -153,6 +157,7 @@ func (pm *protocolManager) syncer() {
 			go pm.synchronise(pm.peers.BestPeer())
 
 		case <-pm.noMorePeers:
+			log.Debug("No more peers")
 			return
 		}
 	}
@@ -160,6 +165,7 @@ func (pm *protocolManager) syncer() {
 
 // synchronise tries to sync up our local block chain with a remote peer.
 func (pm *protocolManager) synchronise(peer *peer) {
+	log.Debug("synchronise", "peer", peer)
 	// Short circuit if no peers are available
 	if peer == nil {
 		return
@@ -169,6 +175,7 @@ func (pm *protocolManager) synchronise(peer *peer) {
 	td := pm.blockchain.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 
 	pHead, pTd := peer.Head()
+	log.Debug("synchronise", "peer_td", pTd, "td", td)
 	if pTd.Cmp(td) <= 0 {
 		return
 	}
@@ -186,7 +193,10 @@ func (pm *protocolManager) synchronise(peer *peer) {
 		atomic.StoreUint32(&pm.fastSync, 1)
 		mode = downloader.FastSync
 	}
+	log.Debug("downloader.Synchronise", "pTd", pTd, "pHead", pHead)
+	defer log.Debug("Synchronise done")
 	if err := pm.downloader.Synchronise(peer.id, pHead, pTd, mode); err != nil {
+		log.Error("downloader.Synchronise failed", "err", err)
 		return
 	}
 	atomic.StoreUint32(&pm.acceptTxs, 1) // Mark initial sync done

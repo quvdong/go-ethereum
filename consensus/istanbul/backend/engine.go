@@ -275,7 +275,7 @@ func (sb *backend) verifyCommittedSeals(chain consensus.ChainReader, header *typ
 		// 2. Get the original address by seal and parent block hash
 		addr, err := istanbul.GetSignatureAddress(proposalSeal, seal)
 		if err != nil {
-			sb.logger.Error("not a valid address", "err", err)
+			sb.logger.Error("not a valid address", "err", err, "proposal_seal", proposalSeal, "seal", seal)
 			return errInvalidSignature
 		}
 		// Every validator can have only one seal. If more than one seals are signed by a
@@ -559,7 +559,8 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 		}
 		lastProposer = p
 	}
-	block := chain.GetBlock(curHeader.Hash(), lastSequence.Uint64())
+	// block := chain.GetBlock(curHeader.Hash(), lastSequence.Uint64())
+	block := types.NewBlockWithHeader(curHeader)
 	if err := sb.core.Start(lastSequence, lastProposer, block); err != nil {
 		return err
 	}

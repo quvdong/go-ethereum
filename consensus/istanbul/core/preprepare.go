@@ -42,6 +42,10 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 			Code: msgPreprepare,
 			Msg:  preprepare,
 		})
+
+		logger.Debug("sendPreprepare", "current", c.current.Sequence(), "request", request.Proposal.Number())
+	} else {
+		logger.Debug("NOT sendPreprepare", "current", c.current.Sequence(), "request", request.Proposal.Number())
 	}
 }
 
@@ -120,6 +124,8 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 			c.sendPrepare()
 		}
 	}
+
+	logger.Debug("handle PRE-PREPARE", "preprepare", preprepare)
 
 	return nil
 }
