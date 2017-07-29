@@ -38,6 +38,8 @@ func (c *core) sendPrepare() {
 }
 
 func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
+	logger := c.logger.New("from", src, "state", c.state)
+	logger.Info("handlePrepare")
 	// Decode prepare message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
@@ -59,7 +61,7 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 
 	// Change to StatePrepared if we've received enough prepare messages or it is locked
 	// and we are in earlier state before StatePrepared
-	if (c.current.IsHashLocked() || c.current.Prepares.Size() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
+	if ((c.current.IsHashLocked() && c.current.Proposal().Hash() == c.current.GetLockedHash()) || c.current.Prepares.Size() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
 		c.current.LockHash()
 		c.setState(StatePrepared)
 		c.sendCommit()

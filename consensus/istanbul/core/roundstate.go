@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
+	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -124,6 +125,7 @@ func (s *roundState) LockHash() {
 
 	if s.Preprepare != nil {
 		s.lockedHash = s.Preprepare.Proposal.Hash()
+		log.Info("Lock hash", "seq", s.Sequence(), "hash", s.lockedHash)
 	}
 }
 
@@ -137,8 +139,11 @@ func (s *roundState) UnlockHash() {
 func (s *roundState) IsHashLocked() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-
-	return s.lockedHash != common.Hash{}
+	r := s.lockedHash != common.Hash{}
+	if r {
+		log.Info("IsHashLocked true", "seq", s.Sequence(), "hash", s.lockedHash)
+	}
+	return r
 }
 
 func (s *roundState) GetLockedHash() common.Hash {

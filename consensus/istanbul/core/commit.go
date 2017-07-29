@@ -52,7 +52,8 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 }
 
 func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("state", c.state)
+	logger := c.logger.New("from", src, "state", c.state)
+	logger.Info("handleCommit")
 
 	// Decode commit message
 	var commit *istanbul.Subject

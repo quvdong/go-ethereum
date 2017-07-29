@@ -242,6 +242,8 @@ func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.Valid
 
 func (c *core) setState(state State) {
 	if c.state != state {
+		logger := c.logger.New("address", c.address)
+		logger.Info("set state", "state", state)
 		c.state = state
 	}
 	if state == StateAcceptRequest {
