@@ -100,21 +100,14 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Here is about to accept the preprepare
 	if c.state == StateAcceptRequest {
-		// If it is locked, it can only process on the locked block
-		// Otherwise, broadcast PREPARE and enter Prepared state
-		if c.current.IsHashLocked() {
-			// Broadcast COMMIT directly if the proposal matches the locked block
-			// Otherwise, send ROUND CHANGE
-			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
-				// Broadcast COMMIT and enters Prepared state directly
-				c.acceptPreprepare(preprepare)
-				c.setState(StatePrepared)
-				c.sendCommit()
-			} else {
-				// Send round change
-				c.sendNextRoundChange()
-			}
+		// Send ROUND CHANGE if the locked proposal and the received proposal are different
+		if c.current.IsHashLocked() && preprepare.Proposal.Hash() != c.current.GetLockedHash() {
+			// Send round change
+			c.sendNextRoundChange()
 		} else {
+			// Either
+			//   1. the locked proposal and the received proposal match
+			//   2. we have no locked proposal
 			c.acceptPreprepare(preprepare)
 			c.setState(StatePreprepared)
 			c.sendPrepare()
