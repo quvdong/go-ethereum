@@ -17,6 +17,7 @@
 package core
 
 import (
+	"errors"
 	"io"
 	"math/big"
 	"sync"
@@ -25,6 +26,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/rlp"
+)
+
+var (
+	errInconsistentLock = errors.New("inconsistent lock")
 )
 
 // newRoundState creates a new roundState instance with the given view and validatorSet
@@ -54,6 +59,21 @@ type roundState struct {
 	lockedHash  common.Hash
 
 	mu *sync.RWMutex
+}
+
+func (s *roundState) GetPrepareOrCommitSize() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	result := s.Prepares.Size() + s.Commits.Size()
+
+	// find duplicate one
+	for _, m := range s.Prepares.Values() {
+		if s.Commits.Get(m.Address) != nil {
+			result--
+		}
+	}
+	return result
 }
 
 func (s *roundState) Subject() *istanbul.Subject {
@@ -119,14 +139,19 @@ func (s *roundState) Sequence() *big.Int {
 	return s.sequence
 }
 
-func (s *roundState) LockHash() {
+func (s *roundState) LockHash() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
 	if s.Preprepare != nil {
-		s.lockedHash = s.Preprepare.Proposal.Hash()
-		log.Info("Lock hash", "seq", s.Sequence(), "hash", s.lockedHash)
+		hash := s.Preprepare.Proposal.Hash()
+		empty := (s.lockedHash == common.Hash{})
+		if !empty && s.lockedHash != hash {
+			log.Warn("inconsistent lock", "lock", s.lockedHash, "new lock", s.Preprepare.Proposal.Hash())
+			return errInconsistentLock
+		}
+		s.lockedHash = hash
 	}
+	return nil
 }
 
 func (s *roundState) UnlockHash() {

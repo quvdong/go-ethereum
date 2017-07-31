@@ -80,7 +80,10 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 	// by committing the proposal without prepare messages.
 	if c.current.Commits.Size() > 2*c.valSet.F() && c.state.Cmp(StateCommitted) < 0 {
 		// Still need to call LockBlock here since state can skip Prepared state and jump directly to Committed state.
-		c.current.LockHash()
+		if err := c.current.LockHash(); err != nil {
+			c.logger.Info("lock failed", "locked", c.current.GetLockedHash(), "hash", c.current.Preprepare.Proposal.Hash())
+			return err
+		}
 		c.commit()
 	}
 

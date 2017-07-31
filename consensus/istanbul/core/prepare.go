@@ -58,11 +58,13 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 	}
 
 	c.acceptPrepare(msg, src)
-
 	// Change to StatePrepared if we've received enough prepare messages or it is locked
 	// and we are in earlier state before StatePrepared
-	if ((c.current.IsHashLocked() && c.current.Proposal().Hash() == c.current.GetLockedHash()) || c.current.Prepares.Size() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
-		c.current.LockHash()
+	if (c.current.IsHashLocked() || c.current.GetPrepareOrCommitSize() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
+		if err := c.current.LockHash(); err != nil {
+			logger.Info("lock failed", "locked", c.current.GetLockedHash(), "hash", c.current.Preprepare.Proposal.Hash())
+			return err
+		}
 		c.setState(StatePrepared)
 		c.sendCommit()
 	}
