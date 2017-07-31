@@ -31,26 +31,24 @@ import (
 // we need to keep a reference of preprepare in order to propose locked proposal when there is a lock and itself is the proposer
 func newRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, lockedHash common.Hash, preprepare *istanbul.Preprepare) *roundState {
 	return &roundState{
-		round:       view.Round,
-		sequence:    view.Sequence,
-		Preprepare:  preprepare,
-		Prepares:    newMessageSet(validatorSet),
-		Commits:     newMessageSet(validatorSet),
-		Checkpoints: newMessageSet(validatorSet),
-		lockedHash:  lockedHash,
-		mu:          new(sync.RWMutex),
+		round:      view.Round,
+		sequence:   view.Sequence,
+		Preprepare: preprepare,
+		Prepares:   newMessageSet(validatorSet),
+		Commits:    newMessageSet(validatorSet),
+		lockedHash: lockedHash,
+		mu:         new(sync.RWMutex),
 	}
 }
 
 // roundState stores the consensus state
 type roundState struct {
-	round       *big.Int
-	sequence    *big.Int
-	Preprepare  *istanbul.Preprepare
-	Prepares    *messageSet
-	Commits     *messageSet
-	Checkpoints *messageSet
-	lockedHash  common.Hash
+	round      *big.Int
+	sequence   *big.Int
+	Preprepare *istanbul.Preprepare
+	Prepares   *messageSet
+	Commits    *messageSet
+	lockedHash common.Hash
 
 	mu *sync.RWMutex
 }
@@ -153,13 +151,12 @@ func (s *roundState) GetLockedHash() common.Hash {
 // be confusing.
 func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 	var ss struct {
-		Round       *big.Int
-		Sequence    *big.Int
-		Preprepare  *istanbul.Preprepare
-		Prepares    *messageSet
-		Commits     *messageSet
-		Checkpoints *messageSet
-		lockedHash  common.Hash
+		Round      *big.Int
+		Sequence   *big.Int
+		Preprepare *istanbul.Preprepare
+		Prepares   *messageSet
+		Commits    *messageSet
+		lockedHash common.Hash
 	}
 
 	if err := stream.Decode(&ss); err != nil {
@@ -170,7 +167,6 @@ func (s *roundState) DecodeRLP(stream *rlp.Stream) error {
 	s.Preprepare = ss.Preprepare
 	s.Prepares = ss.Prepares
 	s.Commits = ss.Commits
-	s.Checkpoints = ss.Checkpoints
 	s.lockedHash = ss.lockedHash
 	s.mu = new(sync.RWMutex)
 
@@ -195,7 +191,6 @@ func (s *roundState) EncodeRLP(w io.Writer) error {
 		s.Preprepare,
 		s.Prepares,
 		s.Commits,
-		s.Checkpoints,
 		s.lockedHash,
 	})
 }
