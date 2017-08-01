@@ -38,7 +38,7 @@ func (c *core) sendPrepare() {
 }
 
 func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
-	// Decode prepare message
+	// Decode PREPARE message
 	var prepare *istanbul.Subject
 	err := msg.Decode(&prepare)
 	if err != nil {
@@ -50,15 +50,15 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 	}
 
 	// If it is locked, it can only process on the locked block.
-	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepare step.
+	// Passing verifyPrepare and checkMessage implies it is processing on the locked block since it was verified in the Preprepared state.
 	if err := c.verifyPrepare(prepare, src); err != nil {
 		return err
 	}
 
 	c.acceptPrepare(msg, src)
 
-	// Change to StatePrepared if we've received enough prepare messages or it is locked
-	// and we are in earlier state before StatePrepared
+	// Change to Prepared state if we've received enough PREPARE messages or it is locked
+	// and we are in earlier state before Prepared state.
 	if (c.current.IsHashLocked() || c.current.Prepares.Size() > 2*c.valSet.F()) && c.state.Cmp(StatePrepared) < 0 {
 		c.current.LockHash()
 		c.setState(StatePrepared)
@@ -68,13 +68,13 @@ func (c *core) handlePrepare(msg *message, src istanbul.Validator) error {
 	return nil
 }
 
-// verifyPrepare verifies if the received prepare message is equivalent to our subject
+// verifyPrepare verifies if the received PREPARE message is equivalent to our subject
 func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
 	sub := c.current.Subject()
 	if !reflect.DeepEqual(prepare, sub) {
-		logger.Warn("Inconsistent subjects between prepare and proposal", "expected", sub, "got", prepare)
+		logger.Warn("Inconsistent subjects between PREPARE and proposal", "expected", sub, "got", prepare)
 		return errInconsistentSubject
 	}
 
@@ -84,9 +84,9 @@ func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) 
 func (c *core) acceptPrepare(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
-	// Add the prepare message to current round state
+	// Add the PREPARE message to current round state
 	if err := c.current.Prepares.Add(msg); err != nil {
-		logger.Error("Failed to add prepare message to round state", "msg", msg, "err", err)
+		logger.Error("Failed to add PREPARE message to round state", "msg", msg, "err", err)
 		return err
 	}
 

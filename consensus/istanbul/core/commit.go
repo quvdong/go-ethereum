@@ -51,7 +51,7 @@ func (c *core) broadcastCommit(sub *istanbul.Subject) {
 }
 
 func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
-	// Decode commit message
+	// Decode COMMIT message
 	var commit *istanbul.Subject
 	err := msg.Decode(&commit)
 	if err != nil {
@@ -68,12 +68,12 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 
 	c.acceptCommit(msg, src)
 
-	// Commit the proposal once we have enough commit messages and we are not in StateCommitted.
+	// Commit the proposal once we have enough COMMIT messages and we are not in the Committed state.
 	//
 	// If we already have a proposal, we may have chance to speed up the consensus process
-	// by committing the proposal without prepare messages.
+	// by committing the proposal without PREPARE messages.
 	if c.current.Commits.Size() > 2*c.valSet.F() && c.state.Cmp(StateCommitted) < 0 {
-		// Still need to call LockBlock here since state can skip Prepared state and jump directly to Committed state.
+		// Still need to call LockHash here since state can skip Prepared state and jump directly to the Committed state.
 		c.current.LockHash()
 		c.commit()
 	}
@@ -81,7 +81,7 @@ func (c *core) handleCommit(msg *message, src istanbul.Validator) error {
 	return nil
 }
 
-// verifyCommit verifies if the received commit message is equivalent to our subject
+// verifyCommit verifies if the received COMMIT message is equivalent to our subject
 func (c *core) verifyCommit(commit *istanbul.Subject, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
@@ -97,7 +97,7 @@ func (c *core) verifyCommit(commit *istanbul.Subject, src istanbul.Validator) er
 func (c *core) acceptCommit(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
-	// Add the commit message to current round state
+	// Add the COMMIT message to current round state
 	if err := c.current.Commits.Add(msg); err != nil {
 		logger.Error("Failed to record commit message", "msg", msg, "err", err)
 		return err
