@@ -44,8 +44,8 @@ func TestSign(t *testing.T) {
 	pubkey, _ := crypto.Ecrecover(hashData, sig)
 	var signer common.Address
 	copy(signer[:], crypto.Keccak256(pubkey[1:])[12:])
-	if strings.Compare(signer.Hex(), "0x70524d664ffe731100208a0154e556f9bb679ae6") != 0 {
-		t.Errorf("address mismatch: have %v, want 0x70524d664ffe731100208a0154e556f9bb679ae6", signer.Hex())
+	if signer != getAddress() {
+		t.Errorf("address mismatch: have %v, want %s", signer.Hex(), getAddress().Hex())
 	}
 }
 
