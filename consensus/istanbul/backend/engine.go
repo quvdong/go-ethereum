@@ -559,8 +559,10 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 		}
 		lastProposer = p
 	}
-	block := chain.GetBlock(curHeader.Hash(), lastSequence.Uint64())
-	if err := sb.core.Start(lastSequence, lastProposer, block); err != nil {
+	// We don't need block body so we create a header only block.
+	// The proposal is only for validator set calculation.
+	lastProposal := types.NewBlockWithHeader(curHeader)
+	if err := sb.core.Start(lastSequence, lastProposer, lastProposal); err != nil {
 		return err
 	}
 	sb.coreStarted = true
