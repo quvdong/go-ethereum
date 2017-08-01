@@ -19,6 +19,7 @@ package core
 import (
 	"time"
 
+	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
@@ -55,6 +56,7 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	}
 
 	// Ensure we have the same view with the preprepare message
+	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
 		return err
 	}
@@ -66,16 +68,37 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	}
 
 	// Verify the proposal we received
-	if err := c.backend.Verify(preprepare.Proposal); err != nil {
-		logger.Warn("Failed to verify proposal", "err", err)
-		c.sendNextRoundChange()
+	if duration, err := c.backend.Verify(preprepare.Proposal); err != nil {
+		logger.Warn("Failed to verify proposal", "err", err, "duration", duration)
+		// if it's a future block, we will handle it again after the duration
+		if err == consensus.ErrFutureBlock {
+			c.stopFuturePreprepareTimer()
+			c.futurePreprepareTimer = time.AfterFunc(duration, func() {
+				c.sendEvent(backlogEvent{
+					src: src,
+					msg: msg,
+				})
+			})
+		} else {
+			c.sendNextRoundChange()
+		}
 		return err
 	}
 
+	// Here is about to accept the preprepare
 	if c.state == StateAcceptRequest {
-		c.acceptPreprepare(preprepare)
-		c.setState(StatePreprepared)
-		c.sendPrepare()
+		// Send ROUND CHANGE if the locked proposal and the received proposal are different
+		if c.current.IsHashLocked() && preprepare.Proposal.Hash() != c.current.GetLockedHash() {
+			// Send round change
+			c.sendNextRoundChange()
+		} else {
+			// Either
+			//   1. the locked proposal and the received proposal match
+			//   2. we have no locked proposal
+			c.acceptPreprepare(preprepare)
+			c.setState(StatePreprepared)
+			c.sendPrepare()
+		}
 	}
 
 	return nil
