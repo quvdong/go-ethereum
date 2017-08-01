@@ -58,19 +58,6 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	// Ensure we have the same view with the preprepare message
 	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
-		if err == errOldMessage {
-			// Get validator set for the given proposal
-			valSet := c.backend.ParentValidators(preprepare.Proposal).Copy()
-			previousProposer := c.backend.GetProposer(preprepare.Proposal.Number().Uint64() - 1)
-			valSet.CalcProposer(previousProposer, preprepare.View.Round.Uint64())
-			// Broadcast COMMIT if it is an existing block
-			// 1. The proposer needs to be a proposer matches the given (Sequence + Round)
-			// 2. The given block must exist
-			if valSet.IsProposer(src.Address()) && c.backend.HasBlock(preprepare.Proposal.Hash(), preprepare.Proposal.Number()) {
-				c.sendCommitForOldBlock(preprepare.View, preprepare.Proposal.Hash())
-				return nil
-			}
-		}
 		return err
 	}
 
@@ -100,21 +87,14 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Here is about to accept the preprepare
 	if c.state == StateAcceptRequest {
-		// If it is locked, it can only process on the locked block
-		// Otherwise, broadcast PREPARE and enter Prepared state
-		if c.current.IsHashLocked() {
-			// Broadcast COMMIT directly if the proposal matches the locked block
-			// Otherwise, send ROUND CHANGE
-			if preprepare.Proposal.Hash() == c.current.GetLockedHash() {
-				// Broadcast COMMIT and enters Prepared state directly
-				c.acceptPreprepare(preprepare)
-				c.setState(StatePrepared)
-				c.sendCommit()
-			} else {
-				// Send round change
-				c.sendNextRoundChange()
-			}
+		// Send ROUND CHANGE if the locked proposal and the received proposal are different
+		if c.current.IsHashLocked() && preprepare.Proposal.Hash() != c.current.GetLockedHash() {
+			// Send round change
+			c.sendNextRoundChange()
 		} else {
+			// Either
+			//   1. the locked proposal and the received proposal match
+			//   2. we have no locked proposal
 			c.acceptPreprepare(preprepare)
 			c.setState(StatePreprepared)
 			c.sendPrepare()

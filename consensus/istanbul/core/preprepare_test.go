@@ -111,7 +111,7 @@ func TestHandlePreprepare(t *testing.T) {
 			false,
 		},
 		{
-			// ErrInvalidMessage
+			// errOldMessage
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
@@ -129,26 +129,6 @@ func TestHandlePreprepare(t *testing.T) {
 			makeBlock(1),
 			errOldMessage,
 			false,
-		},
-		{
-			// ErrInvalidMessage
-			func() *testSystem {
-				sys := NewTestSystemWithBackend(N, F)
-
-				for i, backend := range sys.backends {
-					c := backend.engine.(*core)
-					c.valSet = backend.peers
-					if i != 0 {
-						c.state = StatePreprepared
-						c.current.SetSequence(big.NewInt(10))
-						c.current.SetRound(big.NewInt(10))
-					}
-				}
-				return sys
-			}(),
-			makeBlock(5), //only height 5 will retrun true on backend.HasBlock, see testSystemBackend.HashBlock
-			nil,
-			true,
 		},
 	}
 
@@ -293,8 +273,8 @@ func TestHandlePreprepareWithLock(t *testing.T) {
 				t.Errorf("error mismatch: have %v, want nil", err)
 			}
 			if test.proposal == test.lockProposal {
-				if c.state != StatePrepared {
-					t.Errorf("state mismatch: have %v, want %v", c.state, StatePrepared)
+				if c.state != StatePreprepared {
+					t.Errorf("state mismatch: have %v, want %v", c.state, StatePreprepared)
 				}
 				if !reflect.DeepEqual(curView, c.currentView()) {
 					t.Errorf("view mismatch: have %v, want %v", c.currentView(), curView)
