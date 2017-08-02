@@ -61,6 +61,8 @@ func (c *core) subscribeEvents() {
 		istanbul.MessageEvent{},
 		// internal events
 		backlogEvent{},
+	)
+	c.timeoutSub = c.backend.EventMux().Subscribe(
 		timeoutEvent{},
 	)
 	c.finalCommittedSub = c.backend.EventMux().Subscribe(
@@ -71,6 +73,7 @@ func (c *core) subscribeEvents() {
 // Unsubscribe all events
 func (c *core) unsubscribeEvents() {
 	c.events.Unsubscribe()
+	c.timeoutSub.Unsubscribe()
 	c.finalCommittedSub.Unsubscribe()
 }
 
@@ -96,9 +99,13 @@ func (c *core) handleEvents() {
 			case backlogEvent:
 				// No need to check signature for internal messages
 				c.handleCheckedMsg(ev.msg, ev.src)
-			case timeoutEvent:
-				c.handleTimeoutMsg()
+
 			}
+		case _, ok := <-c.timeoutSub.Chan():
+			if !ok {
+				return
+			}
+			c.handleTimeoutMsg()
 		case event, ok := <-c.finalCommittedSub.Chan():
 			if !ok {
 				return
