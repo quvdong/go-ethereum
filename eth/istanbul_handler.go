@@ -50,7 +50,7 @@ type istanbulProtocolManager struct {
 
 	engine         consensus.Istanbul
 	eventSub       *event.TypeMuxSubscription
-	recentMessages *lru.ARCCache // the cache of peers' messages
+	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
 }
 

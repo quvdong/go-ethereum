@@ -91,7 +91,14 @@ func (c *core) handleEvents() {
 			c.handleFinalCommitted(ev.Proposal, ev.Proposer)
 		case backlogEvent:
 			// No need to check signature for internal messages
-			c.handleCheckedMsg(ev.msg, ev.src)
+			if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
+				p, err := ev.msg.Payload()
+				if err != nil {
+					c.logger.Warn("Get message payload failed", "err", err)
+					continue
+				}
+				c.backend.Gossip(c.valSet, p)
+			}
 		case timeoutEvent:
 			c.handleTimeoutMsg()
 		}
@@ -130,7 +137,6 @@ func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
 	testBacklog := func(err error) error {
 		if err == errFutureMessage {
 			c.storeBacklog(msg, src)
-			return nil
 		}
 
 		return err

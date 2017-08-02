@@ -67,7 +67,7 @@ func (c *core) sendRoundChange(round *big.Int) {
 }
 
 func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
-	logger := c.logger.New("state", c.state)
+	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
 	// Decode round change message
 	var rc *roundChange
@@ -105,16 +105,19 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		if cv.Round.Cmp(rc.Round) < 0 {
 			c.sendRoundChange(rc.Round)
 		}
-	}
-
-	// We've received 2f+1 round change messages, start a new round immediately.
-	if num == int(2*c.valSet.F()+1) {
+		return nil
+	} else if num == int(2*c.valSet.F()+1) && (c.waitingForRoundChange || cv.Round.Cmp(rc.Round) < 0) {
+		// We've received 2f+1 round change messages, start a new round immediately.
 		c.startNewRound(&istanbul.View{
 			Round:    new(big.Int).Set(rc.Round),
 			Sequence: new(big.Int).Set(rc.Sequence),
 		}, true)
+		return nil
+	} else if cv.Round.Cmp(rc.Round) < 0 {
+		// We consider the message with larger round as future messages and not
+		// gossip it to other validators.
+		return errFutureMessage
 	}
-
 	return nil
 }
 
