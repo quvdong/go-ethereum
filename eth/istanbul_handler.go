@@ -141,9 +141,9 @@ func (pm *istanbulProtocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 			m, _ = ms.(*lru.ARCCache)
 		} else {
 			m, _ = lru.NewARC(inmemoryMessages)
+			pm.recentMessages.Add(addr, m)
 		}
 		m.Add(hash, true)
-		pm.recentMessages.Add(addr, m)
 
 		// Mark self known message
 		if _, ok := pm.knownMessages.Get(hash); ok {
