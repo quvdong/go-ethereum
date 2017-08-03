@@ -61,7 +61,7 @@ func TestHandleCommit(t *testing.T) {
 					)
 
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.state = StatePrepared
 					}
 				}
@@ -78,7 +78,7 @@ func TestHandleCommit(t *testing.T) {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.current = newTestRoundState(
 							expectedSubject.View,
 							c.valSet,
@@ -107,7 +107,7 @@ func TestHandleCommit(t *testing.T) {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.current = newTestRoundState(
 							expectedSubject.View,
 							c.valSet,

@@ -99,7 +99,7 @@ func (c *core) finalizeMessage(msg *message) ([]byte, error) {
 
 	// Add proof of consensus
 	msg.CommittedSeal = []byte{}
-	// Assign the CommittedSeal if it's a commit message and proposal is not nil
+	// Assign the CommittedSeal if it's a COMMIT message and proposal is not nil
 	if msg.Code == msgCommit && c.current.Proposal() != nil {
 		seal := PrepareCommittedSeal(c.current.Proposal().Hash())
 		msg.CommittedSeal, err = c.backend.Sign(seal)
@@ -186,7 +186,7 @@ func (c *core) startNewRound(newView *istanbul.View, roundChange bool) {
 	}
 
 	c.valSet = c.backend.Validators(c.lastProposal)
-	// Clear invalid round change messages
+	// Clear invalid ROUND CHANGE messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
 	c.updateRoundState(newView, c.valSet, roundChange)
@@ -218,7 +218,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 	}
 	c.waitingForRoundChange = true
 
-	//Needs to keep block lock for round catching up
+	// Need to keep block locked for round catching up
 	c.updateRoundState(view, c.valSet, true)
 	c.roundChangeSet.Clear(view.Round)
 	c.newRoundChangeTimer()

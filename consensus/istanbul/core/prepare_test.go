@@ -61,7 +61,7 @@ func TestHandlePrepare(t *testing.T) {
 					)
 
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.state = StatePreprepared
 					}
 				}
@@ -78,7 +78,7 @@ func TestHandlePrepare(t *testing.T) {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.current = newTestRoundState(
 							expectedSubject.View,
 							c.valSet,
@@ -107,7 +107,7 @@ func TestHandlePrepare(t *testing.T) {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.current = newTestRoundState(
 							expectedSubject.View,
 							c.valSet,
@@ -136,7 +136,7 @@ func TestHandlePrepare(t *testing.T) {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.current = newTestRoundState(
 							expectedSubject.View,
 							c.valSet,
@@ -172,7 +172,7 @@ func TestHandlePrepare(t *testing.T) {
 					)
 
 					if i == 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.state = StatePreprepared
 					}
 				}
@@ -210,12 +210,12 @@ OUTER:
 
 		// prepared is normal case
 		if r0.state != StatePrepared {
-			// There are not enough prepared messages in core
+			// There are not enough PREPARE messages in core
 			if r0.state != StatePreprepared {
 				t.Errorf("state mismatch: have %v, want %v", r0.state, StatePreprepared)
 			}
 			if r0.current.Prepares.Size() > 2*r0.valSet.F() {
-				t.Errorf("the size of prepare messages should be less than %v", 2*r0.valSet.F()+1)
+				t.Errorf("the size of PREPARE messages should be less than %v", 2*r0.valSet.F()+1)
 			}
 			if r0.current.IsHashLocked() {
 				t.Errorf("block should not be locked")
@@ -224,9 +224,9 @@ OUTER:
 			continue
 		}
 
-		// core should have 2F+1 prepare messages
+		// core should have 2F+1 PREPARE messages
 		if r0.current.Prepares.Size() <= 2*r0.valSet.F() {
-			t.Errorf("the size of prepare messages should be larger than 2F+1: size %v", r0.current.Commits.Size())
+			t.Errorf("the size of PREPARE messages should be larger than 2F+1: size %v", r0.current.Commits.Size())
 		}
 
 		// a message will be delivered to backend if 2F+1
@@ -234,7 +234,7 @@ OUTER:
 			t.Errorf("the Send() should be called once: times %v", len(test.system.backends[0].sentMsgs))
 		}
 
-		// verify commit messages
+		// verify COMMIT messages
 		decodedMsg := new(message)
 		err := decodedMsg.FromPayload(v0.sentMsgs[0], nil)
 		if err != nil {
@@ -322,7 +322,7 @@ func TestVerifyPrepare(t *testing.T) {
 			),
 		},
 		{
-			// wrong prepare message with same sequence but different round
+			// wrong PREPARE message with same sequence but different round
 			expected: errInconsistentSubject,
 			prepare: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(1), Sequence: big.NewInt(0)},
@@ -334,7 +334,7 @@ func TestVerifyPrepare(t *testing.T) {
 			),
 		},
 		{
-			// wrong prepare message with same round but different sequence
+			// wrong PREPARE message with same round but different sequence
 			expected: errInconsistentSubject,
 			prepare: &istanbul.Subject{
 				View:   &istanbul.View{Round: big.NewInt(0), Sequence: big.NewInt(1)},

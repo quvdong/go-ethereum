@@ -32,7 +32,7 @@ func newTestPreprepare(v *istanbul.View) *istanbul.Preprepare {
 }
 
 func TestHandlePreprepare(t *testing.T) {
-	N := uint64(4) // replica 0 is primary, it will send messages to others
+	N := uint64(4) // replica 0 is the proposer, it will send messages to others
 	F := uint64(1) // F does not affect tests
 
 	testCases := []struct {
@@ -93,14 +93,14 @@ func TestHandlePreprepare(t *testing.T) {
 			func() *testSystem {
 				sys := NewTestSystemWithBackend(N, F)
 
-				// force remove replica 0, let replica 1 become primary
+				// force remove replica 0, let replica 1 be the proposer
 				sys.backends = sys.backends[1:]
 
 				for i, backend := range sys.backends {
 					c := backend.engine.(*core)
 					c.valSet = backend.peers
 					if i != 0 {
-						// replica 0 is primary
+						// replica 0 is the proposer
 						c.state = StatePreprepared
 					}
 				}
@@ -147,7 +147,7 @@ OUTER:
 		}
 
 		for i, v := range test.system.backends {
-			// i == 0 is primary backend, it is responsible for send preprepare messages to others.
+			// i == 0 is primary backend, it is responsible for send PRE-PREPARE messages to others.
 			if i == 0 {
 				continue
 			}
@@ -205,7 +205,7 @@ OUTER:
 }
 
 func TestHandlePreprepareWithLock(t *testing.T) {
-	N := uint64(4) // replica 0 is primary, it will send messages to others
+	N := uint64(4) // replica 0 is the proposer, it will send messages to others
 	F := uint64(1) // F does not affect tests
 	proposal := newTestProposal()
 	mismatchProposal := makeBlock(10)
@@ -255,7 +255,7 @@ func TestHandlePreprepareWithLock(t *testing.T) {
 		}
 
 		for i, v := range test.system.backends {
-			// i == 0 is primary backend, it is responsible for send preprepare messages to others.
+			// i == 0 is primary backend, it is responsible for send PRE-PREPARE messages to others.
 			if i == 0 {
 				continue
 			}

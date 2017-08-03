@@ -24,13 +24,13 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 )
 
-// sendNextRoundChange sends the round change message with current round + 1
+// sendNextRoundChange sends the ROUND CHANGE message with current round + 1
 func (c *core) sendNextRoundChange() {
 	cv := c.currentView()
 	c.sendRoundChange(new(big.Int).Add(cv.Round, common.Big1))
 }
 
-// sendRoundChange sends the round change message with the given round
+// sendRoundChange sends the ROUND CHANGE message with the given round
 func (c *core) sendRoundChange(round *big.Int) {
 	logger := c.logger.New("state", c.state)
 
@@ -56,7 +56,7 @@ func (c *core) sendRoundChange(round *big.Int) {
 
 	payload, err := Encode(rc)
 	if err != nil {
-		logger.Error("Failed to encode round change", "rc", rc, "err", err)
+		logger.Error("Failed to encode ROUND CHANGE", "rc", rc, "err", err)
 		return
 	}
 
@@ -69,28 +69,28 @@ func (c *core) sendRoundChange(round *big.Int) {
 func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("state", c.state, "from", src.Address().Hex())
 
-	// Decode round change message
+	// Decode ROUND CHANGE message
 	var rc *roundChange
 	if err := msg.Decode(&rc); err != nil {
-		logger.Error("Failed to decode round change", "err", err)
+		logger.Error("Failed to decode ROUND CHANGE", "err", err)
 		return errInvalidMessage
 	}
 
 	cv := c.currentView()
 
-	// We never accept round change message with different sequence number
+	// We never accept ROUND CHANGE message with different sequence number
 	if rc.Sequence.Cmp(cv.Sequence) != 0 {
 		logger.Warn("Inconsistent sequence number", "expected", cv.Sequence, "got", rc.Sequence)
 		return errInvalidMessage
 	}
 
-	// We never accept round change message with smaller round number
+	// We never accept ROUND CHANGE message with smaller round number
 	if rc.Round.Cmp(cv.Round) < 0 {
 		logger.Warn("Old round change", "from", src, "expected", cv.Round, "got", rc.Round)
 		return errOldMessage
 	}
 
-	// Add the round change message to its message set and return how many
+	// Add the ROUND CHANGE message to its message set and return how many
 	// messages we've got with the same round number and sequence number.
 	num, err := c.roundChangeSet.Add(rc.Round, msg)
 	if err != nil {
@@ -98,7 +98,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		return err
 	}
 
-	// Once we received f+1 round change messages, those messages form a weak certificate.
+	// Once we received f+1 ROUND CHANGE messages, those messages form a weak certificate.
 	// If our round number is smaller than the certificate's round number, we would
 	// try to catch up the round number.
 	if c.waitingForRoundChange && num == int(c.valSet.F()+1) {
@@ -107,7 +107,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		}
 		return nil
 	} else if num == int(2*c.valSet.F()+1) && (c.waitingForRoundChange || cv.Round.Cmp(rc.Round) < 0) {
-		// We've received 2f+1 round change messages, start a new round immediately.
+		// We've received 2f+1 ROUND CHANGE messages, start a new round immediately.
 		c.startNewRound(&istanbul.View{
 			Round:    new(big.Int).Set(rc.Round),
 			Sequence: new(big.Int).Set(rc.Sequence),

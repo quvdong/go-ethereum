@@ -48,14 +48,14 @@ func (c *core) sendPreprepare(request *istanbul.Request) {
 func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
-	// Decode preprepare
+	// Decode PRE-PREPARE
 	var preprepare *istanbul.Preprepare
 	err := msg.Decode(&preprepare)
 	if err != nil {
 		return errFailedDecodePreprepare
 	}
 
-	// Ensure we have the same view with the preprepare message
+	// Ensure we have the same view with the PRE-PREPARE message
 	// If it is old message, see if we need to broadcast COMMIT
 	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
 		return err
@@ -85,11 +85,10 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 		return err
 	}
 
-	// Here is about to accept the preprepare
+	// Here is about to accept the PRE-PREPARE
 	if c.state == StateAcceptRequest {
 		// Send ROUND CHANGE if the locked proposal and the received proposal are different
 		if c.current.IsHashLocked() && preprepare.Proposal.Hash() != c.current.GetLockedHash() {
-			// Send round change
 			c.sendNextRoundChange()
 		} else {
 			// Either

@@ -173,7 +173,7 @@ type roundChange struct {
 	Digest   common.Hash
 }
 
-// EncodeRLP serializes b into the Ethereum RLP format.
+// EncodeRLP serializes rc into the Ethereum RLP format.
 func (rc *roundChange) EncodeRLP(w io.Writer) error {
 	return rlp.Encode(w, []interface{}{
 		rc.Round,
