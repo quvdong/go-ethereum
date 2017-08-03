@@ -18,8 +18,6 @@
 package consensus
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -107,7 +105,7 @@ type Istanbul interface {
 	Engine
 
 	// HandleMsg handles a message from peer
-	HandleMsg(pubKey *ecdsa.PublicKey, data []byte) error
+	HandleMsg(addr common.Address, data []byte) error
 
 	// NewChainHead is called if a new chain head block comes
 	NewChainHead(block *types.Block) error

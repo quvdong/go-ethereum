@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/p2p/discover"
 	"github.com/ethereum/go-ethereum/params"
+	lru "github.com/hashicorp/golang-lru"
 )
 
 const (
@@ -39,13 +40,18 @@ const (
 	istanbulProtocolLength = 18
 
 	IstanbulMsg = 0x11
+	// TODO: based on the number of validators
+	inmemoryPeers    = 40
+	inmemoryMessages = 100
 )
 
 type istanbulProtocolManager struct {
 	*protocolManager
 
-	engine   consensus.Istanbul
-	eventSub *event.TypeMuxSubscription
+	engine         consensus.Istanbul
+	eventSub       *event.TypeMuxSubscription
+	recentMessages *lru.ARCCache // the cache of peer's messages
+	knownMessages  *lru.ARCCache // the cache of self messages
 }
 
 func newIstanbulProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Istanbul, blockchain *core.BlockChain, chaindb ethdb.Database) (*istanbulProtocolManager, error) {
@@ -55,10 +61,14 @@ func newIstanbulProtocolManager(config *params.ChainConfig, mode downloader.Sync
 		return nil, err
 	}
 
+	recents, _ := lru.NewARC(inmemoryPeers)
+	knownMessages, _ := lru.NewARC(inmemoryMessages)
 	// Create the istanbul protocol manager
 	manager := &istanbulProtocolManager{
 		protocolManager: defaultManager,
 		engine:          engine,
+		recentMessages:  recents,
+		knownMessages:   knownMessages,
 	}
 
 	// Support only Istanbul protocol
@@ -120,7 +130,28 @@ func (pm *istanbulProtocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 		if err := msg.Decode(&data); err != nil {
 			return errResp(ErrDecode, "msg %v: %v", msg, err)
 		}
-		return pm.engine.HandleMsg(pubKey, data)
+
+		hash := istanbul.RLPHash(data)
+		addr := crypto.PubkeyToAddress(*pubKey)
+
+		// Mark peer's message
+		ms, ok := pm.recentMessages.Get(addr)
+		var m *lru.ARCCache
+		if ok {
+			m, _ = ms.(*lru.ARCCache)
+		} else {
+			m, _ = lru.NewARC(inmemoryMessages)
+			pm.recentMessages.Add(addr, m)
+		}
+		m.Add(hash, true)
+
+		// Mark self known message
+		if _, ok := pm.knownMessages.Get(hash); ok {
+			return nil
+		}
+		pm.knownMessages.Add(hash, true)
+
+		return pm.engine.HandleMsg(addr, data)
 	default:
 		// Invoke default protocol manager's message handler
 		return pm.protocolManager.handleMsg(p, msg)
@@ -143,17 +174,35 @@ func (pm *istanbulProtocolManager) eventLoop() {
 
 // sendEvent sends a p2p message with given data to a peer
 func (pm *istanbulProtocolManager) sendEvent(event istanbul.ConsensusDataEvent) {
+	hash := istanbul.RLPHash(event.Data)
+	pm.knownMessages.Add(hash, true)
+
 	for _, p := range pm.peers.Peers() {
+		if len(event.Targets) == 0 {
+			return
+		}
 		pubKey, err := p.ID().Pubkey()
 		if err != nil {
 			continue
 		}
 		addr := crypto.PubkeyToAddress(*pubKey)
 		if event.Targets[addr] {
-			p2p.Send(p.rw, IstanbulMsg, event.Data)
 			delete(event.Targets, addr)
-			if len(event.Targets) == 0 {
-				return
+			ms, ok := pm.recentMessages.Get(addr)
+			var m *lru.ARCCache
+			if ok {
+				m, _ = ms.(*lru.ARCCache)
+				if _, k := m.Get(hash); k {
+					// This peer had this event, skip it
+					continue
+				}
+			} else {
+				m, _ = lru.NewARC(inmemoryMessages)
+			}
+
+			if err := p2p.Send(p.rw, IstanbulMsg, event.Data); err == nil {
+				m.Add(hash, true)
+				pm.recentMessages.Add(addr, m)
 			}
 		}
 	}
