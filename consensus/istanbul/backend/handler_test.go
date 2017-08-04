@@ -14,76 +14,49 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package eth
+package backend
 
 import (
-	"math/big"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
-	"github.com/ethereum/go-ethereum/core/vm"
-	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/downloader"
-	"github.com/ethereum/go-ethereum/ethdb"
-	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/p2p"
-	"github.com/ethereum/go-ethereum/p2p/discover"
-	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
 )
 
 func TestIstanbulMessage(t *testing.T) {
-	var (
-		evmux  = new(event.TypeMux)
-		engine = &MockIstanbulEngine{}
-		db, _  = ethdb.NewMemDatabase()
-		config = &params.ChainConfig{DAOForkBlock: big.NewInt(1)}
-		gspec  = &core.Genesis{Config: config}
-	)
-	gspec.MustCommit(db)
-	blockchain, _ := core.NewBlockChain(db, config, engine, evmux, vm.Config{})
-	p, err := NewProtocolManager(config, downloader.FullSync, DefaultConfig.NetworkId, 1000, evmux, new(testTxPool), engine, blockchain, db)
-	if err != nil {
-		t.Fatalf("failed to start test protocol manager: %v", err)
-	}
-	pm, ok := p.(*istanbulProtocolManager)
-	if !ok {
-		panic("cast istanbulProtocolManager failed")
-	}
+	_, backend := newBlockChain(1)
 
 	// generate one msg
 	data := []byte("data1")
 	hash := istanbul.RLPHash(data)
-	msg := makeMsg(IstanbulMsg, data)
-	peer := newPeer(IstanbulVersion, p2p.NewPeer(randomID(), "name", []p2p.Cap{}), nil)
-	pubKey, _ := peer.ID().Pubkey()
-	addr := crypto.PubkeyToAddress(*pubKey)
+	msg := makeMsg(istanbulMsg, data)
+	addr := common.StringToAddress("address")
 
 	// 1. this message should not be in cache
 	// for peers
-	if _, ok := pm.recentMessages.Get(addr); ok {
+	if _, ok := backend.recentMessages.Get(addr); ok {
 		t.Fatalf("the cache of messages for this peer should be nil")
 	}
 
 	// for self
-	if _, ok := pm.knownMessages.Get(hash); ok {
+	if _, ok := backend.knownMessages.Get(hash); ok {
 		t.Fatalf("the cache of messages should be nil")
 	}
 
 	// 2. this message should be in cache after we handle it
-	err = pm.handleMsg(peer, msg)
+	_, err := backend.HandleMsg(addr, msg)
 	if err != nil {
 		t.Fatalf("handle message failed: %v", err)
 	}
 	// for peers
-	if ms, ok := pm.recentMessages.Get(addr); ms == nil || !ok {
+	if ms, ok := backend.recentMessages.Get(addr); ms == nil || !ok {
 		t.Fatalf("the cache of messages for this peer cannot be nil")
 	} else if m, ok := ms.(*lru.ARCCache); !ok {
 		t.Fatalf("the cache of messages for this peer cannot be casted")
@@ -92,14 +65,9 @@ func TestIstanbulMessage(t *testing.T) {
 	}
 
 	// for self
-	if _, ok := pm.knownMessages.Get(hash); !ok {
+	if _, ok := backend.knownMessages.Get(hash); !ok {
 		t.Fatalf("the cache of messages cannot be found")
 	}
-}
-
-func randomID() (id discover.NodeID) {
-	key, _ := crypto.GenerateKey()
-	return discover.PubkeyID(&key.PublicKey)
 }
 
 func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
