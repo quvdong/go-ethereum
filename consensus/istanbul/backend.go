@@ -17,7 +17,6 @@
 package istanbul
 
 import (
-	"math/big"
 	"time"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -59,14 +58,8 @@ type Backend interface {
 	// the given validator
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
-	// HasBlock checks if the combination of the given hash and height matches any existing blocks
-	HasBlock(hash common.Hash, number *big.Int) bool
-
 	// GetProposer returns the proposer of the given block height
 	GetProposer(number uint64) common.Address
-
-	// ParentValidators returns the validator set of the given proposal's parent block
-	ParentValidators(proposal Proposal) ValidatorSet
 
 	// LastProposal retrieves latest committed proposal and the address of proposer
 	LastProposal() (Proposal, common.Address)
