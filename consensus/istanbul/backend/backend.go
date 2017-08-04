@@ -251,3 +251,25 @@ func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 	}
 	return snap.ValSet
 }
+
+func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
+	if sb.chain == nil {
+		sb.logger.Error("Failed to access blockchain")
+		return nil, common.Address{}
+	}
+
+	h := sb.chain.CurrentHeader()
+
+	var proposer common.Address
+	if h.Number.Cmp(common.Big0) > 0 {
+		var err error
+		proposer, err = sb.Author(h)
+		if err != nil {
+			sb.logger.Error("Failed to get block proposer", "err", err)
+			return nil, common.Address{}
+		}
+	}
+
+	// Return header only block here since we don't need block body
+	return types.NewBlockWithHeader(h), proposer
+}

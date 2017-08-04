@@ -236,7 +236,10 @@ func TestProcessFutureBacklog(t *testing.T) {
 	const timeoutDura = 2 * time.Second
 	timeout := time.NewTimer(timeoutDura)
 	select {
-	case e := <-c.events.Chan():
+	case e, ok := <-c.events.Chan():
+		if !ok {
+			return
+		}
 		t.Errorf("unexpected events comes: %v", e)
 	case <-timeout.C:
 		// success

@@ -111,7 +111,7 @@ func (c *core) handleRoundChange(msg *message, src istanbul.Validator) error {
 		c.startNewRound(&istanbul.View{
 			Round:    new(big.Int).Set(rc.Round),
 			Sequence: new(big.Int).Set(rc.Sequence),
-		}, true)
+		}, nil, common.Address{}, true)
 		return nil
 	} else if cv.Round.Cmp(rc.Round) < 0 {
 		// We consider the message with larger round as future messages and not

@@ -34,7 +34,7 @@ func (c *core) Start(lastSequence *big.Int, lastProposer common.Address, lastPro
 	c.startNewRound(&istanbul.View{
 		Sequence: new(big.Int).Add(lastSequence, common.Big1),
 		Round:    common.Big0,
-	}, false)
+	}, lastProposal, lastProposer, false)
 
 	// Tests will handle events itself, so we have to make subscribeEvents()
 	// be able to call in test.
@@ -59,48 +59,61 @@ func (c *core) subscribeEvents() {
 		// external events
 		istanbul.RequestEvent{},
 		istanbul.MessageEvent{},
-		istanbul.FinalCommittedEvent{},
 		// internal events
 		backlogEvent{},
+	)
+	c.timeoutSub = c.backend.EventMux().Subscribe(
 		timeoutEvent{},
+	)
+	c.finalCommittedSub = c.backend.EventMux().Subscribe(
+		istanbul.FinalCommittedEvent{},
 	)
 }
 
 // Unsubscribe all events
 func (c *core) unsubscribeEvents() {
 	c.events.Unsubscribe()
+	c.timeoutSub.Unsubscribe()
+	c.finalCommittedSub.Unsubscribe()
 }
 
 func (c *core) handleEvents() {
-	for event := range c.events.Chan() {
-		// A real event arrived, process interesting content
-		switch ev := event.Data.(type) {
-		case istanbul.RequestEvent:
-			r := &istanbul.Request{
-				Proposal: ev.Proposal,
+	for {
+		select {
+		case event, ok := <-c.events.Chan():
+			if !ok {
+				return
 			}
-			err := c.handleRequest(r)
-			if err == errFutureMessage {
-				c.storeRequestMsg(r)
-			}
-		case istanbul.MessageEvent:
-			if err := c.handleMsg(ev.Payload); err == nil {
-				c.backend.Gossip(c.valSet, ev.Payload)
-			}
-		case istanbul.FinalCommittedEvent:
-			c.handleFinalCommitted(ev.Proposal, ev.Proposer)
-		case backlogEvent:
-			// No need to check signature for internal messages
-			if err := c.handleCheckedMsg(ev.msg, ev.src); err == nil {
-				p, err := ev.msg.Payload()
-				if err != nil {
-					c.logger.Warn("Get message payload failed", "err", err)
-					continue
+			// A real event arrived, process interesting content
+			switch ev := event.Data.(type) {
+			case istanbul.RequestEvent:
+				r := &istanbul.Request{
+					Proposal: ev.Proposal,
 				}
-				c.backend.Gossip(c.valSet, p)
+				err := c.handleRequest(r)
+				if err == errFutureMessage {
+					c.storeRequestMsg(r)
+				}
+			case istanbul.MessageEvent:
+				c.handleMsg(ev.Payload)
+			case backlogEvent:
+				// No need to check signature for internal messages
+				c.handleCheckedMsg(ev.msg, ev.src)
+
 			}
-		case timeoutEvent:
+		case _, ok := <-c.timeoutSub.Chan():
+			if !ok {
+				return
+			}
 			c.handleTimeoutMsg()
+		case event, ok := <-c.finalCommittedSub.Chan():
+			if !ok {
+				return
+			}
+			switch ev := event.Data.(type) {
+			case istanbul.FinalCommittedEvent:
+				c.handleFinalCommitted(ev.Proposal, ev.Proposer)
+			}
 		}
 	}
 }
@@ -111,7 +124,7 @@ func (c *core) sendEvent(ev interface{}) {
 }
 
 func (c *core) handleMsg(payload []byte) error {
-	logger := c.logger.New("address", c.address)
+	logger := c.logger.New()
 
 	// Decode message and check its signature
 	msg := new(message)
@@ -169,5 +182,15 @@ func (c *core) handleTimeoutMsg() {
 			return
 		}
 	}
-	c.sendNextRoundChange()
+
+	lastProposal, lastProposer := c.backend.LastProposal()
+	if lastProposal != nil && lastProposal.Number().Cmp(c.current.Sequence()) > 0 {
+		c.logger.Trace("round change timeout, catch up latest sequence", "number", lastProposal.Number().Uint64())
+		c.startNewRound(&istanbul.View{
+			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
+			Round:    new(big.Int),
+		}, lastProposal, lastProposer, false)
+	} else {
+		c.sendNextRoundChange()
+	}
 }
