@@ -87,6 +87,11 @@ func (self *testSystemBackend) Broadcast(valSet istanbul.ValidatorSet, message [
 	return nil
 }
 
+func (self *testSystemBackend) Gossip(valSet istanbul.ValidatorSet, message []byte) error {
+	testLogger.Warn("not sign any data")
+	return nil
+}
+
 func (self *testSystemBackend) NextRound() error {
 	testLogger.Warn("nothing to happen")
 	return nil
