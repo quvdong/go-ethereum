@@ -191,7 +191,7 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
-		}, vset)
+		}, vset, common.Hash{}, nil)
 		core.logger = testLogger
 		core.validateFn = backend.CheckValidatorSignature
 
