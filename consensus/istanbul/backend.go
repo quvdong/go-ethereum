@@ -58,9 +58,6 @@ type Backend interface {
 	// the given validator
 	CheckSignature(data []byte, addr common.Address, sig []byte) error
 
-	// GetProposer returns the proposer of the given block height
-	GetProposer(number uint64) common.Address
-
 	// LastProposal retrieves latest committed proposal and the address of proposer
 	LastProposal() (Proposal, common.Address)
 }
