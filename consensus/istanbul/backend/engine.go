@@ -29,6 +29,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -41,6 +42,8 @@ import (
 const (
 	checkpointInterval = 1024 // Number of blocks after which to save the vote snapshot to the database
 	inmemorySnapshots  = 128  // Number of recent vote snapshots to keep in memory
+	inmemoryPeers      = 40
+	inmemoryMessages   = 100
 )
 
 var (
@@ -482,39 +485,6 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 	}}
 }
 
-// HandleMsg implements consensus.Istanbul.HandleMsg
-func (sb *backend) HandleMsg(addr common.Address, data []byte) error {
-	sb.coreMu.Lock()
-	defer sb.coreMu.Unlock()
-	if !sb.coreStarted {
-		return istanbul.ErrStoppedEngine
-	}
-
-	go sb.istanbulEventMux.Post(istanbul.MessageEvent{
-		Payload: data,
-	})
-	return nil
-}
-
-// NewChainHead implements consensus.Istanbul.NewChainHead
-func (sb *backend) NewChainHead(block *types.Block) error {
-	sb.coreMu.Lock()
-	defer sb.coreMu.Unlock()
-	if !sb.coreStarted {
-		return istanbul.ErrStoppedEngine
-	}
-	p, err := sb.Author(block.Header())
-	if err != nil {
-		sb.logger.Error("Failed to get block proposer", "err", err)
-		return err
-	}
-	go sb.istanbulEventMux.Post(istanbul.FinalCommittedEvent{
-		Proposal: block,
-		Proposer: p,
-	})
-	return nil
-}
-
 // Start implements consensus.Istanbul.Start
 func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks) (int, error)) error {
 	sb.coreMu.Lock()
@@ -550,6 +520,11 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 	if err := sb.core.Start(lastSequence, lastProposer, lastProposal); err != nil {
 		return err
 	}
+
+	// subscribe for chain head event
+	sb.eventSub = sb.eventMux.Subscribe(core.ChainHeadEvent{})
+	go sb.eventLoop()
+
 	sb.coreStarted = true
 	return nil
 }
@@ -565,6 +540,7 @@ func (sb *backend) Stop() error {
 		return err
 	}
 	sb.coreStarted = false
+	sb.eventSub.Unsubscribe()
 	return nil
 }
 

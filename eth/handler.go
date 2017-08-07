@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/fetcher"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -59,35 +60,7 @@ func errResp(code errCode, format string, v ...interface{}) error {
 	return fmt.Errorf("%v - %v", code, fmt.Sprintf(format, v...))
 }
 
-type ProtocolManager interface {
-	// Start protocol manager
-	Start()
-
-	// Stop protocol manager
-	Stop()
-
-	// BroadcastBlock will either propagate a block to a subset of it's peers, or
-	// will only announce it's availability (depending what's requested).
-	BroadcastBlock(block *types.Block, propagate bool)
-
-	// BroadcastTx will propagate a transaction to all peers which are not known to
-	// already have the given transaction.
-	BroadcastTx(hash common.Hash, tx *types.Transaction)
-
-	// NodeInfo retrieves some protocol metadata about the running host node.
-	NodeInfo() *EthNodeInfo
-
-	// Downloader retreives the downloader
-	Downloader() *downloader.Downloader
-
-	// SetAcceptTxs sets the flag whether we're considered synchronised
-	SetAcceptTxs(uint32)
-
-	// Protocols returns supported p2p protocols
-	Protocols() []p2p.Protocol
-}
-
-type protocolManager struct {
+type ProtocolManager struct {
 	networkId uint64
 
 	fastSync  uint32 // Flag whether fast sync is enabled (gets disabled if we already have blocks)
@@ -118,21 +91,15 @@ type protocolManager struct {
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
+
+	engine consensus.Engine
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
 // with the ethereum network.
-func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (ProtocolManager, error) {
-	if e, ok := engine.(consensus.Istanbul); ok {
-		return newIstanbulProtocolManager(config, mode, networkId, maxPeers, mux, txpool, e, blockchain, chaindb)
-	} else {
-		return newProtocolManager(config, mode, networkId, maxPeers, mux, txpool, engine, blockchain, chaindb)
-	}
-}
-
-func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*protocolManager, error) {
+func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, networkId uint64, maxPeers int, mux *event.TypeMux, txpool txPool, engine consensus.Engine, blockchain *core.BlockChain, chaindb ethdb.Database) (*ProtocolManager, error) {
 	// Create the protocol manager with the base fields
-	manager := &protocolManager{
+	manager := &ProtocolManager{
 		networkId:   networkId,
 		eventMux:    mux,
 		txpool:      txpool,
@@ -145,7 +112,13 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
+		engine:      engine,
 	}
+
+	if handler, ok := manager.engine.(consensus.Handler); ok {
+		handler.SetBroadcaster(manager)
+	}
+
 	// Figure out whether to allow fast sync or not
 	if mode == downloader.FastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		log.Warn("Blockchain not empty, fast sync disabled")
@@ -154,26 +127,27 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 	if mode == downloader.FastSync {
 		manager.fastSync = uint32(1)
 	}
+	protocol := engine.Protocol()
 	// Initiate a sub-protocol for every implemented version we can handle
-	manager.SubProtocols = make([]p2p.Protocol, 0, len(ProtocolVersions))
-	for i, version := range ProtocolVersions {
+	manager.SubProtocols = make([]p2p.Protocol, 0, len(protocol.Versions))
+	for i, version := range protocol.Versions {
 		// Skip protocol version if incompatible with the mode of operation
-		if mode == downloader.FastSync && version < eth63 {
+		if mode == downloader.FastSync && version < consensus.Eth63 {
 			continue
 		}
 		// Compatible; initialise the sub-protocol
 		version := version // Closure for the run
 		manager.SubProtocols = append(manager.SubProtocols, p2p.Protocol{
-			Name:    ProtocolName,
+			Name:    protocol.Name,
 			Version: version,
-			Length:  ProtocolLengths[i],
+			Length:  protocol.Lengths[i],
 			Run: func(p *p2p.Peer, rw p2p.MsgReadWriter) error {
 				peer := manager.newPeer(int(version), p, rw)
 				select {
 				case manager.newPeerCh <- peer:
 					manager.wg.Add(1)
 					defer manager.wg.Done()
-					return manager.handle(peer, manager.handleMsg)
+					return manager.handle(peer)
 				case <-manager.quitSync:
 					return p2p.DiscQuitting
 				}
@@ -208,14 +182,14 @@ func newProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 			return 0, nil
 		}
 		atomic.StoreUint32(&manager.acceptTxs, 1) // Mark initial sync done on any fetcher import
-		return blockchain.InsertChain(blocks)
+		return manager.blockchain.InsertChain(blocks)
 	}
 	manager.fetcher = fetcher.New(blockchain.GetBlockByHash, validator, manager.BroadcastBlock, heighter, inserter, manager.removePeer)
 
 	return manager, nil
 }
 
-func (pm *protocolManager) removePeer(id string) {
+func (pm *ProtocolManager) removePeer(id string) {
 	// Short circuit if the peer was already removed
 	peer := pm.peers.Peer(id)
 	if peer == nil {
@@ -234,7 +208,7 @@ func (pm *protocolManager) removePeer(id string) {
 	}
 }
 
-func (pm *protocolManager) Start() {
+func (pm *ProtocolManager) Start() {
 	// broadcast transactions
 	pm.txSub = pm.eventMux.Subscribe(core.TxPreEvent{})
 	go pm.txBroadcastLoop()
@@ -247,7 +221,7 @@ func (pm *protocolManager) Start() {
 	go pm.txsyncLoop()
 }
 
-func (pm *protocolManager) Stop() {
+func (pm *ProtocolManager) Stop() {
 	log.Info("Stopping Ethereum protocol")
 
 	pm.txSub.Unsubscribe()         // quits txBroadcastLoop
@@ -272,13 +246,13 @@ func (pm *protocolManager) Stop() {
 	log.Info("Ethereum protocol stopped")
 }
 
-func (pm *protocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
+func (pm *ProtocolManager) newPeer(pv int, p *p2p.Peer, rw p2p.MsgReadWriter) *peer {
 	return newPeer(pv, p, newMeteredMsgWriter(rw))
 }
 
 // handle is the callback invoked to manage the life cycle of an eth peer. When
 // this function terminates, the peer is disconnected.
-func (pm *protocolManager) handle(p *peer, handleMsg func(*peer, p2p.Msg) error) error {
+func (pm *ProtocolManager) handle(p *peer) error {
 	if pm.peers.Len() >= pm.maxPeers {
 		return p2p.DiscTooManyPeers
 	}
@@ -329,16 +303,16 @@ func (pm *protocolManager) handle(p *peer, handleMsg func(*peer, p2p.Msg) error)
 	}
 	// main loop. handle incoming messages.
 	for {
-		if err := pm.handlePeerMsg(p, handleMsg); err != nil {
+		if err := pm.handleMsg(p); err != nil {
 			p.Log().Debug("Ethereum message handling failed", "err", err)
 			return err
 		}
 	}
 }
 
-// handlePeerMsg is invoked whenever an inbound message is received from a
-// remote peer. The remote connection is torn down upon returning any error.
-func (pm *protocolManager) handlePeerMsg(p *peer, handleMsg func(*peer, p2p.Msg) error) error {
+// handleMsg is invoked whenever an inbound message is received from a remote
+// peer. The remote connection is torn down upon returning any error.
+func (pm *ProtocolManager) handleMsg(p *peer) error {
 	// Read the next message from the remote peer, and ensure it's fully consumed
 	msg, err := p.rw.ReadMsg()
 	if err != nil {
@@ -348,10 +322,19 @@ func (pm *protocolManager) handlePeerMsg(p *peer, handleMsg func(*peer, p2p.Msg)
 		return errResp(ErrMsgTooLarge, "%v > %v", msg.Size, ProtocolMaxMsgSize)
 	}
 	defer msg.Discard()
-	return handleMsg(p, msg)
-}
 
-func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
+	if handler, ok := pm.engine.(consensus.Handler); ok {
+		pubKey, err := p.ID().Pubkey()
+		if err != nil {
+			return err
+		}
+		addr := crypto.PubkeyToAddress(*pubKey)
+		handled, err := handler.HandleMsg(addr, msg)
+		if handled {
+			return err
+		}
+	}
+
 	// Handle the message depending on its contents
 	switch {
 	case msg.Code == StatusMsg:
@@ -543,7 +526,7 @@ func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 			}
 		}
 
-	case p.version >= eth63 && msg.Code == GetNodeDataMsg:
+	case p.version >= consensus.Eth63 && msg.Code == GetNodeDataMsg:
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -570,7 +553,7 @@ func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 		}
 		return p.SendNodeData(data)
 
-	case p.version >= eth63 && msg.Code == NodeDataMsg:
+	case p.version >= consensus.Eth63 && msg.Code == NodeDataMsg:
 		// A batch of node state data arrived to one of our previous requests
 		var data [][]byte
 		if err := msg.Decode(&data); err != nil {
@@ -581,7 +564,7 @@ func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 			log.Debug("Failed to deliver node state data", "err", err)
 		}
 
-	case p.version >= eth63 && msg.Code == GetReceiptsMsg:
+	case p.version >= consensus.Eth63 && msg.Code == GetReceiptsMsg:
 		// Decode the retrieval message
 		msgStream := rlp.NewStream(msg.Payload, uint64(msg.Size))
 		if _, err := msgStream.List(); err != nil {
@@ -617,7 +600,7 @@ func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 		}
 		return p.SendReceiptsRLP(receipts)
 
-	case p.version >= eth63 && msg.Code == ReceiptsMsg:
+	case p.version >= consensus.Eth63 && msg.Code == ReceiptsMsg:
 		// A batch of receipts arrived to one of our previous requests
 		var receipts [][]*types.Receipt
 		if err := msg.Decode(&receipts); err != nil {
@@ -707,7 +690,7 @@ func (pm *protocolManager) handleMsg(p *peer, msg p2p.Msg) error {
 
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
-func (pm *protocolManager) BroadcastBlock(block *types.Block, propagate bool) {
+func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 	hash := block.Hash()
 	peers := pm.peers.PeersWithoutBlock(hash)
 
@@ -739,7 +722,7 @@ func (pm *protocolManager) BroadcastBlock(block *types.Block, propagate bool) {
 
 // BroadcastTx will propagate a transaction to all peers which are not known to
 // already have the given transaction.
-func (pm *protocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) {
+func (pm *ProtocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) {
 	// Broadcast transaction to a batch of peers not knowing about it
 	peers := pm.peers.PeersWithoutTx(hash)
 	//FIXME include this again: peers = peers[:int(math.Sqrt(float64(len(peers))))]
@@ -750,7 +733,7 @@ func (pm *protocolManager) BroadcastTx(hash common.Hash, tx *types.Transaction) 
 }
 
 // Mined broadcast loop
-func (self *protocolManager) minedBroadcastLoop() {
+func (self *ProtocolManager) minedBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range self.minedBlockSub.Chan() {
 		switch ev := obj.Data.(type) {
@@ -761,7 +744,7 @@ func (self *protocolManager) minedBroadcastLoop() {
 	}
 }
 
-func (self *protocolManager) txBroadcastLoop() {
+func (self *ProtocolManager) txBroadcastLoop() {
 	// automatically stops if unsubscribe
 	for obj := range self.txSub.Chan() {
 		event := obj.Data.(core.TxPreEvent)
@@ -778,7 +761,8 @@ type EthNodeInfo struct {
 	Head       common.Hash `json:"head"`       // SHA3 hash of the host's best owned block
 }
 
-func (self *protocolManager) NodeInfo() *EthNodeInfo {
+// NodeInfo retrieves some protocol metadata about the running host node.
+func (self *ProtocolManager) NodeInfo() *EthNodeInfo {
 	currentBlock := self.blockchain.CurrentBlock()
 	return &EthNodeInfo{
 		Network:    self.networkId,
@@ -788,14 +772,17 @@ func (self *protocolManager) NodeInfo() *EthNodeInfo {
 	}
 }
 
-func (self *protocolManager) Downloader() *downloader.Downloader {
-	return self.downloader
-}
-
-func (self *protocolManager) SetAcceptTxs(i uint32) {
-	atomic.StoreUint32(&self.acceptTxs, i)
-}
-
-func (self *protocolManager) Protocols() []p2p.Protocol {
-	return self.SubProtocols
+func (self *ProtocolManager) FindPeers(targets map[common.Address]bool) map[common.Address]consensus.Peer {
+	m := make(map[common.Address]consensus.Peer)
+	for _, p := range self.peers.Peers() {
+		pubKey, err := p.ID().Pubkey()
+		if err != nil {
+			continue
+		}
+		addr := crypto.PubkeyToAddress(*pubKey)
+		if targets[addr] {
+			m[addr] = p
+		}
+	}
+	return m
 }

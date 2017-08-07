@@ -18,7 +18,6 @@ package backend
 
 import (
 	"crypto/ecdsa"
-	"math/big"
 	"sync"
 	"time"
 
@@ -40,6 +39,8 @@ import (
 func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
+	recentMessages, _ := lru.NewARC(inmemoryPeers)
+	knownMessages, _ := lru.NewARC(inmemoryMessages)
 	backend := &backend{
 		config:           config,
 		eventMux:         eventMux,
@@ -52,6 +53,8 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 		recents:          recents,
 		candidates:       make(map[common.Address]bool),
 		coreStarted:      false,
+		recentMessages:   recentMessages,
+		knownMessages:    knownMessages,
 	}
 	backend.core = istanbulCore.New(backend, backend.config)
 	return backend
@@ -84,6 +87,13 @@ type backend struct {
 	candidatesLock sync.RWMutex
 	// Snapshots for recent block to speed up reorgs
 	recents *lru.ARCCache
+
+	// event subscription for ChainHeadEvent event
+	eventSub    *event.TypeMuxSubscription
+	broadcaster consensus.Broadcaster
+
+	recentMessages *lru.ARCCache // the cache of peer's messages
+	knownMessages  *lru.ARCCache // the cache of self messages
 }
 
 // Address implements istanbul.Backend.Address
@@ -110,6 +120,9 @@ func (sb *backend) Broadcast(valSet istanbul.ValidatorSet, payload []byte) error
 
 // Broadcast implements istanbul.Backend.Gossip
 func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
+	hash := istanbul.RLPHash(payload)
+	sb.knownMessages.Add(hash, true)
+
 	targets := make(map[common.Address]bool)
 	for _, val := range valSet.List() {
 		if val.Address() != sb.Address() {
@@ -117,11 +130,26 @@ func (sb *backend) Gossip(valSet istanbul.ValidatorSet, payload []byte) error {
 		}
 	}
 
-	if len(targets) > 0 {
-		go sb.eventMux.Post(istanbul.ConsensusDataEvent{
-			Targets: targets,
-			Data:    payload,
-		})
+	if sb.broadcaster != nil && len(targets) > 0 {
+		ps := sb.broadcaster.FindPeers(targets)
+		for addr, p := range ps {
+			ms, ok := sb.recentMessages.Get(addr)
+			var m *lru.ARCCache
+			if ok {
+				m, _ = ms.(*lru.ARCCache)
+				if _, k := m.Get(hash); k {
+					// This peer had this event, skip it
+					continue
+				}
+			} else {
+				m, _ = lru.NewARC(inmemoryMessages)
+			}
+
+			m.Add(hash, true)
+			sb.recentMessages.Add(addr, m)
+
+			go p.Send(istanbulMsg, payload)
+		}
 	}
 	return nil
 }
@@ -162,10 +190,10 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	if _, err := sb.inserter(types.Blocks{block}); err != nil {
 		return err
 	}
-	msg := istanbul.NewCommittedEvent{
-		Block: block,
+
+	if sb.broadcaster != nil {
+		go sb.broadcaster.BroadcastBlock(block, false)
 	}
-	go sb.eventMux.Post(msg)
 	return nil
 }
 
@@ -222,11 +250,6 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
-// HasBlock implements istanbul.Backend.HashBlock
-func (sb *backend) HasBlock(hash common.Hash, number *big.Int) bool {
-	return sb.chain.GetHeader(hash, number.Uint64()) != nil
-}
-
 // GetProposer implements istanbul.Backend.GetProposer
 func (sb *backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
@@ -234,14 +257,6 @@ func (sb *backend) GetProposer(number uint64) common.Address {
 		return a
 	}
 	return common.Address{}
-}
-
-// ParentValidators implements istanbul.Backend.GetParentValidators
-func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
-	if block, ok := proposal.(*types.Block); ok {
-		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
-	}
-	return validator.NewSet(nil, sb.config.ProposerPolicy)
 }
 
 func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
