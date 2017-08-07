@@ -20,13 +20,9 @@ import (
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/rlp"
-	"github.com/ethereum/go-ethereum/rpc"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -73,65 +69,4 @@ func TestIstanbulMessage(t *testing.T) {
 func makeMsg(msgcode uint64, data interface{}) p2p.Msg {
 	size, r, _ := rlp.EncodeToReader(data)
 	return p2p.Msg{Code: msgcode, Size: uint32(size), Payload: r}
-}
-
-type MockIstanbulEngine struct{}
-
-func (m *MockIstanbulEngine) Author(header *types.Header) (common.Address, error) {
-	return common.Address{}, nil
-}
-
-func (m *MockIstanbulEngine) VerifyHeader(chain consensus.ChainReader, header *types.Header, seal bool) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) VerifyHeaders(chain consensus.ChainReader, headers []*types.Header, seals []bool) (chan<- struct{}, <-chan error) {
-	abort := make(chan struct{})
-	results := make(chan error, len(headers))
-	go func() {
-		for _ = range headers {
-			results <- nil
-		}
-	}()
-	return abort, results
-}
-
-func (m *MockIstanbulEngine) VerifyUncles(chain consensus.ChainReader, block *types.Block) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) VerifySeal(chain consensus.ChainReader, header *types.Header) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) Prepare(chain consensus.ChainReader, header *types.Header) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) Finalize(chain consensus.ChainReader, header *types.Header, state *state.StateDB, txs []*types.Transaction, uncles []*types.Header, receipts []*types.Receipt) (*types.Block, error) {
-	return nil, nil
-}
-
-func (m *MockIstanbulEngine) Seal(chain consensus.ChainReader, block *types.Block, stop <-chan struct{}) (*types.Block, error) {
-	return nil, nil
-}
-
-func (m *MockIstanbulEngine) APIs(chain consensus.ChainReader) []rpc.API {
-	return []rpc.API{}
-}
-
-func (m *MockIstanbulEngine) HandleMsg(addr common.Address, data []byte) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) NewChainHead(block *types.Block) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) Start(chain consensus.ChainReader, inserter func(types.Blocks) (int, error)) error {
-	return nil
-}
-
-func (m *MockIstanbulEngine) Stop() error {
-	return nil
 }

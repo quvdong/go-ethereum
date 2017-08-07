@@ -138,10 +138,6 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 	})
 }
 
-func (self *testSystemBackend) GetProposer(number uint64) common.Address {
-	return common.Address{}
-}
-
 func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
 	return makeBlock(1), common.Address{}
 }
