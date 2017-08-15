@@ -27,12 +27,12 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/miner"
 	lru "github.com/hashicorp/golang-lru"
 )
 
@@ -197,7 +197,7 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 func (sb *backend) insert(block *types.Block) error {
 	block.ReceivedAt = time.Now()
 	// if I'm not a proposer, insert the block directly and broadcast NewCommittedEvent
-	if _, err := sb.inserter(types.Blocks{block}); err != nil {
+	if _, err := sb.inserter(types.Blocks{block}); err != nil && err != core.ErrKnownBlock {
 		return err
 	}
 
@@ -218,14 +218,6 @@ func (sb *backend) MarkValidatorPeers(block *types.Block) {
 	for _, v := range vset.List() {
 		sb.MarkProposal(v.Address(), block)
 	}
-}
-
-// NextRound will broadcast NewBlockEvent to trigger next seal()
-func (sb *backend) NextRound() error {
-	header := sb.chain.CurrentHeader()
-	sb.logger.Debug("NextRound", "address", sb.Address(), "current_hash", header.Hash(), "current_number", header.Number)
-	go sb.eventMux.Post(miner.NewBlockEvent{})
-	return nil
 }
 
 // EventMux implements istanbul.Backend.EventMux

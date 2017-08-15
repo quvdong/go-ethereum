@@ -185,37 +185,6 @@ func TestSealStopChannel(t *testing.T) {
 	}
 }
 
-func TestSealRoundChange(t *testing.T) {
-	chain, engine := newBlockChain(4)
-	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())
-	eventSub := engine.EventMux().Subscribe(istanbul.RequestEvent{})
-	eventLoop := func() {
-		select {
-		case ev := <-eventSub.Chan():
-			_, ok := ev.Data.(istanbul.RequestEvent)
-			if !ok {
-				t.Errorf("unexpected event comes: %v", reflect.TypeOf(ev.Data))
-			}
-			engine.NextRound()
-		}
-		eventSub.Unsubscribe()
-	}
-	go eventLoop()
-
-	seal := func() {
-		engine.Seal(chain, block, nil)
-		t.Error("seal should not be completed")
-	}
-	go seal()
-
-	const timeoutDura = 2 * time.Second
-	timeout := time.NewTimer(timeoutDura)
-	select {
-	case <-timeout.C:
-		// wait 2 seconds to ensure we cannot get any blocks from Istanbul
-	}
-}
-
 func TestSealCommittedOtherHash(t *testing.T) {
 	chain, engine := newBlockChain(4)
 	block := makeBlockWithoutSeal(chain, engine, chain.Genesis())

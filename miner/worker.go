@@ -87,9 +87,6 @@ type Result struct {
 	Block *types.Block
 }
 
-// NewBlockEvent is posted when a new block is required
-type NewBlockEvent struct{}
-
 // worker is the main object which takes care of applying messages to the new state
 type worker struct {
 	config *params.ChainConfig
