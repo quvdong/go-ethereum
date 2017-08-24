@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"sync"
 	"time"
 
@@ -184,20 +185,39 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	//    the next block and the previous Seal() will be stopped.
 	// -- otherwise, a error will be returned and a round change event will be fired.
 	if sb.proposedBlockHash == block.Hash() {
+		// Mark all validtors to disable downloader and fetcher among validators
+		sb.MarkValidatorPeers(block)
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
-		// TODO: how do we check the block is inserted correctly?
 		return nil
 	}
+	return sb.insert(block)
+}
+
+func (sb *backend) insert(block *types.Block) error {
+	block.ReceivedAt = time.Now()
 	// if I'm not a proposer, insert the block directly and broadcast NewCommittedEvent
 	if _, err := sb.inserter(types.Blocks{block}); err != nil {
 		return err
 	}
 
 	if sb.broadcaster != nil {
-		go sb.broadcaster.BroadcastBlock(block, false)
+		go func() {
+			// Mark all validtors to disable downloader and fetcher among validators
+			sb.MarkValidatorPeers(block)
+
+			sb.broadcaster.BroadcastBlock(block, false)
+			sb.broadcaster.BroadcastBlock(block, true)
+		}()
 	}
 	return nil
+}
+
+func (sb *backend) MarkValidatorPeers(block *types.Block) {
+	vset := sb.ParentValidators(block)
+	for _, v := range vset.List() {
+		sb.MarkProposal(v.Address(), block)
+	}
 }
 
 // NextRound will broadcast NewBlockEvent to trigger next seal()
@@ -253,6 +273,11 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
+// HasBlock implements istanbul.Backend.HashBlock
+func (sb *backend) HasBlock(hash common.Hash, number *big.Int) bool {
+	return sb.chain.GetHeader(hash, number.Uint64()) != nil
+}
+
 // GetProposer implements istanbul.Backend.GetProposer
 func (sb *backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
@@ -260,6 +285,14 @@ func (sb *backend) GetProposer(number uint64) common.Address {
 		return a
 	}
 	return common.Address{}
+}
+
+// ParentValidators implements istanbul.Backend.GetParentValidators
+func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	if block, ok := proposal.(*types.Block); ok {
+		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
+	}
+	return validator.NewSet(nil, sb.config.ProposerPolicy)
 }
 
 func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
