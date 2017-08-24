@@ -142,6 +142,14 @@ func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address
 	return makeBlock(1), common.Address{}
 }
 
+func (self *testSystemBackend) MarkProposal(addr common.Address, proposal istanbul.Proposal) bool {
+	return true
+}
+
+func (self *testSystemBackend) SetParentHead(addr common.Address, proposal istanbul.Proposal) bool {
+	return true
+}
+
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.

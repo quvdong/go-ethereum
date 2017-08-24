@@ -60,4 +60,10 @@ type Backend interface {
 
 	// LastProposal retrieves latest committed proposal and the address of proposer
 	LastProposal() (Proposal, common.Address)
+
+	// MarkProposal marks the proposal as known for the address.
+	MarkProposal(addr common.Address, proposal Proposal) bool
+
+	// SetParentHead marks the parent of the proposal to the head of the address.
+	SetParentHead(addr common.Address, proposal Proposal) bool
 }

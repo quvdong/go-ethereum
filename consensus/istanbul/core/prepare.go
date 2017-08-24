@@ -84,6 +84,7 @@ func (c *core) verifyPrepare(prepare *istanbul.Subject, src istanbul.Validator) 
 func (c *core) acceptPrepare(msg *message, src istanbul.Validator) error {
 	logger := c.logger.New("from", src, "state", c.state)
 
+	c.backend.SetParentHead(msg.Address, c.current.Proposal())
 	// Add the PREPARE message to current round state
 	if err := c.current.Prepares.Add(msg); err != nil {
 		logger.Error("Failed to add PREPARE message to round state", "msg", msg, "err", err)

@@ -57,7 +57,12 @@ func (c *core) handlePreprepare(msg *message, src istanbul.Validator) error {
 
 	// Ensure we have the same view with the PRE-PREPARE message
 	if err := c.checkMessage(msgPreprepare, preprepare.View); err != nil {
+		if err == errFutureMessage {
+			c.backend.SetParentHead(msg.Address, preprepare.Proposal)
+		}
 		return err
+	} else {
+		c.backend.SetParentHead(msg.Address, preprepare.Proposal)
 	}
 
 	// Check if the message comes from current proposer

@@ -19,7 +19,6 @@ package backend
 import (
 	"errors"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	"github.com/ethereum/go-ethereum/core"
@@ -47,7 +46,7 @@ func (sb *backend) Protocol() consensus.Protocol {
 }
 
 // HandleMsg implements consensus.Handler.HandleMsg
-func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
+func (sb *backend) HandleMsg(peer consensus.Peer, msg p2p.Msg) (bool, error) {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 
@@ -61,6 +60,7 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 			return true, errDecodeFailed
 		}
 
+		addr := peer.Address()
 		hash := istanbul.RLPHash(data)
 
 		// Mark peer's message
@@ -80,6 +80,7 @@ func (sb *backend) HandleMsg(addr common.Address, msg p2p.Msg) (bool, error) {
 		}
 		sb.knownMessages.Add(hash, true)
 
+		sb.recentPeers.Add(addr, peer)
 		go sb.istanbulEventMux.Post(istanbul.MessageEvent{
 			Payload: data,
 		})

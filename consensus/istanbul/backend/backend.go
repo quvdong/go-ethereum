@@ -41,6 +41,7 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
 	knownMessages, _ := lru.NewARC(inmemoryMessages)
+	recentPeers, _ := lru.NewARC(inmemoryPeers)
 	backend := &backend{
 		config:           config,
 		eventMux:         eventMux,
@@ -55,6 +56,7 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 		coreStarted:      false,
 		recentMessages:   recentMessages,
 		knownMessages:    knownMessages,
+		recentPeers:      recentPeers,
 	}
 	backend.core = istanbulCore.New(backend, backend.config)
 	return backend
@@ -94,6 +96,7 @@ type backend struct {
 
 	recentMessages *lru.ARCCache // the cache of peer's messages
 	knownMessages  *lru.ARCCache // the cache of self messages
+	recentPeers    *lru.ARCCache // the cache of peers
 }
 
 // Address implements istanbul.Backend.Address
@@ -287,4 +290,28 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 
 	// Return header only block here since we don't need block body
 	return types.NewBlockWithHeader(h), proposer
+}
+
+func (sb *backend) MarkProposal(addr common.Address, proposal istanbul.Proposal) bool {
+	p, ok := sb.recentPeers.Get(addr)
+	if !ok {
+		return false
+	}
+	peer := p.(consensus.Peer)
+	peer.MarkBlock(proposal.Hash())
+	return true
+}
+
+func (sb *backend) SetParentHead(addr common.Address, proposal istanbul.Proposal) bool {
+	p, ok := sb.recentPeers.Get(addr)
+	if !ok {
+		return false
+	}
+	peer := p.(consensus.Peer)
+	if _, td := peer.Head(); proposal.Number().Cmp(td) > 0 {
+		// set TD and hash
+		peer.SetHead(proposal.ParentHash(), proposal.Number())
+		return true
+	}
+	return false
 }
