@@ -98,6 +98,9 @@ type Engine interface {
 
 // Handler should be implemented is the consensus needs to handle and send peer's message
 type Handler interface {
+	// NewChainHead handles a new head block comes
+	NewChainHead() error
+
 	// HandleMsg handles a message from peer
 	HandleMsg(peer Peer, data p2p.Msg) (bool, error)
 
@@ -118,7 +121,7 @@ type Istanbul interface {
 	Engine
 
 	// Start starts the engine
-	Start(chain ChainReader, inserter func(types.Blocks) (int, error)) error
+	Start(chain ChainReader, currentBlock func() *types.Block, inserter func(types.Blocks) (int, error)) error
 
 	// Stop stops the engine
 	Stop() error

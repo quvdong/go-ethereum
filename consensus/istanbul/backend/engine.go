@@ -29,7 +29,6 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
@@ -486,7 +485,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks) (int, error)) error {
+func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, inserter func(types.Blocks) (int, error)) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -501,15 +500,12 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 	sb.commitCh = make(chan *types.Block, 1)
 
 	sb.chain = chain
+	sb.currentBlock = currentBlock
 	sb.inserter = inserter
 
 	if err := sb.core.Start(); err != nil {
 		return err
 	}
-
-	// subscribe for chain head event
-	sb.eventSub = sb.eventMux.Subscribe(core.ChainHeadEvent{})
-	go sb.eventLoop()
 
 	sb.coreStarted = true
 	return nil
@@ -526,7 +522,6 @@ func (sb *backend) Stop() error {
 		return err
 	}
 	sb.coreStarted = false
-	sb.eventSub.Unsubscribe()
 	return nil
 }
 

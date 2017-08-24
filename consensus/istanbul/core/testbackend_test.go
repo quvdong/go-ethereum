@@ -100,9 +100,7 @@ func (self *testSystemBackend) Commit(proposal istanbul.Proposal, seals [][]byte
 	})
 
 	// fake new head events
-	go self.events.Post(istanbul.FinalCommittedEvent{
-		Proposal: proposal,
-	})
+	go self.events.Post(istanbul.FinalCommittedEvent{})
 	return nil
 }
 

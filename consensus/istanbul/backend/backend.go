@@ -37,7 +37,7 @@ import (
 )
 
 // New creates an Ethereum backend for Istanbul core engine.
-func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
+func New(config *istanbul.Config, privateKey *ecdsa.PrivateKey, db ethdb.Database) consensus.Istanbul {
 	// Allocate the snapshot caches and create the engine
 	recents, _ := lru.NewARC(inmemorySnapshots)
 	recentMessages, _ := lru.NewARC(inmemoryPeers)
@@ -45,7 +45,6 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 	recentPeers, _ := lru.NewARC(inmemoryPeers)
 	backend := &backend{
 		config:           config,
-		eventMux:         eventMux,
 		istanbulEventMux: new(event.TypeMux),
 		privateKey:       privateKey,
 		address:          crypto.PubkeyToAddress(privateKey.PublicKey),
@@ -67,7 +66,6 @@ func New(config *istanbul.Config, eventMux *event.TypeMux, privateKey *ecdsa.Pri
 
 type backend struct {
 	config           *istanbul.Config
-	eventMux         *event.TypeMux
 	istanbulEventMux *event.TypeMux
 	privateKey       *ecdsa.PrivateKey
 	address          common.Address
@@ -76,6 +74,7 @@ type backend struct {
 	db               ethdb.Database
 	chain            consensus.ChainReader
 	inserter         func(types.Blocks) (int, error)
+	currentBlock     func() *types.Block
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -92,7 +91,6 @@ type backend struct {
 	recents *lru.ARCCache
 
 	// event subscription for ChainHeadEvent event
-	eventSub    *event.TypeMuxSubscription
 	broadcaster consensus.Broadcaster
 
 	recentMessages *lru.ARCCache // the cache of peer's messages
@@ -205,9 +203,8 @@ func (sb *backend) insert(block *types.Block) error {
 		go func() {
 			// Mark all validtors to disable downloader and fetcher among validators
 			sb.MarkValidatorPeers(block)
-
-			sb.broadcaster.BroadcastBlock(block, false)
 			sb.broadcaster.BroadcastBlock(block, true)
+			sb.broadcaster.BroadcastBlock(block, false)
 		}()
 	}
 	return nil
@@ -296,17 +293,12 @@ func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 }
 
 func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
-	if sb.chain == nil {
-		sb.logger.Error("Failed to access blockchain")
-		return nil, common.Address{}
-	}
-
-	h := sb.chain.CurrentHeader()
+	block := sb.currentBlock()
 
 	var proposer common.Address
-	if h.Number.Cmp(common.Big0) > 0 {
+	if block.Number().Cmp(common.Big0) > 0 {
 		var err error
-		proposer, err = sb.Author(h)
+		proposer, err = sb.Author(block.Header())
 		if err != nil {
 			sb.logger.Error("Failed to get block proposer", "err", err)
 			return nil, common.Address{}
@@ -314,7 +306,7 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 	}
 
 	// Return header only block here since we don't need block body
-	return types.NewBlockWithHeader(h), proposer
+	return block, proposer
 }
 
 func (sb *backend) MarkProposal(addr common.Address, proposal istanbul.Proposal) bool {

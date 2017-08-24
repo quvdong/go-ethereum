@@ -16,13 +16,10 @@
 
 package core
 
-import (
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/consensus/istanbul"
-)
+import "github.com/ethereum/go-ethereum/common"
 
-func (c *core) handleFinalCommitted(proposal istanbul.Proposal, proposer common.Address) error {
-	logger := c.logger.New("state", c.state, "number", proposal.Number(), "hash", proposal.Hash())
+func (c *core) handleFinalCommitted() error {
+	logger := c.logger.New("state", c.state, "number")
 	logger.Trace("Received a final committed proposal")
 	c.startNewRound(common.Big0)
 	return nil

@@ -21,8 +21,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/p2p"
 	lru "github.com/hashicorp/golang-lru"
 )
@@ -95,31 +93,12 @@ func (sb *backend) SetBroadcaster(broadcaster consensus.Broadcaster) {
 	sb.broadcaster = broadcaster
 }
 
-func (sb *backend) eventLoop() {
-	for obj := range sb.eventSub.Chan() {
-		switch ev := obj.Data.(type) {
-		case core.ChainHeadEvent:
-			if ev.Block != nil {
-				sb.newChainHead(ev.Block)
-			}
-		}
-	}
-}
-
-func (sb *backend) newChainHead(block *types.Block) error {
+func (sb *backend) NewChainHead() error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if !sb.coreStarted {
 		return istanbul.ErrStoppedEngine
 	}
-	p, err := sb.Author(block.Header())
-	if err != nil {
-		sb.logger.Error("Failed to get block proposer", "err", err)
-		return err
-	}
-	go sb.istanbulEventMux.Post(istanbul.FinalCommittedEvent{
-		Proposal: block,
-		Proposer: p,
-	})
+	go sb.istanbulEventMux.Post(istanbul.FinalCommittedEvent{})
 	return nil
 }

@@ -211,7 +211,7 @@ func (self *worker) start() {
 	atomic.StoreInt32(&self.mining, 1)
 
 	if istanbul, ok := self.engine.(consensus.Istanbul); ok {
-		istanbul.Start(self.chain, self.chain.InsertChain)
+		istanbul.Start(self.chain, self.chain.CurrentBlock, self.chain.InsertChain)
 	}
 
 	// spin up agents
@@ -264,6 +264,9 @@ func (self *worker) update() {
 		// Handle ChainHeadEvent
 		case <-self.chainHeadCh:
 			self.commitNewWork()
+			if h, ok := self.engine.(consensus.Handler); ok {
+				h.NewChainHead()
+			}
 
 		// Handle ChainSideEvent
 		case ev := <-self.chainSideCh:
