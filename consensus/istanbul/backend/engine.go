@@ -502,21 +502,7 @@ func (sb *backend) Start(chain consensus.ChainReader, inserter func(types.Blocks
 	sb.chain = chain
 	sb.inserter = inserter
 
-	curHeader := chain.CurrentHeader()
-	lastSequence := new(big.Int).Set(curHeader.Number)
-	lastProposer := common.Address{}
-	// should get proposer if the block is not genesis
-	if lastSequence.Cmp(common.Big0) > 0 {
-		p, err := sb.Author(curHeader)
-		if err != nil {
-			return err
-		}
-		lastProposer = p
-	}
-	// We don't need block body so we create a header only block.
-	// The proposal is only for validator set calculation.
-	lastProposal := types.NewBlockWithHeader(curHeader)
-	if err := sb.core.Start(lastSequence, lastProposer, lastProposal); err != nil {
+	if err := sb.core.Start(); err != nil {
 		return err
 	}
 
