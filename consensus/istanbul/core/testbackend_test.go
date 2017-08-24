@@ -139,6 +139,19 @@ func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address
 	return makeBlock(0), common.Address{}
 }
 
+// Only block height 5 will return true
+func (self *testSystemBackend) HasBlock(hash common.Hash, number *big.Int) bool {
+	return number.Cmp(big.NewInt(5)) == 0
+}
+
+func (self *testSystemBackend) GetProposer(number uint64) common.Address {
+	return common.Address{}
+}
+
+func (self *testSystemBackend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	return self.peers
+}
+
 // ==============================================
 //
 // define the struct that need to be provided for integration tests.

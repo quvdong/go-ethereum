@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"sync"
 	"time"
 
@@ -184,7 +185,6 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	if sb.proposedBlockHash == block.Hash() {
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
-		// TODO: how do we check the block is inserted correctly?
 		return nil
 	}
 
@@ -239,6 +239,11 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
+// HasBlock implements istanbul.Backend.HashBlock
+func (sb *backend) HasBlock(hash common.Hash, number *big.Int) bool {
+	return sb.chain.GetHeader(hash, number.Uint64()) != nil
+}
+
 // GetProposer implements istanbul.Backend.GetProposer
 func (sb *backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
@@ -246,6 +251,14 @@ func (sb *backend) GetProposer(number uint64) common.Address {
 		return a
 	}
 	return common.Address{}
+}
+
+// ParentValidators implements istanbul.Backend.GetParentValidators
+func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	if block, ok := proposal.(*types.Block); ok {
+		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
+	}
+	return validator.NewSet(nil, sb.config.ProposerPolicy)
 }
 
 func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
