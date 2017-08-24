@@ -134,7 +134,11 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 }
 
 func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
-	return makeBlock(1), common.Address{}
+	l := len(self.committedMsgs)
+	if l > 0 {
+		return self.committedMsgs[l-1].commitProposal, common.Address{}
+	}
+	return makeBlock(0), common.Address{}
 }
 
 func (self *testSystemBackend) MarkProposal(addr common.Address, proposal istanbul.Proposal) bool {
@@ -213,6 +217,7 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
 		}, vset, common.Hash{}, nil, nil)
+		core.valSet = vset
 		core.logger = testLogger
 		core.validateFn = backend.CheckValidatorSignature
 
@@ -244,7 +249,7 @@ func (t *testSystem) listen() {
 func (t *testSystem) Run(core bool) func() {
 	for _, b := range t.backends {
 		if core {
-			b.engine.Start(common.Big0, common.Address{}, nil) // start Istanbul core
+			b.engine.Start() // start Istanbul core
 		}
 	}
 
