@@ -87,9 +87,6 @@ type Result struct {
 	Block *types.Block
 }
 
-// NewBlockEvent is posted when a new block is required
-type NewBlockEvent struct{}
-
 // worker is the main object which takes care of applying messages to the new state
 type worker struct {
 	config *params.ChainConfig
@@ -256,8 +253,11 @@ func (self *worker) update() {
 		// A real event arrived, process interesting content
 		select {
 		// Handle ChainHeadEvent
-		case <-self.chainHeadCh:
+		case ev := <-self.chainHeadCh:
 			self.commitNewWork()
+			if h, ok := self.engine.(consensus.Handler); ok && ev.Block != nil {
+				h.NewChainHead(ev.Block)
+			}
 
 		// Handle ChainSideEvent
 		case ev := <-self.chainSideCh:
