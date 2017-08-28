@@ -71,6 +71,7 @@ type backend struct {
 	db               ethdb.Database
 	chain            consensus.ChainReader
 	inserter         func(types.Blocks) (int, error)
+	currentBlock     func() *types.Block
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -257,17 +258,12 @@ func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 }
 
 func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
-	if sb.chain == nil {
-		sb.logger.Error("Failed to access blockchain")
-		return nil, common.Address{}
-	}
-
-	h := sb.chain.CurrentHeader()
+	block := sb.currentBlock()
 
 	var proposer common.Address
-	if h.Number.Cmp(common.Big0) > 0 {
+	if block.Number().Cmp(common.Big0) > 0 {
 		var err error
-		proposer, err = sb.Author(h)
+		proposer, err = sb.Author(block.Header())
 		if err != nil {
 			sb.logger.Error("Failed to get block proposer", "err", err)
 			return nil, common.Address{}
@@ -275,5 +271,5 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 	}
 
 	// Return header only block here since we don't need block body
-	return types.NewBlockWithHeader(h), proposer
+	return block, proposer
 }

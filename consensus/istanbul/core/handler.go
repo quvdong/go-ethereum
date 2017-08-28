@@ -108,9 +108,9 @@ func (c *core) handleEvents() {
 			if !ok {
 				return
 			}
-			switch ev := event.Data.(type) {
+			switch event.Data.(type) {
 			case istanbul.FinalCommittedEvent:
-				c.handleFinalCommitted(ev.Proposal, ev.Proposer)
+				c.handleFinalCommitted()
 			}
 		}
 	}
