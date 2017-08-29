@@ -48,8 +48,8 @@ type Protocol struct {
 
 // Broadcaster defines the interface to broadcast blocks and find peer
 type Broadcaster interface {
-	// BroadcastBlock broadcasts blocks to peers
-	BroadcastBlock(block *types.Block, propagate bool)
+	// Enqueue add a block into fetcher queue
+	Enqueue(id string, block *types.Block)
 	// FindPeers retrives peers by addresses
 	FindPeers(map[common.Address]bool) map[common.Address]Peer
 }

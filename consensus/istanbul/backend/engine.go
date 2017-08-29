@@ -485,7 +485,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, inserter func(types.Blocks) (int, error)) error {
+func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -501,7 +501,6 @@ func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types
 
 	sb.chain = chain
 	sb.currentBlock = currentBlock
-	sb.inserter = inserter
 
 	if err := sb.core.Start(); err != nil {
 		return err

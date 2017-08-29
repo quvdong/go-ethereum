@@ -121,7 +121,7 @@ type Istanbul interface {
 	Engine
 
 	// Start starts the engine
-	Start(chain ChainReader, currentBlock func() *types.Block, inserter func(types.Blocks) (int, error)) error
+	Start(chain ChainReader, currentBlock func() *types.Block) error
 
 	// Stop stops the engine
 	Stop() error

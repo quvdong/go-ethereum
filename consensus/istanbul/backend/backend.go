@@ -26,13 +26,17 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru"
+)
+
+const (
+	// fetcherID is the ID indicates the block is from Istanbul engine
+	fetcherID = "istanbul"
 )
 
 // New creates an Ethereum backend for Istanbul core engine.
@@ -70,7 +74,6 @@ type backend struct {
 	logger           log.Logger
 	db               ethdb.Database
 	chain            consensus.ChainReader
-	inserter         func(types.Blocks) (int, error)
 	currentBlock     func() *types.Block
 
 	// the channels for istanbul engine notifications
@@ -184,13 +187,9 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 		// TODO: how do we check the block is inserted correctly?
 		return nil
 	}
-	// if I'm not a proposer, insert the block directly and broadcast NewCommittedEvent
-	if _, err := sb.inserter(types.Blocks{block}); err != nil && err != core.ErrKnownBlock {
-		return err
-	}
 
 	if sb.broadcaster != nil {
-		go sb.broadcaster.BroadcastBlock(block, false)
+		sb.broadcaster.Enqueue(fetcherID, block)
 	}
 	return nil
 }

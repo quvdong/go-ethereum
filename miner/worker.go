@@ -211,7 +211,7 @@ func (self *worker) start() {
 	atomic.StoreInt32(&self.mining, 1)
 
 	if istanbul, ok := self.engine.(consensus.Istanbul); ok {
-		istanbul.Start(self.chain, self.chain.CurrentBlock, self.chain.InsertChain)
+		istanbul.Start(self.chain, self.chain.CurrentBlock)
 	}
 
 	// spin up agents
