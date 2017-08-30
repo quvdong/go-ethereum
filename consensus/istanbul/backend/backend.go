@@ -82,7 +82,7 @@ type backend struct {
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
-	coreMu            sync.Mutex
+	coreMu            sync.RWMutex
 
 	// Current list of candidates we are pushing
 	candidates map[common.Address]bool
@@ -239,8 +239,8 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
-// HasBlock implements istanbul.Backend.HashBlock
-func (sb *backend) HasBlock(hash common.Hash, number *big.Int) bool {
+// HasPropsal implements istanbul.Backend.HashBlock
+func (sb *backend) HasPropsal(hash common.Hash, number *big.Int) bool {
 	return sb.chain.GetHeader(hash, number.Uint64()) != nil
 }
 

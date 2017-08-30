@@ -140,7 +140,7 @@ func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address
 }
 
 // Only block height 5 will return true
-func (self *testSystemBackend) HasBlock(hash common.Hash, number *big.Int) bool {
+func (self *testSystemBackend) HasPropsal(hash common.Hash, number *big.Int) bool {
 	return number.Cmp(big.NewInt(5)) == 0
 }
 
@@ -202,7 +202,6 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 
 		core := New(backend, config).(*core)
 		core.state = StateAcceptRequest
-		core.lastProposer = common.Address{}
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),

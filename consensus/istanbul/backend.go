@@ -59,8 +59,8 @@ type Backend interface {
 	// LastProposal retrieves latest committed proposal and the address of proposer
 	LastProposal() (Proposal, common.Address)
 
-	// HasBlock checks if the combination of the given hash and height matches any existing blocks
-	HasBlock(hash common.Hash, number *big.Int) bool
+	// HasPropsal checks if the combination of the given hash and height matches any existing blocks
+	HasPropsal(hash common.Hash, number *big.Int) bool
 
 	// GetProposer returns the proposer of the given block height
 	GetProposer(number uint64) common.Address

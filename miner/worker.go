@@ -263,10 +263,10 @@ func (self *worker) update() {
 		select {
 		// Handle ChainHeadEvent
 		case <-self.chainHeadCh:
-			self.commitNewWork()
 			if h, ok := self.engine.(consensus.Handler); ok {
 				h.NewChainHead()
 			}
+			self.commitNewWork()
 
 		// Handle ChainSideEvent
 		case ev := <-self.chainSideCh:
