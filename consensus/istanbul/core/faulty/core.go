@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Lesser General Public License
 // along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
 
-package core
+package faulty
 
 import (
 	"bytes"
@@ -25,7 +25,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
-	"github.com/ethereum/go-ethereum/consensus/istanbul/core/faulty"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
@@ -36,9 +35,6 @@ import (
 
 // New creates an Istanbul consensus core
 func New(backend istanbul.Backend, config *istanbul.Config) Engine {
-	if config.FaultyMode != istanbul.Disabled.Uint64() {
-		return faulty.New(backend, config)
-	}
 	c := &core{
 		config:             config,
 		address:            backend.Address(),
@@ -245,7 +241,7 @@ func (c *core) startNewRound(round *big.Int) {
 	if roundChange && c.isProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
-		if c.current.IsLockedGoodHash(c.backend.HasBadProposal) {
+		if c.current.IsHashLocked() {
 			r := &istanbul.Request{
 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 			}
@@ -279,7 +275,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	// Lock only if both roundChange is true and it is locked
 	if roundChange && c.current != nil {
-		if c.current.IsLockedGoodHash(c.backend.HasBadProposal) {
+		if c.current.IsHashLocked() {
 			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest)
 		} else {
 			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest)
