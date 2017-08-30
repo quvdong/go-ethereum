@@ -694,6 +694,10 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 	return nil
 }
 
+func (pm *ProtocolManager) Enqueue(id string, block *types.Block) {
+	pm.fetcher.Enqueue(id, block)
+}
+
 // BroadcastBlock will either propagate a block to a subset of it's peers, or
 // will only announce it's availability (depending what's requested).
 func (pm *ProtocolManager) BroadcastBlock(block *types.Block, propagate bool) {

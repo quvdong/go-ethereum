@@ -18,6 +18,7 @@ package backend
 
 import (
 	"crypto/ecdsa"
+	"math/big"
 	"sync"
 	"time"
 
@@ -26,13 +27,17 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
-	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/event"
 	"github.com/ethereum/go-ethereum/log"
 	lru "github.com/hashicorp/golang-lru"
+)
+
+const (
+	// fetcherID is the ID indicates the block is from Istanbul engine
+	fetcherID = "istanbul"
 )
 
 // New creates an Ethereum backend for Istanbul core engine.
@@ -70,14 +75,14 @@ type backend struct {
 	logger           log.Logger
 	db               ethdb.Database
 	chain            consensus.ChainReader
-	inserter         func(types.Blocks) (int, error)
+	currentBlock     func() *types.Block
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
 	proposedBlockHash common.Hash
 	sealMu            sync.Mutex
 	coreStarted       bool
-	coreMu            sync.Mutex
+	coreMu            sync.RWMutex
 
 	// Current list of candidates we are pushing
 	candidates map[common.Address]bool
@@ -180,16 +185,11 @@ func (sb *backend) Commit(proposal istanbul.Proposal, seals [][]byte) error {
 	if sb.proposedBlockHash == block.Hash() {
 		// feed block hash to Seal() and wait the Seal() result
 		sb.commitCh <- block
-		// TODO: how do we check the block is inserted correctly?
 		return nil
-	}
-	// if I'm not a proposer, insert the block directly and broadcast NewCommittedEvent
-	if _, err := sb.inserter(types.Blocks{block}); err != nil && err != core.ErrKnownBlock {
-		return err
 	}
 
 	if sb.broadcaster != nil {
-		go sb.broadcaster.BroadcastBlock(block, false)
+		sb.broadcaster.Enqueue(fetcherID, block)
 	}
 	return nil
 }
@@ -239,6 +239,11 @@ func (sb *backend) CheckSignature(data []byte, address common.Address, sig []byt
 	return nil
 }
 
+// HasPropsal implements istanbul.Backend.HashBlock
+func (sb *backend) HasPropsal(hash common.Hash, number *big.Int) bool {
+	return sb.chain.GetHeader(hash, number.Uint64()) != nil
+}
+
 // GetProposer implements istanbul.Backend.GetProposer
 func (sb *backend) GetProposer(number uint64) common.Address {
 	if h := sb.chain.GetHeaderByNumber(number); h != nil {
@@ -246,6 +251,14 @@ func (sb *backend) GetProposer(number uint64) common.Address {
 		return a
 	}
 	return common.Address{}
+}
+
+// ParentValidators implements istanbul.Backend.GetParentValidators
+func (sb *backend) ParentValidators(proposal istanbul.Proposal) istanbul.ValidatorSet {
+	if block, ok := proposal.(*types.Block); ok {
+		return sb.getValidators(block.Number().Uint64()-1, block.ParentHash())
+	}
+	return validator.NewSet(nil, sb.config.ProposerPolicy)
 }
 
 func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.ValidatorSet {
@@ -257,17 +270,12 @@ func (sb *backend) getValidators(number uint64, hash common.Hash) istanbul.Valid
 }
 
 func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
-	if sb.chain == nil {
-		sb.logger.Error("Failed to access blockchain")
-		return nil, common.Address{}
-	}
-
-	h := sb.chain.CurrentHeader()
+	block := sb.currentBlock()
 
 	var proposer common.Address
-	if h.Number.Cmp(common.Big0) > 0 {
+	if block.Number().Cmp(common.Big0) > 0 {
 		var err error
-		proposer, err = sb.Author(h)
+		proposer, err = sb.Author(block.Header())
 		if err != nil {
 			sb.logger.Error("Failed to get block proposer", "err", err)
 			return nil, common.Address{}
@@ -275,5 +283,5 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 	}
 
 	// Return header only block here since we don't need block body
-	return types.NewBlockWithHeader(h), proposer
+	return block, proposer
 }

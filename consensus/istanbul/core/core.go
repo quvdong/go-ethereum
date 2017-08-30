@@ -68,8 +68,6 @@ type core struct {
 	timeoutSub            *event.TypeMuxSubscription
 	futurePreprepareTimer *time.Timer
 
-	lastProposer          common.Address
-	lastProposal          istanbul.Proposal
 	valSet                istanbul.ValidatorSet
 	waitingForRoundChange bool
 	validateFn            func([]byte, []byte) (common.Address, error)
@@ -179,35 +177,65 @@ func (c *core) commit() {
 	}
 }
 
-func (c *core) startNewRound(newView *istanbul.View, lastProposal istanbul.Proposal, lastProposer common.Address, roundChange bool) {
+// startNewRound starts a new round. if round equals to 0, it means to starts a new sequence
+func (c *core) startNewRound(round *big.Int) {
 	var logger log.Logger
 	if c.current == nil {
-		logger = c.logger.New("old_round", -1, "old_seq", 0, "old_proposer", c.valSet.GetProposer())
+		logger = c.logger.New("old_round", -1, "old_seq", 0)
 	} else {
-		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence(), "old_proposer", c.valSet.GetProposer())
+		logger = c.logger.New("old_round", c.current.Round(), "old_seq", c.current.Sequence())
 	}
 
+	roundChange := false
 	// Try to get last proposal
-	if lastProposal == nil {
-		lastProposal, lastProposer = c.backend.LastProposal()
-		if lastProposal.Number().Cmp(newView.Sequence) > 0 {
-			newView = &istanbul.View{
-				Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
-				Round:    new(big.Int),
-			}
-			c.lastProposal = lastProposal
-			c.lastProposer = lastProposer
-			logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+	lastProposal, lastProposer := c.backend.LastProposal()
+	if c.current == nil {
+		logger.Trace("Start to the initial round")
+	} else if lastProposal.Number().Cmp(c.current.Sequence()) >= 0 {
+		diff := new(big.Int).Sub(lastProposal.Number(), c.current.Sequence())
+		c.sequenceMeter.Mark(new(big.Int).Add(diff, common.Big1).Int64())
+
+		if !c.consensusTimestamp.IsZero() {
+			c.consensusTimer.UpdateSince(c.consensusTimestamp)
+			c.consensusTimestamp = time.Time{}
 		}
+		logger.Trace("Catch up latest proposal", "number", lastProposal.Number().Uint64(), "hash", lastProposal.Hash())
+	} else if lastProposal.Number().Cmp(big.NewInt(c.current.Sequence().Int64()-1)) == 0 {
+		if round.Cmp(common.Big0) == 0 {
+			// same seq and round, don't need to start new round
+			return
+		} else if round.Cmp(c.current.Round()) < 0 {
+			logger.Warn("New round should not be smaller than current round", "seq", lastProposal.Number().Int64(), "new_round", round, "old_round", c.current.Round())
+			return
+		}
+		roundChange = true
+	} else {
+		logger.Warn("New sequence should be larger than current sequence", "new_seq", lastProposal.Number().Int64())
+		return
 	}
 
-	c.valSet = c.backend.Validators(c.lastProposal)
+	var newView *istanbul.View
+	if roundChange {
+		newView = &istanbul.View{
+			Sequence: new(big.Int).Set(c.current.Sequence()),
+			Round:    new(big.Int).Set(round),
+		}
+	} else {
+		newView = &istanbul.View{
+			Sequence: new(big.Int).Add(lastProposal.Number(), common.Big1),
+			Round:    new(big.Int),
+		}
+		c.valSet = c.backend.Validators(lastProposal)
+	}
+
+	// Update logger
+	logger = logger.New("old_proposer", c.valSet.GetProposer())
 	// Clear invalid ROUND CHANGE messages
 	c.roundChangeSet = newRoundChangeSet(c.valSet)
 	// New snapshot for new round
 	c.updateRoundState(newView, c.valSet, roundChange)
 	// Calculate new proposer
-	c.valSet.CalcProposer(c.lastProposer, newView.Round.Uint64())
+	c.valSet.CalcProposer(lastProposer, newView.Round.Uint64())
 	c.waitingForRoundChange = false
 	c.setState(StateAcceptRequest)
 	if roundChange && c.isProposer() && c.current != nil {

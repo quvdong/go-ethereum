@@ -51,7 +51,7 @@ func newBlockChain(n int) (*core.BlockChain, *backend) {
 	if err != nil {
 		panic(err)
 	}
-	b.Start(blockchain, blockchain.InsertChain)
+	b.Start(blockchain, blockchain.CurrentBlock)
 	snap, err := b.snapshot(blockchain, 0, common.Hash{}, nil)
 	if err != nil {
 		panic(err)
