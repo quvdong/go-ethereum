@@ -38,6 +38,7 @@ func (c *core) Start() error {
 func (c *core) Stop() error {
 	c.stopTimer()
 	c.unsubscribeEvents()
+	c.current = nil
 	return nil
 }
 
