@@ -316,7 +316,7 @@ func (c *core) newRoundChangeTimer() {
 	c.stopTimer()
 
 	// set timeout based on the round number
-	t := uint64(math.Pow(2, float64(c.current.Round().Uint64()))) * c.config.RequestTimeout
+	t := c.config.RequestTimeout + uint64(math.Pow(2, float64(c.current.Round().Uint64())))
 	timeout := time.Duration(t) * time.Millisecond
 	c.roundChangeTimer = time.AfterFunc(timeout, func() {
 		c.sendEvent(timeoutEvent{})
