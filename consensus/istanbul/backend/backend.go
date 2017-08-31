@@ -76,6 +76,7 @@ type backend struct {
 	db               ethdb.Database
 	chain            consensus.ChainReader
 	currentBlock     func() *types.Block
+	hasBadBlock      func(hash common.Hash) bool
 
 	// the channels for istanbul engine notifications
 	commitCh          chan *types.Block
@@ -284,4 +285,11 @@ func (sb *backend) LastProposal() (istanbul.Proposal, common.Address) {
 
 	// Return header only block here since we don't need block body
 	return block, proposer
+}
+
+func (sb *backend) HasBadProposal(hash common.Hash) bool {
+	if sb.hasBadBlock == nil {
+		return false
+	}
+	return sb.hasBadBlock(hash)
 }

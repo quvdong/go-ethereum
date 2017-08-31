@@ -241,7 +241,7 @@ func (c *core) startNewRound(round *big.Int) {
 	if roundChange && c.isProposer() && c.current != nil {
 		// If it is locked, propose the old proposal
 		// If we have pending request, propose pending request
-		if c.current.IsHashLocked() {
+		if c.current.IsLockedGoodHash(c.backend.HasBadProposal) {
 			r := &istanbul.Request{
 				Proposal: c.current.Proposal(), //c.current.Proposal would be the locked proposal by previous proposer, see updateRoundState
 			}
@@ -275,7 +275,7 @@ func (c *core) catchUpRound(view *istanbul.View) {
 func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.ValidatorSet, roundChange bool) {
 	// Lock only if both roundChange is true and it is locked
 	if roundChange && c.current != nil {
-		if c.current.IsHashLocked() {
+		if c.current.IsLockedGoodHash(c.backend.HasBadProposal) {
 			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest)
 		} else {
 			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest)

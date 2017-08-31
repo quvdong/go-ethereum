@@ -149,7 +149,7 @@ func (s *roundState) UnlockHash() {
 	s.lockedHash = common.Hash{}
 }
 
-func (s *roundState) IsHashLocked() bool {
+func (s *roundState) isHashLocked() bool {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -161,6 +161,15 @@ func (s *roundState) GetLockedHash() common.Hash {
 	defer s.mu.RUnlock()
 
 	return s.lockedHash
+}
+
+func (s *roundState) IsLockedGoodHash(hasBadProposal func(hash common.Hash) bool) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	if !s.isHashLocked() {
+		return false
+	}
+	return !hasBadProposal(s.GetLockedHash())
 }
 
 // The DecodeRLP method should read one value from the given

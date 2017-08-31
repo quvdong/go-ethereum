@@ -48,7 +48,7 @@ func TestLockHash(t *testing.T) {
 	if !common.EmptyHash(rs.GetLockedHash()) {
 		t.Errorf("error mismatch: have %v, want empty", rs.GetLockedHash())
 	}
-	if rs.IsHashLocked() {
+	if rs.isHashLocked() {
 		t.Error("IsHashLocked should return false")
 	}
 
@@ -58,7 +58,7 @@ func TestLockHash(t *testing.T) {
 	if expected != rs.GetLockedHash() {
 		t.Errorf("error mismatch: have %v, want %v", rs.GetLockedHash(), expected)
 	}
-	if !rs.IsHashLocked() {
+	if !rs.isHashLocked() {
 		t.Error("IsHashLocked should return true")
 	}
 
@@ -67,7 +67,7 @@ func TestLockHash(t *testing.T) {
 	if !common.EmptyHash(rs.GetLockedHash()) {
 		t.Errorf("error mismatch: have %v, want empty", rs.GetLockedHash())
 	}
-	if rs.IsHashLocked() {
+	if rs.isHashLocked() {
 		t.Error("IsHashLocked should return false")
 	}
 }

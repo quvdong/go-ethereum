@@ -131,6 +131,10 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 	})
 }
 
+func (self *testSystemBackend) HasBadProposal(hash common.Hash) bool {
+	return false
+}
+
 func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
 	l := len(self.committedMsgs)
 	if l > 0 {

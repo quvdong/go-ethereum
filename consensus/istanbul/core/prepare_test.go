@@ -201,7 +201,7 @@ OUTER:
 				if err != test.expectedErr {
 					t.Errorf("error mismatch: have %v, want %v", err, test.expectedErr)
 				}
-				if r0.current.IsHashLocked() {
+				if r0.current.IsLockedGoodHash(r0.backend.HasBadProposal) {
 					t.Errorf("block should not be locked")
 				}
 				continue OUTER
@@ -217,7 +217,7 @@ OUTER:
 			if r0.current.Prepares.Size() > 2*r0.valSet.F() {
 				t.Errorf("the size of PREPARE messages should be less than %v", 2*r0.valSet.F()+1)
 			}
-			if r0.current.IsHashLocked() {
+			if r0.current.IsLockedGoodHash(r0.backend.HasBadProposal) {
 				t.Errorf("block should not be locked")
 			}
 
@@ -252,7 +252,7 @@ OUTER:
 		if !reflect.DeepEqual(m, expectedSubject) {
 			t.Errorf("subject mismatch: have %v, want %v", m, expectedSubject)
 		}
-		if !r0.current.IsHashLocked() {
+		if !r0.current.IsLockedGoodHash(r0.backend.HasBadProposal) {
 			t.Errorf("block should be locked")
 		}
 	}
