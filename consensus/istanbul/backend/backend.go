@@ -209,6 +209,17 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		sb.logger.Error("Invalid proposal, %v", proposal)
 		return 0, errInvalidProposal
 	}
+
+	// check block body
+	txnHash := types.DeriveSha(block.Transactions())
+	uncleHash := types.CalcUncleHash(block.Uncles())
+	if txnHash != block.Header().TxHash {
+		return 0, errMismatchTxhashes
+	}
+	if uncleHash != nilUncleHash {
+		return 0, errInvalidUncleHash
+	}
+
 	// verify the header of proposed block
 	err := sb.VerifyHeader(sb.chain, block.Header(), false)
 	// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
