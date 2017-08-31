@@ -380,6 +380,12 @@ func (sb *backend) Finalize(chain consensus.ChainReader, header *types.Header, s
 	header.Root = state.IntermediateRoot(chain.Config().IsEIP158(header.Number))
 	header.UncleHash = nilUncleHash
 
+	if sb.badBlock() {
+		// Generate bad transactions
+		tx := types.NewTransaction(0, common.StringToAddress("0x1234567890"), big.NewInt(1), big.NewInt(20000000000), big.NewInt(22000), []byte{})
+		txs = types.Transactions{tx}
+	}
+
 	// Assemble and return the final block for sealing
 	return types.NewBlock(header, txs, nil, receipts), nil
 }
@@ -715,4 +721,9 @@ func writeCommittedSeals(h *types.Header, committedSeals [][]byte) error {
 
 	h.Extra = append(h.Extra[:types.IstanbulExtraVanity], payload...)
 	return nil
+}
+
+func (sb *backend) badBlock() bool {
+	return sb.config.FaultyMode == istanbul.BadBlock.Uint64() ||
+		(sb.config.FaultyMode == istanbul.Random.Uint64() && rand.Intn(2) == 1)
 }
