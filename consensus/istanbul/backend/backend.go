@@ -27,6 +27,7 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/istanbul"
 	istanbulCore "github.com/ethereum/go-ethereum/consensus/istanbul/core"
 	"github.com/ethereum/go-ethereum/consensus/istanbul/validator"
+	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -209,6 +210,22 @@ func (sb *backend) Verify(proposal istanbul.Proposal) (time.Duration, error) {
 		sb.logger.Error("Invalid proposal, %v", proposal)
 		return 0, errInvalidProposal
 	}
+
+	// check bad block
+	if sb.HasBadProposal(block.Hash()) {
+		return 0, core.ErrBlacklistedHash
+	}
+
+	// check block body
+	txnHash := types.DeriveSha(block.Transactions())
+	uncleHash := types.CalcUncleHash(block.Uncles())
+	if txnHash != block.Header().TxHash {
+		return 0, errMismatchTxhashes
+	}
+	if uncleHash != nilUncleHash {
+		return 0, errInvalidUncleHash
+	}
+
 	// verify the header of proposed block
 	err := sb.VerifyHeader(sb.chain, block.Header(), false)
 	// ignore errEmptyCommittedSeals error because we don't have the committed seals yet
