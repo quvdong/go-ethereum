@@ -276,12 +276,12 @@ func (c *core) updateRoundState(view *istanbul.View, validatorSet istanbul.Valid
 	// Lock only if both roundChange is true and it is locked
 	if roundChange && c.current != nil {
 		if c.current.IsHashLocked() {
-			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest)
+			c.current = newRoundState(view, validatorSet, c.current.GetLockedHash(), c.current.Preprepare, c.current.pendingRequest, c.backend.HasBadProposal)
 		} else {
-			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest)
+			c.current = newRoundState(view, validatorSet, common.Hash{}, nil, c.current.pendingRequest, c.backend.HasBadProposal)
 		}
 	} else {
-		c.current = newRoundState(view, validatorSet, common.Hash{}, nil, nil)
+		c.current = newRoundState(view, validatorSet, common.Hash{}, nil, nil, c.backend.HasBadProposal)
 	}
 }
 

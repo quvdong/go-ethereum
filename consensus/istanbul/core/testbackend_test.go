@@ -131,6 +131,10 @@ func (self *testSystemBackend) NewRequest(request istanbul.Proposal) {
 	})
 }
 
+func (self *testSystemBackend) HasBadProposal(hash common.Hash) bool {
+	return false
+}
+
 func (self *testSystemBackend) LastProposal() (istanbul.Proposal, common.Address) {
 	l := len(self.committedMsgs)
 	if l > 0 {
@@ -205,7 +209,9 @@ func NewTestSystemWithBackend(n, f uint64) *testSystem {
 		core.current = newRoundState(&istanbul.View{
 			Round:    big.NewInt(0),
 			Sequence: big.NewInt(1),
-		}, vset, common.Hash{}, nil, nil)
+		}, vset, common.Hash{}, nil, nil, func(hash common.Hash) bool {
+			return false
+		})
 		core.valSet = vset
 		core.logger = testLogger
 		core.validateFn = backend.CheckValidatorSignature
