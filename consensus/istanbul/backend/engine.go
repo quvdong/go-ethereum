@@ -80,6 +80,8 @@ var (
 	errInvalidCommittedSeals = errors.New("invalid committed seals")
 	// errEmptyCommittedSeals is returned if the field of committed seals is zero.
 	errEmptyCommittedSeals = errors.New("zero committed seals")
+	// errMismatchTxhashes is returned if the TxHash in header is mismatch.
+	errMismatchTxhashes = errors.New("mismatch transcations hashes")
 )
 var (
 	defaultDifficulty = big.NewInt(1)
@@ -485,7 +487,7 @@ func (sb *backend) APIs(chain consensus.ChainReader) []rpc.API {
 }
 
 // Start implements consensus.Istanbul.Start
-func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block) error {
+func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error {
 	sb.coreMu.Lock()
 	defer sb.coreMu.Unlock()
 	if sb.coreStarted {
@@ -501,6 +503,7 @@ func (sb *backend) Start(chain consensus.ChainReader, currentBlock func() *types
 
 	sb.chain = chain
 	sb.currentBlock = currentBlock
+	sb.hasBadBlock = hasBadBlock
 
 	if err := sb.core.Start(); err != nil {
 		return err
