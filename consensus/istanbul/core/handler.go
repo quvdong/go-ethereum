@@ -38,7 +38,9 @@ func (c *core) Start() error {
 func (c *core) Stop() error {
 	c.stopTimer()
 	c.unsubscribeEvents()
-	c.current = nil
+
+	// Make sure the handler goroutine exits
+	c.handlerWg.Wait()
 	return nil
 }
 
@@ -69,6 +71,14 @@ func (c *core) unsubscribeEvents() {
 }
 
 func (c *core) handleEvents() {
+	// Clear state
+	defer func() {
+		c.current = nil
+		c.handlerWg.Done()
+	}()
+
+	c.handlerWg.Add(1)
+
 	for {
 		select {
 		case event, ok := <-c.events.Chan():
