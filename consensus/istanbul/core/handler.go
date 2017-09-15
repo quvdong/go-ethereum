@@ -172,7 +172,7 @@ func (c *core) handleCheckedMsg(msg *message, src istanbul.Validator) error {
 	case msgCommit:
 		return testBacklog(c.handleCommit(msg, src))
 	case msgRoundChange:
-		return c.handleRoundChange(msg, src)
+		return testBacklog(c.handleRoundChange(msg, src))
 	default:
 		logger.Error("Invalid message", "msg", msg)
 	}
