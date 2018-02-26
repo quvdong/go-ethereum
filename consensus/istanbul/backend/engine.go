@@ -366,6 +366,12 @@ func (sb *backend) Prepare(chain consensus.ChainReader, header *types.Header) er
 		return err
 	}
 	header.Extra = extra
+
+	// set header's timestamp
+	header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(sb.config.BlockPeriod))
+	if header.Time.Int64() < time.Now().Unix() {
+		header.Time = big.NewInt(time.Now().Unix())
+	}
 	return nil
 }
 
@@ -454,16 +460,7 @@ func (sb *backend) CalcDifficulty(chain consensus.ChainReader, time uint64, pare
 
 // update timestamp and signature of the block based on its number of transactions
 func (sb *backend) updateBlock(parent *types.Header, block *types.Block) (*types.Block, error) {
-	// set block period based the number of tx
-	period := sb.config.BlockPeriod
-
-	// set header timestamp
 	header := block.Header()
-	header.Time = new(big.Int).Add(parent.Time, new(big.Int).SetUint64(period))
-	time := now().Unix()
-	if header.Time.Int64() < time {
-		header.Time = big.NewInt(time)
-	}
 	// sign the hash
 	seal, err := sb.Sign(sigHash(header).Bytes())
 	if err != nil {
