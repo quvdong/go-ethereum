@@ -417,7 +417,7 @@ func TestSaveAndLoad(t *testing.T) {
 			},
 		},
 		Tally: map[common.Address]Tally{
-			common.StringToAddress("1234567893"): Tally{
+			common.StringToAddress("1234567893"): {
 				Authorize: false,
 				Votes:     20,
 			},

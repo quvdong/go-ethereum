@@ -81,7 +81,7 @@ var (
 	// errEmptyCommittedSeals is returned if the field of committed seals is zero.
 	errEmptyCommittedSeals = errors.New("zero committed seals")
 	// errMismatchTxhashes is returned if the TxHash in header is mismatch.
-	errMismatchTxhashes = errors.New("mismatch transcations hashes")
+	errMismatchTxhashes = errors.New("mismatch transactions hashes")
 )
 var (
 	defaultDifficulty = big.NewInt(1)
