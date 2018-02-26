@@ -455,12 +455,7 @@ func (sb *backend) CalcDifficulty(chain consensus.ChainReader, time uint64, pare
 // update timestamp and signature of the block based on its number of transactions
 func (sb *backend) updateBlock(parent *types.Header, block *types.Block) (*types.Block, error) {
 	// set block period based the number of tx
-	var period uint64
-	if len(block.Transactions()) == 0 {
-		period = sb.config.BlockPauseTime
-	} else {
-		period = sb.config.BlockPeriod
-	}
+	period := sb.config.BlockPeriod
 
 	// set header timestamp
 	header := block.Header()
