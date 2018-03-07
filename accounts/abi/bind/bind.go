@@ -232,6 +232,10 @@ func bindUnnestedTypeGo(stringKind string) (int, string) {
 	case strings.HasPrefix(stringKind, "string"):
 		return len("string"), "string"
 
+	case strings.HasPrefix(stringKind, "decimal"):
+		parts := regexp.MustCompile(`(u)?decimal([0-9]*)`).FindStringSubmatch(stringKind)
+		return len(parts[0]), "float64"
+
 	default:
 		return len(stringKind), stringKind
 	}
@@ -385,7 +389,7 @@ var methodNormalizer = map[Lang]func(string) string{
 	LangJava: decapitalise,
 }
 
-// capitalise makes the first character of a string upper case, also removing any
+// capitalise makes a camel case string which starts with an upper case character, also removing any
 // prefixing underscores from the variable names.
 func capitalise(input string) string {
 	for len(input) > 0 && input[0] == '_' {
@@ -394,12 +398,42 @@ func capitalise(input string) string {
 	if len(input) == 0 {
 		return ""
 	}
-	return strings.ToUpper(input[:1]) + input[1:]
+	return toCamelCase(strings.ToUpper(input[:1]) + input[1:])
 }
 
-// decapitalise makes the first character of a string lower case.
+// decapitalise makes a camel case string which starts with a lower case character, also removing any
+// prefixing underscores from the variable names.
 func decapitalise(input string) string {
-	return strings.ToLower(input[:1]) + input[1:]
+	for len(input) > 0 && input[0] == '_' {
+		input = input[1:]
+	}
+	if len(input) == 0 {
+		return ""
+	}
+	return toCamelCase(strings.ToLower(input[:1]) + input[1:])
+}
+
+// toCamelCase converts an under-score string to a camel-case string
+func toCamelCase(inputUnderScoreStr string) (camelCase string) {
+	isToUpper := false
+
+	for k, v := range inputUnderScoreStr {
+		if k == 0 {
+			camelCase = strings.ToUpper(string(inputUnderScoreStr[0]))
+		} else {
+			if isToUpper {
+				camelCase += strings.ToUpper(string(v))
+				isToUpper = false
+			} else {
+				if v == '_' {
+					isToUpper = true
+				} else {
+					camelCase += string(v)
+				}
+			}
+		}
+	}
+	return
 }
 
 // structured checks whether a list of ABI data types has enough information to
