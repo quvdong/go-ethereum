@@ -21,7 +21,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
 	"math/big"
 )
@@ -97,10 +99,46 @@ type Engine interface {
 	APIs(chain ChainReader) []rpc.API
 }
 
+// Handler defines the interface to implement if a consensus engine needs to send/receive
+// messages from peers.
+type Handler interface {
+	// AddPeer adds a P2P peer
+	AddPeer(id string, peer *p2p.Peer)
+
+	// RemovePeer removes a P2P peer
+	RemovePeer(id string)
+
+	// HandleMsg handles a message from peer
+	HandleMsg(data p2p.Msg) (error)
+
+	// SetBroadcaster sets the broadcaster to send message to peers
+	SetBroadcaster(broadcaster Broadcaster)
+}
+
+// Broadcaster defines the interface that facilitates sending consensus messages to peers.
+type Broadcaster interface {
+	// Enqueue add a block into fetcher queue
+	// why needed?
+	Enqueue(id string, block *types.Block)
+	// BroadcastConsensusMsg sends data to peers specified by idSet
+	BroadcastConsensusMsg(idSet map[string]bool, data []rlp.RawValue)
+}
+
 // PoW is a consensus engine based on proof-of-work.
 type PoW interface {
 	Engine
 
 	// Hashrate returns the current mining hashrate of a PoW consensus engine.
 	Hashrate() float64
+}
+
+// Istanbul is a consensus engine to avoid byzantine failure
+type Istanbul interface {
+	Engine
+
+	// Start starts the engine
+	Start(chain ChainReader, currentBlock func() *types.Block, hasBadBlock func(hash common.Hash) bool) error
+
+	// Stop stops the engine
+	Stop() error
 }

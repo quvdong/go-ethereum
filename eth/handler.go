@@ -94,6 +94,8 @@ type ProtocolManager struct {
 	// wait group is used for graceful shutdowns during downloading
 	// and processing
 	wg sync.WaitGroup
+
+	engine consensus.Engine
 }
 
 // NewProtocolManager returns a new ethereum sub protocol manager. The Ethereum sub protocol manages peers capable
@@ -111,7 +113,13 @@ func NewProtocolManager(config *params.ChainConfig, mode downloader.SyncMode, ne
 		noMorePeers: make(chan struct{}),
 		txsyncCh:    make(chan *txsync),
 		quitSync:    make(chan struct{}),
+		engine:      engine,
 	}
+
+	if handler, ok := manager.engine.(consensus.Handler); ok {
+		handler.SetBroadcaster(manager)
+	}
+
 	// Figure out whether to allow fast sync or not
 	if mode == downloader.FastSync && blockchain.CurrentBlock().NumberU64() > 0 {
 		log.Warn("Blockchain not empty, fast sync disabled")
@@ -191,6 +199,10 @@ func (pm *ProtocolManager) removePeer(id string) {
 
 	// Unregister the peer from the downloader and Ethereum peer set
 	pm.downloader.UnregisterPeer(id)
+	// Remove from the consensus engine's peer set
+	if handler, ok := pm.engine.(consensus.Handler); ok {
+		handler.RemovePeer(id)
+	}
 	if err := pm.peers.Unregister(id); err != nil {
 		log.Error("Peer removal failed", "peer", id, "err", err)
 	}
@@ -274,6 +286,9 @@ func (pm *ProtocolManager) handle(p *peer) error {
 	if err := pm.peers.Register(p); err != nil {
 		p.Log().Error("Ethereum peer registration failed", "err", err)
 		return err
+	}
+	if handler, ok := pm.engine.(consensus.Handler); ok {
+		handler.AddPeer(p.id, p.Peer)
 	}
 	defer pm.removePeer(p.id)
 
@@ -673,6 +688,13 @@ func (pm *ProtocolManager) handleMsg(p *peer) error {
 		}
 		pm.txpool.AddRemotes(txs)
 
+	case msg.Code == ConsensusMsg:
+		if handler, ok := pm.engine.(consensus.Handler); ok {
+			if err := handler.HandleMsg(msg); err != nil {
+				return err
+			}
+		}
+
 	default:
 		return errResp(ErrInvalidMsgCode, "%v", msg.Code)
 	}
@@ -747,6 +769,20 @@ func (self *ProtocolManager) txBroadcastLoop() {
 			return
 		}
 	}
+}
+
+func (self *ProtocolManager) Enqueue(id string, block *types.Block) {
+	self.fetcher.Enqueue(id, block)
+}
+
+// BroadcastConsensusMsg will propagate a ConsensusMsg to all specified peers.
+func (self *ProtocolManager) BroadcastConsensusMsg(idSet map[string]bool, data []rlp.RawValue) {
+	for id, _ := range idSet {
+		if peer := self.peers.Peer(id); peer != nil {
+			peer.SendConsensusRLP(data)
+		}
+	}
+	log.Trace("Broadcast consensus msg", "recipients", len(idSet))
 }
 
 // NodeInfo represents a short summary of the Ethereum sub-protocol metadata

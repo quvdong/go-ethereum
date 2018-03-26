@@ -187,6 +187,12 @@ func (p *peer) SendReceiptsRLP(receipts []rlp.RawValue) error {
 	return p2p.Send(p.rw, ReceiptsMsg, receipts)
 }
 
+// SendConsensusRLP sends a batch of consensus message to the remote peer.
+// data is encoded as an RLP list.
+func (p *peer) SendConsensusRLP(data []rlp.RawValue) error {
+	return p2p.Send(p.rw, ConsensusMsg, data)
+}
+
 // RequestOneHeader is a wrapper around the header query functions to fetch a
 // single header. It is used solely by the fetcher.
 func (p *peer) RequestOneHeader(hash common.Hash) error {
