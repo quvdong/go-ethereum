@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io"
 	"math/big"
+	mrand "math/rand"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -883,7 +884,6 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
-	currentBlock := bc.CurrentBlock()
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database
@@ -955,7 +955,26 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 		return NonStatTy, err
 	}
 
-	if bc.needReorg(currentBlock, block, externTd, state) {
+	currentBlock := bc.CurrentBlock()
+	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+	// If the total difficulty is higher than our known, add it to the canonical chain
+	setNewHead := false
+	if bc.chainConfig.IsCasper(block.Number()) {
+		// Use Casper's fork choice rule
+		localScore := bc.getScore(currentBlock)
+		externScore := bc.getScore(block)
+		setNewHead = externScore.Cmp(localScore) > 0 && bc.safeForLastFinalizedBlock(block, state)
+	} else {
+		setNewHead = externTd.Cmp(localTd) > 0
+	}
+
+	// Try to reduce the vulnerability to selfish mining.
+	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
+	if !setNewHead && externTd.Cmp(localTd) == 0 {
+		// Split same-difficulty blocks by number, then at random
+		setNewHead = block.NumberU64() < currentBlock.NumberU64() || (block.NumberU64() == currentBlock.NumberU64() && mrand.Float64() < 0.5)
+	}
+	if setNewHead {
 		// Reorganise the chain if the parent is not the head block
 		if block.ParentHash() != currentBlock.Hash() {
 			if err := bc.reorg(currentBlock, block); err != nil {
