@@ -27,69 +27,85 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// getScore returns the score of a block
-func (bc *BlockChain) getScore(block *types.Block) *big.Int {
-	score := bc.GetTd(block.Hash(), block.NumberU64())
-
-	if bc.chainConfig.IsCasper(block.Number()) {
-		if scored, casperScore := bc.getCasperScore(block); scored {
-			casperScale := new(big.Int).Exp(big.NewInt(int64(10)), big.NewInt(int64(40)), nil)
-			casperScore.Mul(casperScore, casperScale)
-			score.Add(score, casperScore)
-		}
+func (bc *BlockChain) acceptNewCasperBlock(currentBlock *types.Block, newBlock *types.Block, newState *state.StateDB) (bool, error) {
+	currentScore, err := bc.getScore(currentBlock)
+	if err != nil {
+		return false, err
 	}
-	return score
+	newScore, err := bc.getScore(newBlock)
+	if err != nil {
+		return false, err
+	}
+	if newScore.Cmp(currentScore) > 0 {
+		// Check if we will revert any finalized block in the Casper case
+		safe, err := bc.safeForLastFinalizedBlock(newBlock, newState)
+		if err != nil {
+			return false, err
+		}
+		return safe, nil
+	}
+	return false, nil
 }
 
-// getCasperScore returns the score of a block from Casper's perspective
-func (bc *BlockChain) getCasperScore(block *types.Block) (bool, *big.Int) {
+// getScore returns the score of a block from Casper's perspective
+func (bc *BlockChain) getScore(block *types.Block) (*big.Int, error) {
+	score := bc.GetTd(block.Hash(), block.NumberU64())
+	casperScore, err := bc.getLastJustifiedEpoch(block)
+	if err != nil {
+		return nil, err
+	}
+	casperScale := new(big.Int).Exp(big.NewInt(10), big.NewInt(40), nil)
+	casperScore.Mul(casperScore, casperScale)
+	score.Add(score, casperScore)
+	return score, nil
+}
+
+// getLastJustifiedEpoch returns the last justified epoch for a given block
+func (bc *BlockChain) getLastJustifiedEpoch(block *types.Block) (*big.Int, error) {
 	state, err := bc.StateAt(block.Root())
 	if err != nil {
-		return false, nil
+		return nil, err
 	}
 	stateBackend := NewStateBackend(block, state, bc)
 	contract, err := casper.New(stateBackend)
 	if err != nil {
 		log.Warn("Failed to get Casper contract", "err", err)
-		return false, nil
+		return nil, err
 	}
 	justified, err := contract.GetLastJustifiedEpoch(&bind.CallOpts{})
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
-		return false, nil
+		return nil, err
 	}
-	return true, justified
+	return justified, nil
 }
 
 // safeForLastFinalizedBlock returns true if the new head will NOT revert the last finalized block
-func (bc *BlockChain) safeForLastFinalizedBlock(newBlock *types.Block, newState *state.StateDB) bool {
+func (bc *BlockChain) safeForLastFinalizedBlock(newBlock *types.Block, newState *state.StateDB) (bool, error) {
 	stateBackend := NewStateBackend(newBlock, newState, bc)
 	contract, err := casper.New(stateBackend)
 	if err != nil {
 		log.Warn("Failed to get Casper contract", "err", err)
-		return false
+		return false, err
 	}
 	blockNumber, err := contract.GetLastFinalizedEpoch(&bind.CallOpts{})
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
-		return false
+		return false, err
 	}
 	hashBytes, err := contract.GetCheckpointHashes(&bind.CallOpts{}, blockNumber)
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
-		return false
+		return false, err
 	}
 	blockHash := common.BytesToHash(hashBytes[:])
 	parentBlock := bc.GetBlock(newBlock.ParentHash(), newBlock.NumberU64()-1)
-	for {
-		if parentBlock == nil || blockNumber.Cmp(parentBlock.Number()) > 0 {
-			return false
-		} else if parentBlock.Hash() == blockHash {
-			// The last finalized block IS currentBlock's ancestor
-			return true
-		} else {
-			parentBlock = bc.GetBlock(parentBlock.ParentHash(), parentBlock.NumberU64()-1)
-		}
+	// Find the correct block
+	for ; parentBlock != nil && parentBlock.Number().Cmp(blockNumber) > 0; parentBlock = bc.GetBlock(parentBlock.ParentHash(), parentBlock.NumberU64()-1) {
 	}
-	return false
+	// Compare its hash
+	if parentBlock == nil {
+		return false, nil
+	}
+	return parentBlock.Hash() == blockHash, nil
 }

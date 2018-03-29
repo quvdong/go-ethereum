@@ -884,6 +884,8 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	bc.mu.Lock()
 	defer bc.mu.Unlock()
 
+	currentBlock := bc.CurrentBlock()
+	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	externTd := new(big.Int).Add(block.Difficulty(), ptd)
 
 	// Irrelevant of the canonical status, write the block itself to the database
@@ -954,20 +956,14 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	if err := WriteBlockReceipts(batch, block.Hash(), block.NumberU64(), receipts); err != nil {
 		return NonStatTy, err
 	}
-
-	currentBlock := bc.CurrentBlock()
-	localTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	// If the total difficulty is higher than our known, add it to the canonical chain
-	setNewHead := false
+	setNewHead := externTd.Cmp(localTd) > 0
 	if bc.chainConfig.IsCasper(block.Number()) {
-		// Use Casper's fork choice rule
-		localScore := bc.getScore(currentBlock)
-		externScore := bc.getScore(block)
-		setNewHead = externScore.Cmp(localScore) > 0 && bc.safeForLastFinalizedBlock(block, state)
-	} else {
-		setNewHead = externTd.Cmp(localTd) > 0
+		setNewHead, err = bc.acceptNewCasperBlock(currentBlock, block, state)
+		if err != nil {
+			return NonStatTy, err
+		}
 	}
-
 	// Try to reduce the vulnerability to selfish mining.
 	// Please refer to http://www.cs.cornell.edu/~ie53/publications/btcProcFC.pdf
 	if !setNewHead && externTd.Cmp(localTd) == 0 {
