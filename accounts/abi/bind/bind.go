@@ -232,6 +232,10 @@ func bindUnnestedTypeGo(stringKind string) (int, string) {
 	case strings.HasPrefix(stringKind, "string"):
 		return len("string"), "string"
 
+	case strings.HasPrefix(stringKind, "decimal"):
+		parts := regexp.MustCompile(`(u)?decimal([0-9]*)`).FindStringSubmatch(stringKind)
+		return len(parts[0]), "float64"
+
 	default:
 		return len(stringKind), stringKind
 	}
@@ -385,7 +389,8 @@ var methodNormalizer = map[Lang]func(string) string{
 	LangJava: decapitalise,
 }
 
-// capitalise makes a camel-case string which starts with an upper case character.
+// capitalise makes a camel-case string which starts with an upper case character, also removing any
+// prefixing underscores from the variable names.
 func capitalise(input string) string {
 	for len(input) > 0 && input[0] == '_' {
 		input = input[1:]
@@ -396,7 +401,8 @@ func capitalise(input string) string {
 	return toCamelCase(strings.ToUpper(input[:1]) + input[1:])
 }
 
-// decapitalise makes a camel-case string which starts with a lower case character.
+// decapitalise makes a camel-case string which starts with a lower case character, also removing any
+// prefixing underscores from the variable names.
 func decapitalise(input string) string {
 	for len(input) > 0 && input[0] == '_' {
 		input = input[1:]
