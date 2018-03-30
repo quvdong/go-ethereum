@@ -196,7 +196,7 @@ func toGoType(index int, t Type, output []byte) (interface{}, error) {
 	case BoolTy:
 		return readBool(returnOutput)
 	case DecimalTy:
-		return readFixedBytes(t, returnOutput)
+		return readDecimal(t, returnOutput), nil
 	case AddressTy:
 		return common.BytesToAddress(returnOutput), nil
 	case HashTy:
