@@ -17,15 +17,23 @@
 package core
 
 import (
+	"errors"
 	"math/big"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/contracts/casper"
+	"github.com/ethereum/go-ethereum/contracts"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
+
+var ErrNilCasperGen = errors.New("nil casper generator")
+
+// SetCasperGen sets casperGen
+func (bc *BlockChain) SetCasperGen(casperGen func(bind.ContractBackend) (contracts.Casper, error)) {
+	bc.casperGen = casperGen
+}
 
 func (bc *BlockChain) acceptNewCasperBlock(currentBlock *types.Block, newBlock *types.Block, newState *state.StateDB) (bool, error) {
 	currentScore, err := bc.getScore(currentBlock)
@@ -62,17 +70,21 @@ func (bc *BlockChain) getScore(block *types.Block) (*big.Int, error) {
 
 // getLastJustifiedEpoch returns the last justified epoch for a given block
 func (bc *BlockChain) getLastJustifiedEpoch(block *types.Block) (*big.Int, error) {
+	if bc.casperGen == nil {
+		log.Warn("Casper generator is not initialized")
+		return nil, ErrNilCasperGen
+	}
 	state, err := bc.StateAt(block.Root())
 	if err != nil {
 		return nil, err
 	}
 	stateBackend := NewStateBackend(block, state, bc)
-	contract, err := casper.New(stateBackend)
+	contract, err := bc.casperGen(stateBackend)
 	if err != nil {
 		log.Warn("Failed to get Casper contract", "err", err)
 		return nil, err
 	}
-	justified, err := contract.GetLastJustifiedEpoch(&bind.CallOpts{})
+	justified, err := contract.GetLastJustifiedEpoch()
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
 		return nil, err
@@ -82,18 +94,22 @@ func (bc *BlockChain) getLastJustifiedEpoch(block *types.Block) (*big.Int, error
 
 // safeForLastFinalizedBlock returns true if the new head will NOT revert the last finalized block
 func (bc *BlockChain) safeForLastFinalizedBlock(newBlock *types.Block, newState *state.StateDB) (bool, error) {
+	if bc.casperGen == nil {
+		log.Warn("Casper generator is not initialized")
+		return false, ErrNilCasperGen
+	}
 	stateBackend := NewStateBackend(newBlock, newState, bc)
-	contract, err := casper.New(stateBackend)
+	contract, err := bc.casperGen(stateBackend)
 	if err != nil {
 		log.Warn("Failed to get Casper contract", "err", err)
 		return false, err
 	}
-	blockNumber, err := contract.GetLastFinalizedEpoch(&bind.CallOpts{})
+	blockNumber, err := contract.GetLastFinalizedEpoch()
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
 		return false, err
 	}
-	hashBytes, err := contract.GetCheckpointHashes(&bind.CallOpts{}, blockNumber)
+	hashBytes, err := contract.GetCheckpointHashes(blockNumber)
 	if err != nil {
 		log.Warn("Failed to get current chain status from Casper", "err", err)
 		return false, err

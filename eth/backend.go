@@ -152,6 +152,10 @@ func New(ctx *node.ServiceContext, config *Config) (*Ethereum, error) {
 	if err != nil {
 		return nil, err
 	}
+	// TODO: Intialize the casper gen only when the casper address is specified in genesis config
+	// Set casper gen
+	eth.blockchain.SetCasperGen(NewCasperGen(common.HexToAddress("0xbd832b0cd3291c39ef67691858f35c71dfb3bf21")))
+
 	// Rewind the chain in case of an incompatible config upgrade.
 	if compat, ok := genesisErr.(*params.ConfigCompatError); ok {
 		log.Warn("Rewinding chain to upgrade configuration", "err", compat)
