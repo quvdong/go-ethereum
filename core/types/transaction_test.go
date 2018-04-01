@@ -192,6 +192,81 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 	}
 }
 
+// Tests that Casper transactions get selected first despite their prices.
+func TestCasperTransactionsWinOut(t *testing.T) {
+	const NumAcct = 15
+	const NumTx = 25
+
+	// Generate a batch of accounts to start with
+	keys := make([]*ecdsa.PrivateKey, NumAcct)
+	for i := 0; i < len(keys); i++ {
+		keys[i], _ = crypto.GenerateKey()
+	}
+
+	signer := HomesteadSigner{}
+	// Generate a batch of transactions with overlapping values, but shifted nonces
+	groups := map[common.Address]Transactions{}
+	for start, key := range keys {
+		addr := crypto.PubkeyToAddress(key.PublicKey)
+		for i := 0; i < NumTx; i++ {
+			toAddr := common.Address{}
+			// Every account's first and last txs are Casper votes
+			if i == 0 || i == NumTx-1 {
+				toAddr = CasperAddr
+			}
+			tx, _ := SignTx(NewTransaction(uint64(start+i), toAddr, big.NewInt(100), 100, big.NewInt(int64(start+i)), nil), signer, key)
+			groups[addr] = append(groups[addr], tx)
+		}
+	}
+	// Sort the transactions and cross check the nonce ordering.
+	txset := NewTransactionsByPriceAndNonce(signer, groups)
+
+	txs := Transactions{}
+	casperVotes := 0
+	for tx := txset.Peek(); tx != nil; tx = txset.Peek() {
+		if *tx.To() == CasperAddr {
+			casperVotes++
+		}
+		txs = append(txs, tx)
+		txset.Shift()
+	}
+	expectedTxs := NumAcct * NumTx
+	if len(txs) != expectedTxs {
+		t.Errorf("expected %d transactions, found %d", expectedTxs, len(txs))
+	}
+	expectedCasperVotes := NumAcct * 2
+	if casperVotes != expectedCasperVotes {
+		t.Errorf("expected %d Casper votes, found %d", expectedCasperVotes, len(txs))
+	}
+
+	for i, txi := range txs {
+		fromi, _ := Sender(signer, txi)
+
+		// Make sure the nonce order is valid
+		for j, txj := range txs[i+1:] {
+			fromj, _ := Sender(signer, txj)
+
+			if fromi == fromj && txi.Nonce() > txj.Nonce() {
+				t.Errorf("invalid nonce ordering: tx #%d (A=%x N=%v T=%x) < tx #%d (A=%x N=%v T=%x)", i, fromi[:4], txi.Nonce(), (*txi.To())[:4], i+j, fromj[:4], txj.Nonce(), (*txj.To())[:4])
+			}
+		}
+
+		// If the next tx has different from account, the price must be lower than the current one, unless it's a casper vote
+		if i+1 < len(txs) {
+			next := txs[i+1]
+			fromNext, _ := Sender(signer, next)
+			if fromi != fromNext {
+				if *txi.To() == *next.To() && txi.GasPrice().Cmp(next.GasPrice()) < 0 {
+					// If both are Casper votes, they should be in price order
+					t.Errorf("invalid gasprice ordering for casper votes: tx #%d (A=%x P=%v T=%x) < tx #%d (A=%x P=%v T=%x)", i, fromi[:4], txi.GasPrice(), (*txi.To())[:4], i+1, fromNext[:4], next.GasPrice(), (*next.To())[:4])
+				} else if txi.GasPrice().Cmp(next.GasPrice()) < 0 && *txi.To() != CasperAddr {
+					t.Errorf("invalid gasprice ordering: tx #%d (A=%x P=%v T=%x) < tx #%d (A=%x P=%v T=%x)", i, fromi[:4], txi.GasPrice(), (*txi.To())[:4], i+1, fromNext[:4], next.GasPrice(), (*next.To())[:4])
+				}
+			}
+		}
+	}
+}
+
 // TestTransactionJSON tests serializing/de-serializing to/from JSON.
 func TestTransactionJSON(t *testing.T) {
 	key, err := crypto.GenerateKey()
