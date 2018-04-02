@@ -35,6 +35,8 @@ import (
 var (
 	ErrInvalidSig = errors.New("invalid transaction v, r, s values")
 	errNoSigner   = errors.New("missing signing methods")
+	// TODO: Get Casper contract address from config?
+	CasperAddr = common.StringToAddress("0xbd832b0cd3291c39ef67691858f35c71dfb3bf21")
 )
 
 // deriveSigner makes a *best* guess about which signer to use.
@@ -360,9 +362,23 @@ func (s TxByNonce) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
 // for all at once sorting as well as individually adding and removing elements.
 type TxByPrice Transactions
 
-func (s TxByPrice) Len() int           { return len(s) }
-func (s TxByPrice) Less(i, j int) bool { return s[i].data.Price.Cmp(s[j].data.Price) > 0 }
-func (s TxByPrice) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s TxByPrice) Len() int { return len(s) }
+
+func (s TxByPrice) Less(i, j int) bool {
+	// TODO: Check other tx fields to make sure it's a "vote"
+	if *s[i].data.Recipient == CasperAddr && *s[j].data.Recipient == CasperAddr {
+		return s[i].data.Price.Cmp(s[j].data.Price) > 0
+	}
+	if *s[i].data.Recipient == CasperAddr {
+		return true
+	}
+	if *s[j].data.Recipient == CasperAddr {
+		return false
+	}
+	return s[i].data.Price.Cmp(s[j].data.Price) > 0
+}
+
+func (s TxByPrice) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 
 func (s *TxByPrice) Push(x interface{}) {
 	*s = append(*s, x.(*Transaction))
