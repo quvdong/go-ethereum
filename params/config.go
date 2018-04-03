@@ -117,11 +117,24 @@ type ChainConfig struct {
 
 	ByzantiumBlock      *big.Int `json:"byzantiumBlock,omitempty"`      // Byzantium switch block (nil = no fork, 0 = already on byzantium)
 	ConstantinopleBlock *big.Int `json:"constantinopleBlock,omitempty"` // Constantinople switch block (nil = no fork, 0 = already activated)
-	CasperBlock         *big.Int `json:"casperBlock,omitempty"`         // Casper switch block (nil = no fork, 0 = already on casper)
+
+	// Casper config
+	Casper *CasperConfig `json:"casper,omitempty"`
 
 	// Various consensus engines
 	Ethash *EthashConfig `json:"ethash,omitempty"`
 	Clique *CliqueConfig `json:"clique,omitempty"`
+}
+
+// CasperConfig holds the configs for Casper.
+type CasperConfig struct {
+	Block   *big.Int       `json:"block,omitempty"`   // Casper switch block (nil = no fork, 0 = already on casper)
+	Address common.Address `json:"address,omitempty"` // Casper contract address
+}
+
+// String implements the stringer interface, returning the CasperConfig details.
+func (c *CasperConfig) String() string {
+	return "casper"
 }
 
 // EthashConfig is the consensus engine configs for proof-of-work based sealing.
@@ -164,7 +177,7 @@ func (c *ChainConfig) String() string {
 		c.EIP158Block,
 		c.ByzantiumBlock,
 		c.ConstantinopleBlock,
-		c.CasperBlock,
+		c.Casper,
 		engine,
 	)
 }
@@ -200,7 +213,7 @@ func (c *ChainConfig) IsConstantinople(num *big.Int) bool {
 }
 
 func (c *ChainConfig) IsCasper(num *big.Int) bool {
-	return isForked(c.CasperBlock, num)
+	return c.Casper != nil && c.Casper.Block != nil && isForked(c.Casper.Block, num)
 }
 
 // GasTable returns the gas table corresponding to the current phase (homestead or homestead reprice).
