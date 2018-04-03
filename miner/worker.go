@@ -265,7 +265,11 @@ func (self *worker) update() {
 				self.currentMu.Lock()
 				acc, _ := types.Sender(self.current.signer, ev.Tx)
 				txs := map[common.Address]types.Transactions{acc: {ev.Tx}}
-				txset := types.NewTransactionsByPriceAndNonce(self.current.signer, txs)
+				var casperAddr *common.Address
+				if self.config.IsCasper(self.current.header.Number) {
+					casperAddr = &self.config.Casper.Address
+				}
+				txset := types.NewTransactionsByPriceAndNonce(self.current.signer, casperAddr, txs)
 
 				self.current.commitTransactions(self.mux, txset, self.chain, self.coinbase)
 				self.currentMu.Unlock()
@@ -453,7 +457,12 @@ func (self *worker) commitNewWork() {
 		log.Error("Failed to fetch pending transactions", "err", err)
 		return
 	}
-	txs := types.NewTransactionsByPriceAndNonce(self.current.signer, pending)
+
+	var casperAddr *common.Address
+	if self.config.IsCasper(num) {
+		casperAddr = &self.config.Casper.Address
+	}
+	txs := types.NewTransactionsByPriceAndNonce(self.current.signer, casperAddr, pending)
 	work.commitTransactions(self.mux, txs, self.chain, self.coinbase)
 
 	// compute uncles for the new block.

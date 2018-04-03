@@ -144,7 +144,7 @@ func TestTransactionPriceNonceSort(t *testing.T) {
 		}
 	}
 	// Sort the transactions and cross check the nonce ordering
-	txset := NewTransactionsByPriceAndNonce(signer, groups)
+	txset := NewTransactionsByPriceAndNonce(signer, nil, groups)
 
 	txs := Transactions{}
 	for tx := txset.Peek(); tx != nil; tx = txset.Peek() {
@@ -204,6 +204,7 @@ func TestCasperTransactionsWinOut(t *testing.T) {
 	}
 
 	signer := HomesteadSigner{}
+	casperAddr := common.StringToAddress("0xbd832b0cd3291c39ef67691858f35c71dfb3bf21")
 	// Generate a batch of transactions with overlapping values, but shifted nonces
 	groups := map[common.Address]Transactions{}
 	for start, key := range keys {
@@ -212,19 +213,19 @@ func TestCasperTransactionsWinOut(t *testing.T) {
 			toAddr := common.Address{}
 			// Every account's first and last txs are Casper votes
 			if i == 0 || i == NumTx-1 {
-				toAddr = CasperAddr
+				toAddr = casperAddr
 			}
 			tx, _ := SignTx(NewTransaction(uint64(start+i), toAddr, big.NewInt(100), 100, big.NewInt(int64(start+i)), nil), signer, key)
 			groups[addr] = append(groups[addr], tx)
 		}
 	}
 	// Sort the transactions and cross check the nonce ordering.
-	txset := NewTransactionsByPriceAndNonce(signer, groups)
+	txset := NewTransactionsByPriceAndNonce(signer, &casperAddr, groups)
 
 	txs := Transactions{}
 	casperVotes := 0
 	for tx := txset.Peek(); tx != nil; tx = txset.Peek() {
-		if *tx.To() == CasperAddr {
+		if *tx.To() == casperAddr {
 			casperVotes++
 		}
 		txs = append(txs, tx)
@@ -256,10 +257,10 @@ func TestCasperTransactionsWinOut(t *testing.T) {
 			next := txs[i+1]
 			fromNext, _ := Sender(signer, next)
 			if fromi != fromNext {
-				if *txi.To() == *next.To() && txi.GasPrice().Cmp(next.GasPrice()) < 0 {
+				if *txi.To() == *next.To() && *txi.To() == casperAddr && txi.GasPrice().Cmp(next.GasPrice()) < 0 {
 					// If both are Casper votes, they should be in price order
 					t.Errorf("invalid gasprice ordering for casper votes: tx #%d (A=%x P=%v T=%x) < tx #%d (A=%x P=%v T=%x)", i, fromi[:4], txi.GasPrice(), (*txi.To())[:4], i+1, fromNext[:4], next.GasPrice(), (*next.To())[:4])
-				} else if txi.GasPrice().Cmp(next.GasPrice()) < 0 && *txi.To() != CasperAddr {
+				} else if txi.GasPrice().Cmp(next.GasPrice()) < 0 && *txi.To() != casperAddr {
 					t.Errorf("invalid gasprice ordering: tx #%d (A=%x P=%v T=%x) < tx #%d (A=%x P=%v T=%x)", i, fromi[:4], txi.GasPrice(), (*txi.To())[:4], i+1, fromNext[:4], next.GasPrice(), (*next.To())[:4])
 				}
 			}

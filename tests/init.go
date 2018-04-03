@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -61,7 +62,7 @@ var Forks = map[string]*params.ChainConfig{
 		EIP158Block:    big.NewInt(0),
 		DAOForkBlock:   big.NewInt(0),
 		ByzantiumBlock: big.NewInt(0),
-		CasperBlock:    big.NewInt(0),
+		Casper:         &params.CasperConfig{Block: big.NewInt(0), Address: common.StringToAddress("0xbd832b0cd3291c39ef67691858f35c71dfb3bf21")},
 	},
 	"FrontierToHomesteadAt5": {
 		ChainId:        big.NewInt(1),

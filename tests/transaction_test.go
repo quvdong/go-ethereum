@@ -20,6 +20,7 @@ import (
 	"math/big"
 	"testing"
 
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/params"
 )
 
@@ -44,13 +45,13 @@ func TestTransaction(t *testing.T) {
 		EIP158Block:    big.NewInt(0),
 		ByzantiumBlock: big.NewInt(0),
 	})
-	txt.config(`Casper`, params.ChainConfig{
+	txt.config(`^Casper/`, params.ChainConfig{
 		HomesteadBlock: big.NewInt(0),
 		EIP150Block:    big.NewInt(0),
 		EIP155Block:    big.NewInt(0),
 		EIP158Block:    big.NewInt(0),
 		ByzantiumBlock: big.NewInt(0),
-		CasperBlock:    big.NewInt(0),
+		Casper:         &params.CasperConfig{Block: big.NewInt(0), Address: common.StringToAddress("0xbd832b0cd3291c39ef67691858f35c71dfb3bf21")},
 	})
 
 	txt.walk(t, transactionTestDir, func(t *testing.T, name string, test *TransactionTest) {
