@@ -23,7 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/contracts"
-	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
 )
@@ -35,18 +34,20 @@ func (bc *BlockChain) SetCasperGen(casperGen func(bind.ContractBackend) (contrac
 	bc.casperGen = casperGen
 }
 
-func (bc *BlockChain) acceptNewCasperBlock(currentBlock *types.Block, newBlock *types.Block, newState *state.StateDB) (bool, error) {
-	currentScore, err := bc.getScore(currentBlock)
+func (bc *BlockChain) AcceptNewCasperBlock(newBlock *types.Block, newTd *big.Int) (bool, error) {
+	currentBlock := bc.CurrentBlock()
+	currentTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
+	currentScore, err := bc.getScore(currentBlock, currentTd)
 	if err != nil {
 		return false, err
 	}
-	newScore, err := bc.getScore(newBlock)
+	newScore, err := bc.getScore(newBlock, newTd)
 	if err != nil {
 		return false, err
 	}
 	if newScore.Cmp(currentScore) > 0 {
 		// Check if we will revert any finalized block in the Casper case
-		safe, err := bc.safeForLastFinalizedBlock(newBlock, newState)
+		safe, err := bc.safeForLastFinalizedBlock(newBlock)
 		if err != nil {
 			return false, err
 		}
@@ -56,8 +57,8 @@ func (bc *BlockChain) acceptNewCasperBlock(currentBlock *types.Block, newBlock *
 }
 
 // getScore returns the score of a block from Casper's perspective
-func (bc *BlockChain) getScore(block *types.Block) (*big.Int, error) {
-	score := bc.GetTd(block.Hash(), block.NumberU64())
+func (bc *BlockChain) getScore(block *types.Block, td *big.Int) (*big.Int, error) {
+	score := new(big.Int).Set(td)
 	casperScore, err := bc.getLastJustifiedEpoch(block)
 	if err != nil {
 		return nil, err
@@ -93,12 +94,16 @@ func (bc *BlockChain) getLastJustifiedEpoch(block *types.Block) (*big.Int, error
 }
 
 // safeForLastFinalizedBlock returns true if the new head will NOT revert the last finalized block
-func (bc *BlockChain) safeForLastFinalizedBlock(newBlock *types.Block, newState *state.StateDB) (bool, error) {
+func (bc *BlockChain) safeForLastFinalizedBlock(newBlock *types.Block) (bool, error) {
 	if bc.casperGen == nil {
 		log.Warn("Casper generator is not initialized")
 		return false, ErrNilCasperGen
 	}
-	stateBackend := NewStateBackend(newBlock, newState, bc)
+	currentState, err := bc.State()
+	if err != nil {
+		return false, err
+	}
+	stateBackend := NewStateBackend(bc.CurrentBlock(), currentState, bc)
 	contract, err := bc.casperGen(stateBackend)
 	if err != nil {
 		log.Warn("Failed to get Casper contract", "err", err)
