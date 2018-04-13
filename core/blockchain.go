@@ -962,7 +962,7 @@ func (bc *BlockChain) WriteBlockWithState(block *types.Block, receipts []*types.
 	// If the total difficulty is higher than our known, add it to the canonical chain
 	setNewHead := externTd.Cmp(localTd) > 0
 	if bc.chainConfig.IsCasper(block.Number()) {
-		setNewHead, err = bc.AcceptNewCasperBlock(block, externTd)
+		setNewHead, err = bc.acceptNewCasperBlock(block, externTd)
 		if err != nil {
 			return NonStatTy, err
 		}

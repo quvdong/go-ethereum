@@ -34,7 +34,7 @@ func (bc *BlockChain) SetCasperGen(casperGen func(bind.ContractBackend) (contrac
 	bc.casperGen = casperGen
 }
 
-func (bc *BlockChain) AcceptNewCasperBlock(newBlock *types.Block, newTd *big.Int) (bool, error) {
+func (bc *BlockChain) acceptNewCasperBlock(newBlock *types.Block, newTd *big.Int) (bool, error) {
 	currentBlock := bc.CurrentBlock()
 	currentTd := bc.GetTd(currentBlock.Hash(), currentBlock.NumberU64())
 	currentScore, err := bc.getScore(currentBlock, currentTd)

@@ -1,4 +1,4 @@
-// Copyright 2016 The go-ethereum Authors
+// Copyright 2018 The go-ethereum Authors
 // This file is part of the go-ethereum library.
 //
 // The go-ethereum library is free software: you can redistribute it and/or modify
@@ -121,7 +121,7 @@ func testNewBlockWithSideChain(t *testing.T, tdDiff int64, justifiedIncBy int64,
 	newTd := new(big.Int).Add(currentTd, new(big.Int).SetInt64(tdDiff))
 
 	globalJustifiedIncBy = big.NewInt(justifiedIncBy)
-	result, err := blockchain.AcceptNewCasperBlock(newBlock, newTd)
+	result, err := blockchain.acceptNewCasperBlock(newBlock, newTd)
 	if err != nil {
 		t.Errorf("casper failed to decide on new block: %v", err)
 	}
