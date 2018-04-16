@@ -30,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/miner"
 	"github.com/ethereum/go-ethereum/params"
@@ -428,6 +429,47 @@ func (api *PrivateDebugAPI) GetModifiedAccountsByNumber(startNum uint64, endNum 
 		}
 	}
 	return api.getModifiedAccounts(startBlock, endBlock)
+}
+
+// GetModifiedAccountStatesByNumber returns all account states that have changed between the
+// two blocks specified. A change is defined as a difference in nonce, balance, and storage.
+// Note that the function only returns the diff storage.
+//
+// With one parameter, returns the list of accounts modified in the specified block.
+func (api *PrivateDebugAPI) GetModifiedAccountStatesByNumber(startNum uint64, endNum *uint64) (map[string]state.DumpDirtyAccount, error) {
+	// Get start blocks
+	var startBlock *types.Block
+	startBlock = api.eth.blockchain.GetBlockByNumber(startNum)
+	if startBlock == nil {
+		return nil, fmt.Errorf("start block %x not found", startNum)
+	}
+
+	stateDB, err := api.eth.BlockChain().StateAt(startBlock.Root())
+	if err != nil {
+		return nil, err
+	}
+
+	processor := core.NewStateProcessor(api.config, api.eth.BlockChain(), api.eth.Engine())
+	parent := startBlock
+	for i := startNum + 1; i <= *endNum; i++ {
+		block := api.eth.blockchain.GetBlockByNumber(i)
+		if block == nil {
+			return nil, fmt.Errorf("block %x not found", i)
+		}
+
+		receipts, _, usedGas, err := processor.Process(block, stateDB, vm.Config{})
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply block %x", i)
+		}
+
+		err = api.eth.blockchain.Validator().ValidateState(block, parent, stateDB, receipts, usedGas)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply block %x", i)
+		}
+		parent = block
+	}
+
+	return stateDB.DumpDirtyStorage(), nil
 }
 
 // GetModifiedAccountsByHash returns all accounts that have changed between the

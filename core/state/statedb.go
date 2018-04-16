@@ -81,6 +81,9 @@ type StateDB struct {
 	nextRevisionId int
 
 	lock sync.Mutex
+
+	// dirtyStorage marks the dirty storage
+	dirtyStorage map[common.Address]map[common.Hash]common.Hash
 }
 
 // Create a new state from a given trie
@@ -313,6 +316,14 @@ func (self *StateDB) SetState(addr common.Address, key common.Hash, value common
 	if stateObject != nil {
 		stateObject.SetState(self.db, key, value)
 	}
+
+	if self.dirtyStorage == nil {
+		self.dirtyStorage = make(map[common.Address]map[common.Hash]common.Hash)
+	}
+	if self.dirtyStorage[addr] == nil {
+		self.dirtyStorage[addr] = make(map[common.Hash]common.Hash)
+	}
+	self.dirtyStorage[addr][key] = value
 }
 
 // Suicide marks the given account as suicided.
