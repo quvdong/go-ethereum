@@ -403,7 +403,12 @@ func storageRangeAt(st state.Trie, start []byte, maxResult int) (StorageRangeRes
 	return result, nil
 }
 
-// GetModifiedAccountsByumber returns all accounts that have changed between the
+// GetTotalDifficulty returns the total difficulty of the specified block.
+func (api *PrivateDebugAPI) GetTotalDifficulty(blockHash common.Hash) *big.Int {
+	return api.eth.blockchain.GetTdByHash(blockHash)
+}
+
+// GetModifiedAccountsByNumber returns all accounts that have changed between the
 // two blocks specified. A change is defined as a difference in nonce, balance,
 // code hash, or storage hash.
 //
