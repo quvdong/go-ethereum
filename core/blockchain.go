@@ -1144,8 +1144,9 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 			return i, events, coalescedLogs, err
 		}
 
+		// TODO: disable it because of memory exception
 		// Start to record dirty storage
-		state.StartDirtyStorage()
+		// state.StartDirtyStorage()
 
 		// Process block using the parent state as reference point.
 		receipts, logs, usedGas, err := bc.processor.Process(block, state, bc.vmConfig)
@@ -1190,15 +1191,15 @@ func (bc *BlockChain) insertChain(chain types.Blocks) (int, []interface{}, []*ty
 		stats.usedGas += usedGas
 		stats.report(chain, i, bc.stateCache.TrieDB().Size())
 
-		// Write dirty storage
-		dump := state.DumpDirty()
-		err = bc.WriteDirtyDump(dump)
-		if err != nil {
-			log.Warn("Failed to write dirty dump", "err", err)
-		} else {
-			log.Debug("Write dirty dump successfully", "root", dump.Root)
-		}
-		state.StopDirtyStorage()
+		// // Write dirty storage
+		// dump := state.DumpDirty()
+		// err = bc.WriteDirtyDump(dump)
+		// if err != nil {
+		// 	log.Warn("Failed to write dirty dump", "err", err)
+		// } else {
+		// 	log.Debug("Write dirty dump successfully", "root", dump.Root)
+		// }
+		// state.StopDirtyStorage()
 	}
 	// Append a single chain head event if we've progressed the chain
 	if lastCanon != nil && bc.CurrentBlock().Hash() == lastCanon.Hash() {
