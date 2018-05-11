@@ -441,11 +441,11 @@ func (api *PrivateDebugAPI) GetModifiedAccountsByNumber(startNum uint64, endNum 
 // Note that the function only returns the diff storage.
 //
 // With one parameter, returns the list of accounts modified in the specified block.
-func (api *PrivateDebugAPI) GetModifiedAccountStatesByNumber(startNum uint64, endNum *uint64) (map[string]state.DumpDirtyAccount, error) {
+func (api *PrivateDebugAPI) GetModifiedAccountStatesByNumber(startNum uint64, endNum *uint64) (*state.DirtyDump, error) {
 	return GetDirtyStorage(api.config, api.eth.BlockChain(), startNum, endNum)
 }
 
-func GetDirtyStorage(config *params.ChainConfig, blockchain *core.BlockChain, startNum uint64, endNum *uint64) (map[string]state.DumpDirtyAccount, error) {
+func GetDirtyStorage(config *params.ChainConfig, blockchain *core.BlockChain, startNum uint64, endNum *uint64) (dump *state.DirtyDump, err error) {
 	// Get start blocks
 	var startBlock *types.Block
 	startBlock = blockchain.GetBlockByNumber(startNum)
@@ -453,13 +453,31 @@ func GetDirtyStorage(config *params.ChainConfig, blockchain *core.BlockChain, st
 		return nil, fmt.Errorf("start block %x not found", startNum)
 	}
 
+	// If the dirty dump in db, return it directly
+	d, err := blockchain.GetDirtyDump(startBlock.Root())
+	if err == nil {
+		return d, nil
+	}
+
+	// If not, calculate the dirty dump
 	stateDB, err := blockchain.StateAt(startBlock.Root())
 	if err != nil {
 		return nil, err
 	}
 
 	stateDB.StartDirtyStorage()
-	defer stateDB.StopDirtyStorage()
+	defer func() {
+		stateDB.StopDirtyStorage()
+		// update db only if the diff is 1 and err == nil
+		if err == nil && (*endNum-startNum) == 1 {
+			stateErr := blockchain.WriteDirtyDump(dump)
+			if stateErr != nil {
+				log.Warn("Failed to write dirty dump", "err", stateErr, "root", dump.Root)
+			} else {
+				log.Debug("Write dirty dump successfully", "root", dump.Root)
+			}
+		}
+	}()
 
 	processor := core.NewStateProcessor(config, blockchain, blockchain.Engine())
 	parent := startBlock
@@ -480,7 +498,7 @@ func GetDirtyStorage(config *params.ChainConfig, blockchain *core.BlockChain, st
 		}
 		parent = block
 	}
-	return stateDB.DumpDirtyStorage(), nil
+	return stateDB.DumpDirty(), nil
 }
 
 // GetModifiedAccountsByHash returns all accounts that have changed between the

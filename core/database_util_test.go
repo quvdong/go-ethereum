@@ -19,9 +19,11 @@ package core
 import (
 	"bytes"
 	"math/big"
+	"reflect"
 	"testing"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
 	"github.com/ethereum/go-ethereum/ethdb"
@@ -384,5 +386,49 @@ func TestBlockReceiptStorage(t *testing.T) {
 	DeleteBlockReceipts(db, hash, 0)
 	if rs := GetBlockReceipts(db, hash, 0); len(rs) != 0 {
 		t.Fatalf("deleted receipts returned: %v", rs)
+	}
+}
+
+func TestStorageDiff(t *testing.T) {
+	db, _ := ethdb.NewMemDatabase()
+
+	// Create a test body to move around the database and make sure it's really new
+	hash := common.HexToHash("01")
+	dump := &state.DirtyDump{
+		Root: common.Bytes2Hex(hash.Bytes()),
+		Accounts: map[string]state.DirtyDumpAccount{
+			"addr1": {
+				Balance: "100",
+				Nonce:   100,
+				Storage: map[string]string{
+					"key1": "value1",
+				},
+			},
+			"addr2": {
+				Balance: "200",
+				Nonce:   200,
+				Storage: map[string]string{
+					"key2": "value2",
+				},
+			},
+		},
+	}
+
+	_, err := GetDirtyDump(db, hash)
+	if err == nil {
+		t.Fatal("got unexpected dirty dump")
+	}
+
+	err = WriteDirtyDump(db, dump)
+	if err != nil {
+		t.Fatalf("failed to write dirty dump, err = %v", err)
+	}
+
+	d, err := GetDirtyDump(db, hash)
+	if err != nil {
+		t.Fatalf("failed to get dirty dump, err = %v", err)
+	}
+	if !reflect.DeepEqual(dump, d) {
+		t.Fatalf("mismatch dirty dump: have %v, want %v", d, dump)
 	}
 }
